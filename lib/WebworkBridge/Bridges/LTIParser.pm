@@ -6,6 +6,7 @@ use warnings;
 
 use XML::Simple;
 use WebworkBridge::Importer::Error;
+use WeBWorK::Debug;
 use Data::Dumper;
 
 ##### Exported Functions #####
@@ -47,15 +48,18 @@ sub parse
 		@members = @{$data->{'memberships'}{'member'}};
 	}
 
+	$course->{'profid'} = ""; # Initialize profid to empty string
+
 	foreach(@members)
 	{ # process members
 		if ($_->{'roles'} =~ /instructor/i)
 		{ # make note of the instructor for later
-			$course->{'profid'} = $_->{'user_id'};
+			$course->{'profid'} = $_->{'user_id'} . ',' . $course->{'profid'};
 		}
 		my %tmp = parseStudent($_);
 		push(@{$students}, \%tmp);
 	}
+	$course->{'profid'} = substr($course->{'profid'}, 0, -1); # rm extra comma 
 
 	return 0;
 }

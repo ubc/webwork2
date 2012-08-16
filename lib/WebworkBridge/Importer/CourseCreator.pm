@@ -78,7 +78,6 @@ sub runAddCourse
 
 sub createClassList
 {
-	# $profid, $proffirst, $proflast
 	my $self = shift;
 	my $r = $self->{r};	
 
@@ -95,14 +94,15 @@ sub createClassList
 	print FILE "# studentid, lastname, firstname, status, comment, section, recitation, email, loginid, password, permission\n";
 
 	# write students
-	my $profid = $course{profid};
+	# profid may be a comma separated list of ids, to support multiple profs
+	my @profid = split(/,/, $course{profid});
 	foreach my $i (@students)
 	{
 		my $id = $i->{'loginid'};
 		print FILE "$i->{'studentid'},"; # student id
 		print FILE "$i->{'lastname'},"; # last name
 		print FILE "$i->{'firstname'},"; # first name
-		($id eq $profid) ? print FILE "P," : print FILE "C,";
+		(grep $_ eq $id, @profid) ? print FILE "P," : print FILE "C,";
 		print FILE ","; # comment
 		print FILE ","; # section
 		print FILE ","; # recitation
@@ -114,7 +114,7 @@ sub createClassList
 		$i->{password} ? 
 			print FILE cryptPassword($i->{password})."," : 
 			print FILE ","; # password
-		($id eq $profid) ? print FILE "10\n" : print FILE "0\n";
+		(grep $_ eq $id, @profid) ? print FILE "10\n" : print FILE "0\n";
 	}
 
 	# add admin user
