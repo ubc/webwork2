@@ -27,7 +27,7 @@ sub parse
 
 	my $xml = new XML::Simple;
 
-	my $data = $xml->XMLin($param);
+	my $data = $xml->XMLin($param, SuppressEmpty=>'');
 
 	# only one person in the course
 	if ($data->{'statusinfo'}{'codemajor'} ne 'Success')
