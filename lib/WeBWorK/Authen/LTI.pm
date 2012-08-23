@@ -137,9 +137,16 @@ sub authenticate {
 		$self->{error} = "Unable to find a secret key that matches '$key'.";
 		return 0;
 	}
+	# need to make sure request_urls are terminated with /
+	my $request_url = $ce->{server_root_url} . $ce->{webwork_url};
+	if (substr($request_url, -1, 1) ne "/")
+	{
+		$request_url .= "/";
+	}
+	debug("Assuming the launch URL is ". $request_url);
 	my $request = Net::OAuth->request("request token")->from_hash(
 		\%hash_params,
-		request_url => $ce->{server_root_url} . $ce->{webwork_url} . "/",
+		request_url => $request_url,
 		request_method => 'POST',
 		consumer_secret => $ce->{bridge}{$key},
 		protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
@@ -148,7 +155,6 @@ sub authenticate {
 	{ 
 		$self->{log_error} = "Failed OAuth verification";
 		$self->{error} = "Failed OAuth verification";
-debug("bb");
 		return 0;
 	}
 	debug("LTI OAuth Verification Successful");

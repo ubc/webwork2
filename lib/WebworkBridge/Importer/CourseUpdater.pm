@@ -41,6 +41,7 @@ sub updateCourse
 	debug("Starting Student Update");
 	# Perform Setup
 	my $courseid = $self->{course}->{name}; # the course we're updating
+	my $courseprofs = $self->{course}->{profid}; # the profs of this course, csv
 	my @students = @{$self->{students}}; # deref pointer
 
 	if (!$ce->{"courseName"})
@@ -90,10 +91,8 @@ sub updateCourse
 		}
 		else
 		{ # Update component 2: newly enrolled student, have to add
-			my $ret = $self->addStudent($_, $db);
+			my $ret = $self->addUser($_, $db, $courseprofs);
 			$self->addlog("Student $id joined $courseid");
-			# assign all visible homeworks to user
-			$self->assignAllVisibleSetsToUser($id, $db);
 			if ($ret)
 			{
 				return $ret;
@@ -120,40 +119,50 @@ sub updateCourse
 }
 
 ##### Helper Functions #####
-sub addStudent
+sub addUser
 {
-	my ($self, $new_student_info, $db) = @_;
+	my ($self, $new_user_info, $db, $profs) = @_;
 	my $ce = $self->{r}->ce;
-	my $id = $new_student_info->{'loginid'};
+	my @profid = split(/,/, $profs); # array of profs in the course
+	my $id = $new_user_info->{'loginid'};
+	my $status = "C"; # defaults to enroled
+	my $role = $ce->{userRoles}{student}; # defaults to student
+
+	# modify status and role if user is a prof
+	if (grep $_ eq $id, @profid)
+	{
+		$status = "P";
+		$role = $ce->{userRoles}{professor};
+	}
 	
 	# student record
-	my $new_student = $db->{user}->{record}->new();
-	$new_student->user_id($id);
-	$new_student->first_name($new_student_info->{'firstname'});
-	$new_student->last_name($new_student_info->{'lastname'});
-	$new_student->email_address($new_student_info->{'email'});
-	$new_student->status("C");
-	$new_student->student_id($new_student_info->{'studentid'});
+	my $new_user = $db->{user}->{record}->new();
+	$new_user->user_id($id);
+	$new_user->first_name($new_user_info->{'firstname'});
+	$new_user->last_name($new_user_info->{'lastname'});
+	$new_user->email_address($new_user_info->{'email'});
+	$new_user->status($status);
+	$new_user->student_id($new_user_info->{'studentid'});
 	
 	# password record
 	my $cryptedpassword;
-	if ($new_student_info->{'password'})
+	if ($new_user_info->{'password'})
 	{
-		$cryptedpassword = cryptPassword($new_student_info->{'password'});
+		$cryptedpassword = cryptPassword($new_user_info->{'password'});
 	}
 	else
 	{
-		$cryptedpassword = cryptPassword($new_student->student_id());
+		$cryptedpassword = cryptPassword($new_user->student_id());
 	}
 	my $password = $db->newPassword(user_id => $id);
 	$password->password($cryptedpassword);
 	
 	# permission record
 	my $permission = $db->newPermissionLevel(user_id => $id, 
-		permission => $ce->{userRoles}{student});
+		permission => $role);
 
 	# commit changes to db
-	eval{ $db->addUser($new_student); };
+	eval{ $db->addUser($new_user); };
 	if ($@)
 	{
 		return "Add user for $id failed!\n";
@@ -169,6 +178,11 @@ sub addStudent
 		return "Add permission for $id failed!\n";
 	}
 
+	if ($role ne $ce->{userRoles}{professor})
+	{ # is a student, so must have all the homeworks
+		# assign all visible homeworks to user
+		$self->assignAllVisibleSetsToUser($id, $db);
+	}
 	return 0;
 }
 

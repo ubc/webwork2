@@ -110,7 +110,6 @@ sub createClassList
 			print FILE $i->{email} ."," : 
 			print FILE $self->getEmaillistEntry($i->{'studentid'}) .",";
 		print FILE "$id,"; # login id
-		#print FILE ","; # password TODO uncomment below, delete this line
 		$i->{password} ? 
 			print FILE cryptPassword($i->{password})."," : 
 			print FILE ","; # password
