@@ -20,7 +20,7 @@ use base qw(WeBWorK::ContentGenerator::Instructor);
 =head1 NAME
 
 WeBWorK::ContentGenerator::Instructor::Stats - Display statistics by user or
-homework set.
+homework set (including svg graphs).
 
 =cut
 
@@ -495,7 +495,80 @@ sub displaySets {
 			courseID => $courseName, setID => $setName, problemID => $probID);
 
     }
- 
+
+###################################################################################################
+#  Begin SVG bar graph showing the percentage of students with correct answers for each problem
+
+my $numberofproblems = scalar(@problemIDs); 
+my ($barwidth,$barsep) = (22, 4); # = total width (in pixels) used for each bar is $barwidth+2*$barsep
+my $totalbarwidth = $barwidth + 2*$barsep;
+my ($topmargin,$rightmargin,$bottommargin,$leftmargin) = (30, 20, 35, 40); # pixels
+my ($plotwindowwidth,$plotwindowheight) = ($numberofproblems*($barwidth+2*$barsep), 200); # pixels
+# since $plotwindowheight = 200, the height of each bar is 2*(percentagescore)
+if ( $plotwindowwidth < 450 ) { $plotwindowwidth = 450; }
+my $ylabelsep = 4; # pixels
+my ($imagewidth,$imageheight) = ($leftmargin+$plotwindowwidth+$rightmargin, $topmargin+$plotwindowheight+$bottommargin); # pixels
+my ($titlexpixel,$titleypixel) = ($leftmargin + sprintf("%d",$plotwindowwidth/2), $topmargin-10); # pixels
+my ($xaxislabelxpixel,$xaxislabelypixel) = ($titlexpixel,$imageheight-5); # pixels
+my $yaxislabelxpixel = $leftmargin-4; # pixel
+
+
+####################################
+# Create a string for the svg image
+
+my $svg = '';
+$svg = $svg . "<svg id=\"bargraph\" xmlns=\"http://www.w3.org/2000/svg\" xlink=\"http://www.w3.org/1999/xlink\" width=\"" . $imagewidth . "\" height=\"" . $imageheight ."\">\n";
+
+$svg = $svg . "<rect id=\"bargraphwindow\" x=\"0\" y=\"0\" width=\"". $imagewidth ."\" height=\"". $imageheight ."\" rx=\"20\" ry=\"20\" style=\"fill:white;stroke:888888;stroke-width:2;fill-opacity:0;stroke-opacity:1\" />\n";
+
+$svg = $svg . "<text id=\"bargraphtitle\" x=\"". $titlexpixel ."\" y=\"". $titleypixel ."\" font-family=\"sans-serif\" font-size=\"16\" fill=\"black\" text-anchor=\"middle\" font-weight=\"bold\">Percentage of Active Students with Correct Answers</text>\n";
+
+$svg = $svg . "<text id=\"bargraphxaxislabel\" x=\"". $xaxislabelxpixel ."\" y=\"". $xaxislabelypixel ."\" font-family=\"sans-serif\" font-size=\"14\" fill=\"black\" text-anchor=\"middle\" font-weight=\"normal\">Problem Number</text>\n";
+
+$svg = $svg . "<rect id=\"bargraphplotwindow\" x=\"". $leftmargin ."\" y=\"". $topmargin ."\" width=\"". $plotwindowwidth ."\" height=\"". $plotwindowheight ."\" style=\"fill:white;stroke:bbbbbb;stroke-width:1;fill-opacity:0;stroke-opacity:1\" />\n";
+
+my $yaxislabelypixel = 0;
+my $yaxislabel = "";
+foreach my $i (0..5) {
+    $yaxislabelypixel = $topmargin + 5 + ($i * sprintf("%d",$plotwindowheight/5));
+    $yaxislabel = 20*(5 - $i);
+    $svg = $svg . "<text id=\"bargraphylabel". $yaxislabel ."\" x=\"". $yaxislabelxpixel ."\" y=\"". $yaxislabelypixel ."\"  font-family=\"sans-serif\" font-size=\"12\" fill=\"black\" text-anchor=\"end\" font-weight=\"normal\">". $yaxislabel ." %</text>\n";
+}
+
+my $yaxisruleypixel = 0;
+my $yaxisrulerightxpixel = $leftmargin + $plotwindowwidth;
+foreach my $i (1..9) {
+    $yaxisruleypixel = $topmargin + ($i * sprintf("%d",$plotwindowheight/10));
+    $svg = $svg . "<line id=\"yline90\"  x1=\"". $leftmargin ."\" y1=\"". $yaxisruleypixel ."\"  x2=\"". $yaxisrulerightxpixel ."\" y2=\"". $yaxisruleypixel ."\"  style=\"stroke:bbbbbb;stroke-width:1;stroke-opacity:1\" />\n";
+}
+
+my $linkstring = "";
+my $percentcorrect = 0;
+my $problemnumber = 1;
+my $barheight = 0;
+my $barxpixel = 0;
+my $barypixel = 0;
+my $problabelxpixel = 0;
+my $problabelypixel = 0;
+foreach my $probID (@problemIDs) {
+    $linkstring = $self->systemLink($problemPage{$probID});
+    $percentcorrect = sprintf("%0.0f",100*$correct_answers_for_problem{$probID}/$number_of_students_attempting_problem{$probID});
+    $barheight = sprintf("%d", $percentcorrect * $plotwindowheight / 100 );
+    $barxpixel = $leftmargin + $probID * ($barwidth + 2*$barsep) + $barsep;
+    $barypixel = $topmargin + $plotwindowheight - $barheight;
+    $problabelxpixel = $leftmargin + ($probID-1) * $totalbarwidth + $barsep;
+    $problabelypixel = $topmargin + $plotwindowheight - $barheight;
+    $svg = $svg . "<a xlink:href=\"". $linkstring ."\" target=\"_blank\"><rect id=\"bar". $probID ."\" x=\"". $barxpixel ."\" y=\"". $barypixel ."\" width=\"". $barwidth ."\" height=\"". $barheight ."\" fill=\"rgb(0,153,198)\" /><text id=\"problem". $probID ."\" x=\"". $barxpixel ."\" y=\"". $barypixel ."\" font-family=\"sans-serif\" font-size=\"12\" fill=\"black\" text-anchor=\"middle\">". $probID ."</text></a>\n";
+}
+
+$svg = $svg . "</svg>";
+
+print CGI::p("$svg"); # insert SVG graph inside an html paragraph
+
+# End SVG bar graph showing the percentage of students with correct answers for each problem
+###################################################################################################
+
+
 #####################################################################################
 # Table showing the percentage of students with correct answers for each problems
 #####################################################################################

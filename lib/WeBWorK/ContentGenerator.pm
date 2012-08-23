@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright ï¿½ 2000-2012 The WeBWorK Project, http://github.com/openwebwork
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator.pm,v 1.196 2009/06/04 01:33:15 gage Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -56,8 +56,9 @@ use WeBWorK::Template qw(template);
 use WeBWorK::Localize;
 use mod_perl;
 use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
+use Scalar::Util qw(weaken);
 
-
+our $TRACE_WARNINGS = 0;   # set to 1 to trace channel used by warning message
 
 
 BEGIN {
@@ -93,6 +94,7 @@ sub new {
 		authz => $r->authz(), # with unconverted CGs
 		noContent => undef, # FIXME this should get clobbered at some point
 	};
+ 	weaken $self -> {r};
 	bless $self, $class;
 	return $self;
 }
@@ -481,13 +483,13 @@ sub content {
 	my $r = $self->r;
 	my $ce = $r->ce;
 	
-	my $themesDir = $ce->{webworkDirs}{templates};
+	my $themesDir = $ce->{webworkDirs}{themes};
 	my $theme = $r->param("theme") || $ce->{defaultTheme};
 	$theme = $ce->{defaultTheme} if $theme =~ m!(?:^|/)\.\.(?:/|$)!;
 	#$ce->{webworkURLs}->{stylesheet} = ($ce->{webworkURLs}->{htdocs})."/css/$theme.css";   # reset the style sheet
 	# the line above is clever -- but I think it is better to link directly to the style sheet from the system.template
 	# then the link between template and css is made in .template file instead of hard coded as above
-	# this means that the {stylesheet} option in global.conf is never used
+	# this means that the {stylesheet} option in defaults.config is never used
 	my $template = $self->can("templateName") ? $self->templateName : $ce->{defaultThemeTemplate};
 	my $templateFile = "$themesDir/$theme/$template.template";
 	
@@ -560,9 +562,12 @@ sub links {
 	my $eUserID   = $r->param("effectiveUser");
 	my $setID     = $urlpath->arg("setID");
 	my $problemID = $urlpath->arg("problemID");
-	
+	my $achievementID = $urlpath->arg("achievementID");
+
 	my $prettySetID = $setID;
+	my $prettyAchievementID = $achievementID;
 	$prettySetID =~ s/_/ /g if defined $prettySetID;
+	$prettyAchievementID =~ s/_/ /g if defined $prettyAchievementID;
 	
 	# it's possible that the setID and the problemID are invalid, since they're just taken from the URL path info
 	if ($authen->was_verified) {
@@ -699,6 +704,10 @@ sub links {
 			
 			print CGI::li(&$makelink("${pfx}Grades", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
 			
+			if ($ce->{achievementsEnabled}) {
+			    print CGI::li(&$makelink("${pfx}Achievements", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args)); 
+			}
+
 			if ($authz->hasPermissions($userID, "access_instructor_tools")) {
 				$pfx .= "Instructor::";
 				
@@ -706,10 +715,22 @@ sub links {
 				print &$makelink("${pfx}Index", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args);
 				print CGI::start_ul();
 				
-				print CGI::li(&$makelink("${pfx}UserList", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
+
+				print CGI::li(&$makelink("${pfx}UserList", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
+					if $ce->{showeditors}->{classlisteditor1};
+				print CGI::li(&$makelink("${pfx}UserList2", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
+					if $ce->{showeditors}->{classlisteditor2};;
+				print CGI::li(&$makelink("${pfx}UserList3", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
+					if $ce->{showeditors}->{classlisteditor3};;
+
 				
 				print CGI::start_li(); # Homework Set Editor
-				print &$makelink("${pfx}ProblemSetList", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args);
+				print &$makelink("${pfx}ProblemSetList", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args)
+					if $ce->{showeditors}->{homeworkseteditor1};
+				print "<br/>";
+				print &$makelink("${pfx}ProblemSetList2", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args)
+					if $ce->{showeditors}->{homeworkseteditor2};;
+				
 				## only show editor link for non-versioned sets
 				if (defined $setID && $setID !~ /,v\d+$/ ) {
 					print CGI::start_ul();
@@ -718,7 +739,20 @@ sub links {
 					
 					if (defined $problemID) {
 						print CGI::start_ul();
-						print CGI::li(&$makelink("${pfx}PGProblemEditor", text=>"$problemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor"));
+						print CGI::li(&$makelink("${pfx}PGProblemEditor", text=>"$problemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor1"))
+							if $ce->{showeditors}->{pgproblemeditor1};
+						print CGI::end_ul();
+					}
+					if (defined $problemID) {
+						print CGI::start_ul();
+						print CGI::li(&$makelink("${pfx}PGProblemEditor2", text=>"--$problemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor2"))
+							if $ce->{showeditors}->{pgproblemeditor2};;
+						print CGI::end_ul();
+					}
+					if (defined $problemID) {
+						print CGI::start_ul();
+						print CGI::li(&$makelink("${pfx}PGProblemEditor3", text=>"----$problemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor3"))
+							if $ce->{showeditors}->{pgproblemeditor3};;
 						print CGI::end_ul();
 					}
 					
@@ -727,8 +761,13 @@ sub links {
 				}
 				print CGI::end_li(); # end Homework Set Editor
 				
-				print CGI::li(&$makelink("${pfx}SetMaker", text=>$r->maketext("Library Browser"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
-				print CGI::li(&$makelink("${pfx}SetMaker2", text=>$r->maketext("Library Browser 2"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
+				print CGI::li(&$makelink("${pfx}SetMaker", text=>$r->maketext("Library Browser"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
+					if $ce->{showeditors}->{librarybrowser1};
+				print CGI::li(&$makelink("${pfx}SetMaker2", text=>$r->maketext("Library Browser 2"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
+					if $ce->{showeditors}->{librarybrowser2};
+				print CGI::li(&$makelink("${pfx}SetMaker3", text=>$r->maketext("Library Browser 3"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
+					if $ce->{showeditors}->{librarybrowser3};
+#print CGI::li(&$makelink("${pfx}Compare", text=>"Compare", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
 				print CGI::start_li(); # Stats
 				print &$makelink("${pfx}Stats", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args);
 				if ($userID ne $eUserID or defined $setID) {
@@ -769,6 +808,18 @@ sub links {
 					print CGI::li(&$makelink("${pfx}Scoring", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
 				}
 				
+				#Show achievement editor for instructors
+				if ($ce->{achievementsEnabled} && $authz->hasPermissions($userID, "edit_achievements")) {
+				    print CGI::li(&$makelink("${pfx}AchievementList", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
+				    if (defined $achievementID ) {
+					print CGI::start_ul();
+					print CGI::start_li(); # $achievementID
+					print &$makelink("${pfx}AchievementEditor", text=>"$prettyAchievementID", urlpath_args=>{%args,achievementID=>$achievementID}, systemlink_args=>\%systemlink_args);
+					print CGI::end_ul();
+				    }
+				    
+				}
+
 				if ($authz->hasPermissions($userID, "send_mail")) {
 					print CGI::li(&$makelink("${pfx}SendMail", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
 				}
@@ -964,11 +1015,12 @@ Print links to siblings of the current object.
 sub footer(){
 	my $self = shift;
 	my $r = $self->r;
-	
+	my $ce = $r->ce;
+	my $version = $ce->{WW_VERSION}||"unknown -- set version in defaults.config";
+	my $copyright_years = $ce->{WW_COPYRIGHT_YEARS}||"1996-2011";
 	print CGI::p({-id=>"last-modified"}, $r->maketext("Page generated at [_1]", timestamp($self)));
-	print CGI::div({-id=>"copyright"}, "WeBWorK &#169; 1996-2011", CGI::a({-href=>"http://webwork.maa.org/"}, $r->maketext("The WeBWorK Project")));
-	
-	return "";
+	print CGI::div({-id=>"copyright"}, "WeBWorK &#169; $copyright_years", "| version: $version |", CGI::a({-href=>"http://webwork.maa.org/"}, $r->maketext("The WeBWorK Project"), ));
+	return ""
 }
 
  
@@ -994,10 +1046,6 @@ can be done in the template itself.
 # }
 sub timestamp {
 	my ($self, $args) = @_;
-# 	my $r = $self->r;
-# 	my $ce = $r->ce;
-# 	my $tz = $ce->{siteDefaults}{timezone};
-# 	warn "testing", $r, $ce, $tz;
     # need to use the formatDateTime in this file (some subclasses access Util's version.
 	return( $self->formatDateTime( time() ) );
 }
@@ -1063,7 +1111,7 @@ The implementation in this package checks for a note in the request named
 sub warnings {
 	my ($self) = @_;
 	my $r = $self->r;
-	
+	print CGI::p("Entering ContentGenerator::warnings") if $TRACE_WARNINGS;
 	print "\n<!-- BEGIN " . __PACKAGE__ . "::warnings -->\n";
 	my $warnings = MP2 ? $r->notes->get("warnings") : $r->notes("warnings");
 	print $self->warningOutput($warnings) if $warnings;
@@ -1241,8 +1289,10 @@ handled.
 sub if_warnings {
 	my ($self, $arg) = @_;
 	my $r = $self->r;
-	
-	if (MP2 ? $r->notes->get("warnings") : $r->notes("warnings")) {
+
+	if ( (MP2 ? $r->notes->get("warnings") : $r->notes("warnings")) 
+	     or ($self->{pgerrors}) )  
+	{
 		return $arg;
 	} else {
 		!$arg;
@@ -1308,9 +1358,17 @@ sub pathMacro {
 		my $name = shift @path;
 		my $url = shift @path;
 		if ($url and not $args{textonly}) {
-			push @result, CGI::a({-href=>"$url?$auth"}, $r->maketext(lc($name)));
+		    if($args{style} eq "bootstrap"){
+		        push @result, CGI::li(CGI::a({-href=>"$url?$auth"}, $r->maketext(lc($name))));
+		    } else {
+			    push @result, CGI::a({-href=>"$url?$auth"}, $r->maketext(lc($name)));
+		    }
 		} else {
-			push @result, $r->maketext($name);
+		    if($args{style} eq "bootstrap"){
+                push @result, CGI::li({-class=>"active"}, $r->maketext($name));
+            } else {
+			    push @result, $r->maketext($name);
+			}
 		}
 	}
 	
@@ -1620,7 +1678,9 @@ sub hidden_fields {
 # 		$html .= CGI::hidden($param, @values);  #MEG
 # 		 warn "$param ", join(" ", @values) if @values >1; #this should never happen!!!
 		my $value  = $r->param($param);
-		$html .= CGI::hidden($param, $value); # (can't name these items when using real CGI) 
+#		$html .= CGI::hidden($param, $value); # (can't name these items when using real CGI) 
+		$html .= CGI::hidden(-name=>$param, -default=>$value, -id=>"hidden_".$param); # (can't name these items when using real CGI) 
+
 	}
 	return $html;
 }
@@ -1941,7 +2001,7 @@ problem rendering.
 sub errorOutput($$$) {
 	my ($self, $error, $details) = @_;
 	my $r = $self->{r};
-	
+	print "Entering ContentGenerator::errorOutput subroutine</br>" if $TRACE_WARNINGS;
 	my $time = time2str("%a %b %d %H:%M:%S %Y", time);
 	my $method = $r->method;
 	my $uri = $r->uri;
@@ -1999,7 +2059,7 @@ and content generation.
 sub warningOutput($$) {
 	my ($self, $warnings) = @_;
 	my $r = $self->{r};
-	
+	print "Entering ContentGenerator::warningOutput subroutine</br>" if $TRACE_WARNINGS;
 	my @warnings = split m/\n+/, $warnings;
 	foreach my $warning (@warnings) {
 		#$warning = escapeHTML($warning);  # this would prevent using tables in output from answer evaluators
@@ -2065,10 +2125,11 @@ $siteDefaults{timezone} is used.
 =cut
 
 sub formatDateTime {
-	my ($self, $dateTime, $display_tz) = @_;
+	my ($self, $dateTime, $display_tz,$formatString,$locale) = @_;
 	my $ce = $self->r->ce;
 	$display_tz ||= $ce->{siteDefaults}{timezone};
-	return WeBWorK::Utils::formatDateTime($dateTime, $display_tz);
+	$locale ||= $ce->{siteDefaults}{locale};
+	return WeBWorK::Utils::formatDateTime($dateTime, $display_tz,$formatString,$locale);
 }
 
 =item read_scoring_file($fileName)

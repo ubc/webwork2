@@ -32,7 +32,7 @@ our $HOST_NAME    = $WebworkWebservice::HOST_NAME;
 
 our $ce           =$WebworkWebservice::SeedCE;
 # create a local course environment for some course
-    $ce           = WeBWorK::CourseEnvironment->new($WW_DIRECTORY, "", "", $COURSENAME);
+    $ce           = WeBWorK::CourseEnvironment->new({webwork_dir=>$WW_DIRECTORY, courseName=> $COURSENAME});
 
 
 
@@ -56,7 +56,7 @@ my $tmp_directory_permission 	= 	$Global::tmp_directory_permission;
 my $numericalGroupID			=	$Global::numericalGroupID;  # group ID for webadmin
 
 sub tex2pdf {
-
+	my $self    =   shift;
 	my $rh 		= 	shift;
 	local($|)	=	1;
 	my $out 	= 	{};

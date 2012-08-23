@@ -95,13 +95,13 @@ unless ($webwork_dir) {
 	"\$WeBWorK::Constants::WEBWORK_DIRECTORY by webwork.apache-config or webwork.apache2-config\n";
 }
 
-# read the webwork2/conf/global.conf file to determine other parameters
+# read the webwork2/conf/defaults.config file to determine other parameters
 #
 my $seed_ce = new WeBWorK::CourseEnvironment({ webwork_dir => $webwork_dir });
 my $server_root_url = $seed_ce->{server_root_url};
 unless ($server_root_url) {
 	die "unable to determine apache server url using course environment |$seed_ce|.".
-	    "check that the variable \$server_root_url has been properly set in conf/global.conf\n";
+	    "check that the variable \$server_root_url has been properly set in conf/site.conf\n";
 }
 
 ############################
@@ -135,24 +135,30 @@ sub pre_header_initialize {
 	my ($self) = @_;
 	my $r = $self->r;
  
+ 	my %inputs_ref;
+	my @keys = $r->mutable_param;  # $r->param;
+	foreach my $key ( @keys ) {
+		$inputs_ref{$key} = $r->param("$key");
+	}
+	my $user_id      = $inputs_ref{userID};
+	my $session_key	 = $inputs_ref{session_key};
+	my $courseName   = $inputs_ref{courseID};
+
     #######################
     #  setup xmlrpc client
     #######################
     my $xmlrpc_client = new WebworkClient;
 
-	$xmlrpc_client->{encodedSource} = $r->param('problemSource') ; # this source has already been encoded
+	$xmlrpc_client->{encodedSource}   = $r->param('problemSource') ; # this source has already been encoded
 	$xmlrpc_client->url($XML_URL);
-	$xmlrpc_client->{form_action_url}= $FORM_ACTION_URL;
-	$xmlrpc_client->{displayMode}   = DISPLAYMODE();
-	$xmlrpc_client->{user}          = 'xmluser';
-	$xmlrpc_client->{password}      = $XML_PASSWORD;
-	$xmlrpc_client->{course}        = $XML_COURSE;
-	my %inputs_ref;
-	my @keys = $r->mutable_param;  # $r->param;
-	foreach my $key ( @keys ) {
-		$inputs_ref{$key} = $r->param("$key");
-	}
+	$xmlrpc_client->{form_action_url} = $FORM_ACTION_URL;
+	$xmlrpc_client->{displayMode}     = DISPLAYMODE();
+	$xmlrpc_client->{userID}          = $inputs_ref{userID};
+#	$xmlrpc_client->{password}        = $XML_PASSWORD;
+	$xmlrpc_client->{session_key}     = $inputs_ref{session_key};
+	$xmlrpc_client->{courseID}        = $inputs_ref{courseID};
 	
+
 	$xmlrpc_client->{inputs_ref} = \%inputs_ref;
 	# print STDERR WebworkClient::pretty_print($r->{paramcache});
 	
@@ -163,7 +169,7 @@ sub pre_header_initialize {
 	# from which it will eventually be returned to the browser
 	#
 	##############################
-	if ( $xmlrpc_client->xmlrpcCall('renderProblem') )    {
+	if ( $xmlrpc_client->xmlrpcCall('renderProblem', $xmlrpc_client->{inputs_ref}) )    {
 		$self->{output} = $xmlrpc_client->formatRenderedProblem;
 	} else {
 		$self->{output} = $xmlrpc_client->{output};  # error report

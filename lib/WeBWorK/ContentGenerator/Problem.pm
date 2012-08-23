@@ -41,6 +41,7 @@ use WeBWorK::DB::Utils qw(global2user user2global);
 use URI::Escape;
 use WeBWorK::Localize;
 use WeBWorK::Utils::Tasks qw(fake_set fake_problem);
+use WeBWorK::AchievementEvaluator;
 
 ################################################################################
 # CGI param interface to this module (up-to-date as of v1.153)
@@ -731,6 +732,20 @@ sub pre_header_initialize {
 	                    &&= $pg->{flags}->{showHintLimit}<=$pg->{state}->{num_of_incorrect_ans};
 	$can{showSolutions} &&= $pg->{flags}->{solutionExists};
 	
+	##### record errors #########
+	if (ref ($pg->{pgcore}) )  {
+		my @debug_messages     = @{$pg->{pgcore}->get_debug_messages};
+		my @warning_messages   = @{$pg->{pgcore}->get_warning_messages};
+		my @internal_errors    = @{$pg->{pgcore}->get_internal_debug_messages};
+		$self->{pgerrors}      = @debug_messages||@warning_messages||@internal_errors;  # is 1 if any of these are non-empty
+		$self->{pgdebug}       =    \@debug_messages;
+		$self->{pgwarning}     =    \@warning_messages;
+		$self->{pginternalerrors} = \@internal_errors ;
+	} else {
+		warn "Processing of this PG problem was not completed.  Probably because of a syntax error.
+		      The translator died prematurely and no PG warning messages were transmitted.";
+	}
+
 	##### store fields #####
 	
 	$self->{want} = \%want;
@@ -738,6 +753,36 @@ sub pre_header_initialize {
 	$self->{can}  = \%can;
 	$self->{will} = \%will;
 	$self->{pg} = $pg;
+}
+
+sub warnings {
+	my $self = shift;
+	# print "entering warnings() subroutine internal messages = ", $self->{pgerrors},CGI::br();
+ 	my $r  = $self->r;
+# 	my $pg = $self->{pg};
+# 	warn "type of pg is ",ref($pg);
+#  	my $pgerrordiv = $pgdebug||$pgwarning||$pginternalerrors;  # is 1 if any of these are non-empty
+    # print warning messages
+    if (not defined $self->{pgerrors} ) {
+    	print CGI::start_div();
+		print CGI::h3({style=>"color:red;"}, $r->maketext("PG question failed to render"));
+		print CGI::p($r->maketext("Unable to obtain error messages from within the PG question." ));
+		print CGI::end_div();
+    } elsif ( $self->{pgerrors} > 0 ) {
+        my @pgdebug          = @{ $self->{pgdebug}           };
+ 		my @pgwarning        = @{ $self->{pgwarning}         };
+ 		my @pginternalerrors = @{ $self->{pginternalerrors}  };
+		print CGI::start_div();
+		print CGI::h3({style=>"color:red;"}, $r->maketext("PG question processing error messages"));
+		print CGI::p(CGI::h3($r->maketext("PG debug messages" ) ),  join(CGI::br(), @pgdebug  )  )  if @pgdebug   ;
+		print CGI::p(CGI::h3($r->maketext("PG warning messages" ) ),join(CGI::br(), @pgwarning)  )  if @pgwarning ;	
+		print CGI::p(CGI::h3($r->maketext("PG internal errors" ) ), join(CGI::br(), @pginternalerrors )) if @pginternalerrors;
+		print CGI::end_div();
+	} 
+	# print "proceeding to SUPER::warnings";
+	$self->SUPER::warnings();
+	#  print $self->{pgerrors};
+	"";  #FIXME -- let's see if this is the appropriate output.
 }
 
 sub if_errors($$) {
@@ -752,9 +797,25 @@ sub if_errors($$) {
 
 sub head {
 	my ($self) = @_;
-
+	my $ce = $self->r->ce;
+	my $webwork_htdocs_url = $ce->{webwork_htdocs_url};
 	return "" if ( $self->{invalidSet} );
+	print qq{
+		<link rel="stylesheet" href="$webwork_htdocs_url/js/lib/vendor/keys/keys.css">
+		<script src="$webwork_htdocs_url/js/lib/vendor/keys/keys.js"></script>
+	};
+	#If we are using achievements then print the achievement css file
+	if ($ce->{achievementsEnabled}) {
+	    print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$ce->{webworkURLs}->{htdocs}/css/achievements.css\"/>";	
+	}
+        # Javascript and style for knowls
+        print qq{
+           <script type="text/javascript" src="$webwork_htdocs_url/js/jquery-1.7.1.min.js"></script> 
+           <link href="$webwork_htdocs_url/css/knowlstyle.css" rel="stylesheet" type="text/css" />
+           <script type="text/javascript" src="$webwork_htdocs_url/js/knowl.js"></script>};
+
 	return $self->{pg}->{head_text} if $self->{pg}->{head_text};
+
 }
 
 sub post_header_text {
@@ -897,7 +958,11 @@ sub body {
 	my $set = $self->{set};
 	my $problem = $self->{problem};
 	my $pg = $self->{pg};
-	
+
+	print CGI::p("Entering Problem::body subroutine.  
+	         This indicates an old style system.template file -- consider upgrading. ",
+	         caller(1), );
+
 	my $valid = WeBWorK::ContentGenerator::ProblemUtil::ProblemUtil::check_invalid($self);
 	unless($valid eq "valid"){
 		return $valid;
@@ -995,7 +1060,7 @@ sub output_editorLink{
 	my $pg              = $self->{pg};
 	
 	my $r = $self->r;
-	
+	my $ce = $r->ce;
 	my $authz = $r->authz;
 	my $urlpath = $r->urlpath;
 	my $user = $r->param('user');
@@ -1006,29 +1071,44 @@ sub output_editorLink{
 	# format as "[edit]" like we're doing with course info file, etc.
 	# add edit link for set as well.
 	my $editorLink = "";
+	my $editorLink2 = "";
+	my $editorLink3 = "";
 	# if we are here without a real homework set, carry that through
 	my $forced_field = [];
 	$forced_field = ['sourceFilePath' =>  $r->param("sourceFilePath")] if
 		($set->set_id eq 'Undefined_Set');
-	if ($authz->hasPermissions($user, "modify_problem_sets")) {
+	if ($authz->hasPermissions($user, "modify_problem_sets") and $ce->{showeditors}->{pgproblemeditor1}) {
 		my $editorPage = $urlpath->newFromModule("WeBWorK::ContentGenerator::Instructor::PGProblemEditor", $r, 
 			courseID => $courseName, setID => $set->set_id, problemID => $problem->problem_id);
 		my $editorURL = $self->systemLink($editorPage, params=>$forced_field);
-		$editorLink = CGI::p(CGI::a({href=>$editorURL,target =>'WW_Editor'}, $r->maketext("Edit this problem")));
+		$editorLink = CGI::span(CGI::a({href=>$editorURL,target =>'WW_Editor1'}, $r->maketext("Edit1")));
 	}
-	
+	if ($authz->hasPermissions($user, "modify_problem_sets") and $ce->{showeditors}->{pgproblemeditor2}) {
+		my $editorPage = $urlpath->newFromModule("WeBWorK::ContentGenerator::Instructor::PGProblemEditor2", $r, 
+			courseID => $courseName, setID => $set->set_id, problemID => $problem->problem_id);
+		my $editorURL = $self->systemLink($editorPage, params=>$forced_field);
+		$editorLink2 = CGI::span(CGI::a({href=>$editorURL,target =>'WW_Editor2'}, $r->maketext("Edit2")));
+	}
+	if ($authz->hasPermissions($user, "modify_problem_sets") and $ce->{showeditors}->{pgproblemeditor3}) {
+		my $editorPage = $urlpath->newFromModule("WeBWorK::ContentGenerator::Instructor::PGProblemEditor3", $r, 
+			courseID => $courseName, setID => $set->set_id, problemID => $problem->problem_id);
+		my $editorURL = $self->systemLink($editorPage, params=>$forced_field);
+		$editorLink3 = CGI::span(CGI::a({href=>$editorURL,target =>'WW_Editor3'}, $r->maketext("Edit3")));
+	}
 	##### translation errors? #####
 
 	if ($pg->{flags}->{error_flag}) {
 		if ($authz->hasPermissions($user, "view_problem_debugging_info")) {
 			print $self->errorOutput($pg->{errors}, $pg->{body_text});
+
+			print $editorLink, " ", $editorLink2, " ", $editorLink3;
 		} else {
 			print $self->errorOutput($pg->{errors}, $r->maketext("You do not have permission to view the details of this error."));
 		}
 		print "";
 	}
 	else{
-		print $editorLink;
+		print $editorLink, " ", $editorLink2, " ", $editorLink3;
 	}
 	return "";
 }
@@ -1062,8 +1142,8 @@ sub output_checkboxes{
 		),"&nbsp;";
 	}
 	if ($can{showHints}) {
-		print CGI::span({style=>"color:red"},
-			WeBWorK::CGI_labeled_input(
+
+		print WeBWorK::CGI_labeled_input(
 				-type	 => "checkbox",
 				-id		 => "showHints_id",
 				-label_text => $r->maketext("Show Hints"),
@@ -1078,7 +1158,6 @@ sub output_checkboxes{
 					-name    => "showHints",
 					-value   => 1,
 				}
-			)
 		),"&nbsp;";
 	}
 	if ($can{showSolutions}) {
@@ -1146,12 +1225,14 @@ sub output_submit_buttons{
 sub output_score_summary{
 	my $self = shift;
 	my $r = $self->r;
+	my $ce = $r->ce;
+	my $db = $r->db;
 	my $problem = $self->{problem};
 	my $set = $self->{set};
 	my $pg = $self->{pg};
 	my $scoreRecordedMessage = WeBWorK::ContentGenerator::ProblemUtil::ProblemUtil::process_and_log_answer($self) || "";
 	my $submitAnswers = $self->{submitAnswers};
-	
+
 	# score summary
 	warn "num_correct =", $problem->num_correct,"num_incorrect=",$problem->num_incorrect 
 	        unless defined($problem->num_correct) and defined($problem->num_incorrect) ;
@@ -1160,7 +1241,6 @@ sub output_score_summary{
 	my $problem_status    = $problem->status || 0;
 	my $lastScore = sprintf("%.0f%%", $problem_status * 100); # Round to whole number
 	my $attemptsLeft = $problem->max_attempts - $attempts;
-
 	
 	my $setClosed = 0;
 	my $setClosedMessage;
@@ -1181,6 +1261,7 @@ sub output_score_summary{
 	#		$setClosedMessage .= " Additional attempts will not be recorded.";
 	#	}
 	#}
+
 	unless (defined( $pg->{state}->{state_summary_msg}) and $pg->{state}->{state_summary_msg}=~/\S/) {
 		my $notCountedMessage = ($problem->value) ? "" : $r->maketext("(This problem will not count towards your grade.)");
 		print CGI::p(join("",
@@ -1213,18 +1294,18 @@ sub output_misc{
 	my %will = %{ $self->{will} };
 	my $user = $r->param('user');
 
-	print CGI::start_div();
-	
-	my $pgdebug = join(CGI::br(), @{$pg->{pgcore}->{flags}->{DEBUG_messages}} );
-	my $pgwarning = join(CGI::br(), @{$pg->{pgcore}->{flags}->{WARNING_messages}} );
-	my $pginternalerrors = join(CGI::br(),  @{$pg->{pgcore}->get_internal_debug_messages}   );
-	my $pgerrordiv = $pgdebug||$pgwarning||$pginternalerrors;  # is 1 if any of these are non-empty
-	
-	print CGI::p({style=>"color:red;"}, $r->maketext("Checking additional error messages")) if $pgerrordiv  ;
- 	print CGI::p("pg debug<br/> $pgdebug"                   ) if $pgdebug ;
-	print CGI::p("pg warning<br/>$pgwarning"                ) if $pgwarning ;	
-	print CGI::p("pg internal errors<br/> $pginternalerrors") if $pginternalerrors;
-	print CGI::end_div()                                      if $pgerrordiv ;
+# 	print CGI::start_div();
+# 	
+# 	my $pgdebug = join(CGI::br(), @{$pg->{pgcore}->{DEBUG_messages}} );
+# 	my $pgwarning = join(CGI::br(), @{$pg->{pgcore}->{WARNING_messages}} );
+# 	my $pginternalerrors = join(CGI::br(),  @{$pg->{pgcore}->get_internal_debug_messages}   );
+# 	my $pgerrordiv = $pgdebug||$pgwarning||$pginternalerrors;  # is 1 if any of these are non-empty
+# 	
+# 	print CGI::p({style=>"color:red;"}, $r->maketext("Checking additional error messages")) if $pgerrordiv  ;
+#  	print CGI::p($r->maketext("pg debug"),CGI::br(), $pgdebug                 )   if $pgdebug ;
+# 	print CGI::p($r->maketext("pg warning"),CGI::br(),$pgwarning                ) if $pgwarning ;	
+# 	print CGI::p($r->maketext("pg internal errors"),CGI::br(), $pginternalerrors) if $pginternalerrors;
+# 	print CGI::end_div()                                                          if $pgerrordiv ;
 	
 	# save state for viewOptions
 	print  CGI::hidden(
@@ -1255,13 +1336,35 @@ sub output_misc{
 		   		-name   => 'problemSeed',
 		   		-value  =>  $r->param("problemSeed")
 	))  if defined($r->param("problemSeed")) and $permissionLevel>= $professorPermissionLevel; # only allow this for professors
-	
+	#HACK FIXME
+	print q{
+		<script language="javascript"> 
+			var new_keyboard = new Keys([
+			{value: 'sqrt()',
+			 display: '$ \\\\sqrt{} $',
+			 behavior: 
+			 	function(input){
+            		input.selectionStart -= 1;
+            		input.selectionEnd -= 1;
+            		//this.focus();
+        		}
+			 
+			},
+			'^','=',			
+			'(',')','+','-','*','/',
+			'1','2','3','4','5','6','7','8','9','0',
+			'{','}','_'],
+			{debug:false}  ); 
+			new_keyboard.build();
+		</script>
+	};
 	return "";
 }
 
 # output_summary subroutine
 
-# prints out the summary of the questions that the student has answered for the current problem, along with available information about correctness
+# prints out the summary of the questions that the student has answered 
+# for the current problem, along with available information about correctness
 
 sub output_summary{
 	
@@ -1276,7 +1379,9 @@ sub output_summary{
 	my $previewAnswers = $self->{previewAnswers};
 	
 	my $r = $self->r;
-	
+	my $ce = $r->ce;
+	my $db = $r->db;
+
 	my $authz = $r->authz;
 	my $user = $r->param('user');
 	
@@ -1284,12 +1389,22 @@ sub output_summary{
 	#FIXME -- the following is a kludge:  if showPartialCorrectAnswers is negative don't show anything.
 	# until after the due date
 	# do I need to check $will{showCorrectAnswers} to make preflight work??
-	if (($pg->{flags}->{showPartialCorrectAnswers} >= 0 and $submitAnswers) ) {
-		# print this if user submitted answers OR requested correct answers
-		
-		print $self->attemptResults($pg, 1,
+
+	if (defined($pg->{flags}->{showPartialCorrectAnswers}) and ($pg->{flags}->{showPartialCorrectAnswers} >= 0 and $submitAnswers) ) {
+
+		# print this if user submitted answers OR requested correct answers	    
+	    my $results = $self->attemptResults($pg, 1,
 			$will{showCorrectAnswers},
 			$pg->{flags}->{showPartialCorrectAnswers}, 1, 1);
+
+           #If achievements enabled check to see if there are new ones.and print them
+	    if ($ce->{achievementsEnabled}) {
+		my $achievementMessage = WeBWorK::AchievementEvaluator::checkForAchievements($problem, $pg, $db, $ce);
+		print $achievementMessage;
+	    }
+
+	    print $results;
+
 	} elsif ($checkAnswers) {
 		# print this if user previewed answers
 		print CGI::div({class=>'ResultsWithError'},$r->maketext("ANSWERS ONLY CHECKED -- ANSWERS NOT RECORDED")), CGI::br();
@@ -1463,6 +1578,9 @@ sub output_JS{
 	my $ce = $r->ce;
 
 	my $site_url = $ce->{webworkURLs}->{htdocs};
+
+	# This adds the dragmath functionality
+	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/dragmath.js"}), CGI::end_script();
 	
 	# This file declares a function called addOnLoadEvent which allows multiple different scripts to add to a single onLoadEvent handler on a page.
 	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/addOnLoadEvent.js"}), CGI::end_script();

@@ -58,7 +58,7 @@ sub body {
 	print CGI::start_form(-method=>"POST", -action=>$r->uri);
 	print $self->hidden_authen_fields;
 	
-# disabled by compass
+#	disabled by compass
 #	print CGI::h2($r->maketext("Change Password"));
 #	
 #	if ($changeOptions and ($currP or $newP or $confirmP)) {
@@ -88,12 +88,7 @@ sub body {
 #					} else {
 #						print CGI::div({class=>"ResultsWithError"},
 #							CGI::p(
-#								$r->maketext("The passwords you entered in the 
-#								[_1] and [_2]
-#								fields don't match. Please retype your new password and try
-#								again.",
-#								CGI::b($r->maketext("[_1]'s New Password",$e_user_name)), 
-#								CGI::b($r->maketext("Confirm [_1]'s New Password",$e_user_name))) 
+#								$r->maketext("The passwords you entered in the [_1] and [_2] fields don't match. Please retype your new password and try again.", CGI::b($r->maketext("[_1]'s New Password",$e_user_name)), CGI::b($r->maketext("Confirm [_1]'s New Password",$e_user_name))) 
 #							),
 #						);
 #					}
@@ -104,11 +99,7 @@ sub body {
 #				}
 #			} else {
 #				print CGI::div({class=>"ResultsWithError"},
-#					CGI::p($r->maketext("The password you entered in the [_1] 
-#						field does not match your current
-#						password. Please retype your current password and try
-#						again.",
-#						CGI::b($r->maketext("[_1]'s Current Password",$user_name)))
+#					CGI::p($r->maketext("The password you entered in the [_1] field does not match your current password. Please retype your current password and try again.", CGI::b($r->maketext("[_1]'s Current Password",$user_name)))
 #					),
 #				);
 #			}
