@@ -113,6 +113,8 @@ sub get_credentials {
 	}
 
 	debug("All required parameters found!\n");
+    $self->{login_type} = "normal";
+    $self -> {credential_source} = "LTI";
 	
 	return 1;
 }
