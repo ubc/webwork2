@@ -56,13 +56,17 @@ sub updateCourse
 	
 	# Get already existing users in the database
 	my @userIDs;
-	eval { @userIDs = $db->listUsers(); };
+	my @usersList;
+	eval 
+	{ 
+		@userIDs = $db->listUsers(); 
+		@usersList = $db->getUsers(@userIDs);
+	};
 	if ($@)
 	{
 		return "Unable to list existing users for course: $courseid\n"
 	}
-	my %users = map { ("$_" => 1) } @userIDs;
-
+	my %users = map {($_->user_id => $_ )} @usersList;
 
 	# Update has 3 components 
 	#	1. Check existing users to see if we have anyone who dropped the course
@@ -77,8 +81,7 @@ sub updateCourse
 		my $id = $_->{'loginid'};
 		if (exists($users{$id}))
 		{ # existing student, only mess with them if they've been dropped 
-			delete($users{$id}); # this student is now safe from deletion
-			my $person = $db->getUser($id);
+			my $person = $users{$id};
 			if ($person->status() eq "D")
 			{ # Update Component 1: this person dropped the course 
 				# but re-registered
@@ -88,6 +91,7 @@ sub updateCourse
 				# assign all visible homeworks to user
 				$self->assignAllVisibleSetsToUser($id, $db);
 			}
+			delete($users{$id}); # this student is now safe from deletion
 		}
 		else
 		{ # Update component 2: newly enrolled student, have to add
@@ -104,7 +108,7 @@ sub updateCourse
 	# Update component 3: Mark dropped students as dropped
 	while (my ($key, $val) = each(%users))
 	{ # any students left in %users has been dropped
-		my $person = $db->getUser($key);
+		my $person = $val;
 		if ($person->status() eq "C" && $key ne "admin")
 		{ # only delete missing students
 			$person->status("D");
