@@ -54,7 +54,8 @@ sub parse
 	{ # process members
 		if ($_->{'roles'} =~ /instructor/i)
 		{ # make note of the instructor for later
-			$course->{'profid'} = $_->{'user_id'} . ',' . $course->{'profid'};
+			$course->{'profid'} = $_->{'person_sourcedid'} . ',' . 
+				$course->{'profid'};
 		}
 		my %tmp = parseStudent($_);
 		push(@{$students}, \%tmp);
@@ -74,7 +75,7 @@ sub parseStudent
 	$student{'firstname'} = $param{'person_name_given'};
 	$student{'lastname'} = $param{'person_name_family'};
 	$student{'studentid'} = $param{'user_id'};
-	$student{'loginid'} = $param{'user_id'};
+	$student{'loginid'} = $param{'person_sourcedid'};
 	$student{'email'} = $param{'person_contact_email_primary'};
 	$student{'password'} = "";
 	return %student;

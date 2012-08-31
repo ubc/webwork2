@@ -57,14 +57,14 @@ sub get_credentials {
 		$self->{error} = "$msgheader Undefined resource_link_id";
 		return 0;
 	}
-	if (!defined $r->param("user_id")) 
+	if (!defined $r->param("lis_person_sourcedid")) 
 	{ # required
-		$self->{log_error} = "$msgheader Undefined user_id";
-		$self->{error} = "$msgheader Undefined user_id";
+		$self->{log_error} = "$msgheader Undefined lis_person_sourcedid";
+		$self->{error} = "$msgheader Undefined lis_person_sourcedid";
 		return 0;
 	}
 	# set user id for the Authen module (inherited methods in particular)
-	$self->{user_id} = $r->param("user_id");
+	$self->{user_id} = $r->param("lis_person_sourcedid");
 
 	debug("Checking for required OAuth parameters\n");
 
