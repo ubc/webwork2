@@ -44,6 +44,7 @@ $shibboleth{mapping}{user_id} = "username";
 
 use strict;
 use warnings;
+use CGI qw/:standard/;
 use WeBWorK::Debug;
 use Data::Dumper;
 
@@ -95,6 +96,10 @@ sub get_credentials {
 			$self->{credential_source} = "params";
 		} else {
 			debug("Couldn't shib header or user_id");
+			my $q = new CGI;
+			my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url();
+			$self->{redirect} = $go_to;
+			print $q->redirect($go_to);
 			return 0;
 		}
 
