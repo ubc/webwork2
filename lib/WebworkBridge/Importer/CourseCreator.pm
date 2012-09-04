@@ -80,6 +80,7 @@ sub createClassList
 {
 	my $self = shift;
 	my $r = $self->{r};	
+	my $ce = $self->{r}->{ce};
 
 	my %course = %{$self->{course}};
 	my @students = @{$self->{students}};
@@ -102,7 +103,9 @@ sub createClassList
 		print FILE "$i->{'studentid'},"; # student id
 		print FILE "$i->{'lastname'},"; # last name
 		print FILE "$i->{'firstname'},"; # first name
-		(grep $_ eq $id, @profid) ? print FILE "P," : print FILE "C,";
+		($i->{'permission'} > $ce->{userRoles}{student}) ? 
+			print FILE "P," : 
+			print FILE "C,"; # status
 		print FILE ","; # comment
 		print FILE ","; # section
 		print FILE ","; # recitation
@@ -113,7 +116,7 @@ sub createClassList
 		$i->{password} ? 
 			print FILE cryptPassword($i->{password})."," : 
 			print FILE ","; # password
-		(grep $_ eq $id, @profid) ? print FILE "10\n" : print FILE "0\n";
+		print FILE "$i->{'permission'}\n"; # permission
 	}
 
 	# add admin user
