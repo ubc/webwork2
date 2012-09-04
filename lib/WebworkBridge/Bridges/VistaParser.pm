@@ -116,6 +116,7 @@ sub parseStudent
 		}
 	}
 	$student{'email'} = ""; # no email address from Vista, unfortunately
+	$student{'permission'} = $r->{ce}->{userRoles}{student};
 	unless (defined $student{'firstname'} && 
 			defined $student{'lastname'} &&
 			defined $student{'password'} &&

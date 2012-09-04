@@ -141,6 +141,7 @@ sub _runImport
 		lastname => $r->param('userlast'),
 		loginid => $course{'profid'},
 		studentid => substr($course{'profid'}, 1),
+		permission => $r->{ce}->{userRoles}{professor},
 		email => '',
 		password => '',
 	);
