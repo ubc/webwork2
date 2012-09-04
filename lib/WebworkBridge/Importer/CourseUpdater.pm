@@ -57,20 +57,23 @@ sub updateCourse
 	# Get already existing users in the database
 	my @userIDs;
 	my @usersList;
+	my @permsList;
 	eval 
 	{ 
 		@userIDs = $db->listUsers(); 
 		@usersList = $db->getUsers(@userIDs);
+		@permsList = $db->getPermissionLevels(@userIDs);
 	};
 	if ($@)
 	{
 		return "Unable to list existing users for course: $courseid\n"
 	}
+	my %perms = map {($_->user_id => $_ )} @permsList;
 	my %users = map {($_->user_id => $_ )} @usersList;
 
 	# Update has 3 components 
 	#	1. Check existing users to see if we have anyone who dropped the course
-	#		but decided to re-register.
+	#		but decided to re-register or if their info needs updating.
 	#	2. Add newly enrolled users
 	#	3. Mark dropped students as "dropped"
 
@@ -80,18 +83,9 @@ sub updateCourse
 	{
 		my $id = $_->{'loginid'};
 		if (exists($users{$id}))
-		{ # existing student, only mess with them if they've been dropped 
-			my $person = $users{$id};
-			if ($person->status() eq "D")
-			{ # Update Component 1: this person dropped the course 
-				# but re-registered
-				$person->status("C");
-				$db->putUser($person);
-				$self->addlog("Student $id rejoined $courseid");
-				# assign all visible homeworks to user
-				$self->assignAllVisibleSetsToUser($id, $db);
-			}
-			delete($users{$id}); # this student is now safe from deletion
+		{ # Update component 1: Update existing users
+			$self->updateUser($users{$id}, $_, $perms{$id}, $db);
+			delete($users{$id}); # this student is now safe from being dropped
 		}
 		else
 		{ # Update component 2: newly enrolled student, have to add
@@ -109,12 +103,14 @@ sub updateCourse
 	while (my ($key, $val) = each(%users))
 	{ # any students left in %users has been dropped
 		my $person = $val;
-		if ($person->status() eq "C" && $key ne "admin")
-		{ # only delete missing students
+		# only users with status C or P should be tracked by enrolment sync
+		if (($person->status() eq "C" || $person->status() eq "P") && 
+			$key ne "admin")
+		{ 
 			$person->status("D");
 			$db->putUser($person);
 			$self->addlog("Student $key dropped $courseid");
-			#$db->deleteUser($key); # doesn't seem to throw an exception
+			#$db->deleteUser($key); # we might delete users in the future
 		}
 	}
 	debug("Student Update From Vista Finished!\n");
@@ -123,6 +119,72 @@ sub updateCourse
 }
 
 ##### Helper Functions #####
+sub updateUser
+{
+	# permission is the current permission object, which can be updated
+	# if $newInfo contains new permission
+	my ($self, $oldInfo, $newInfo, $permission, $db) = @_;
+	my $ce = $self->{r}->ce;
+	my $courseid = $self->{course}->{name}; # the course we're updating
+	my $id = $oldInfo->user_id();
+
+	# Do the simple updates first since they can be batched
+	my $update = 0;
+	# Update student id
+	if ($newInfo->{'studentid'} ne $oldInfo->student_id())
+	{
+		$oldInfo->student_id($newInfo->{'studentid'});
+		$update = 1;
+	}
+	# Update email
+	if ($newInfo->{'email'} ne $oldInfo->email_address())
+	{
+		$oldInfo->email_address($newInfo->{'email'});
+		$update = 1;
+	}
+	# Update first name
+	if ($newInfo->{'firstname'} ne $oldInfo->first_name())
+	{
+		$oldInfo->first_name($newInfo->{'firstname'});
+		$update = 1;
+	}
+	# Update last name
+	if ($newInfo->{'lastname'} ne $oldInfo->last_name())
+	{
+		$oldInfo->last_name($newInfo->{'lastname'});
+		$update = 1;
+	}
+	# Batch update info
+	if ($update)
+	{
+		$db->putUser($oldInfo);
+	}
+	# Update permissions
+	if ($newInfo->{'permission'} != $permission->permission())
+	{
+		$permission->permission($newInfo->{'permission'});
+		$db->putPermissionLevel($permission);
+	}
+	# Update status
+	if ($oldInfo->status() eq "D")
+	{ # this person dropped the course but re-registered
+		if ($permission->permission() <= $ce->{userRoles}{student})
+		{
+			$oldInfo->status("C");
+			$db->putUser($oldInfo);
+			$self->addlog("Student $id rejoined $courseid");
+			# assign all visible homeworks to user
+			$self->assignAllVisibleSetsToUser($id, $db);
+		}
+		else
+		{
+			$oldInfo->status("P");
+			$db->putUser($oldInfo);
+			$self->addlog("Teaching staff $id rejoined $courseid");
+		}
+	}
+}
+
 sub addUser
 {
 	my ($self, $new_user_info, $db, $profs) = @_;
@@ -132,11 +194,12 @@ sub addUser
 	my $status = "C"; # defaults to enroled
 	my $role = $ce->{userRoles}{student}; # defaults to student
 
-	# modify status and role if user is a prof
-	if (grep $_ eq $id, @profid)
+	# modify status and role if user is a teaching staff
+	$role = $new_user_info->{'permission'};
+	if ($role == $ce->{userRoles}{professor} ||
+		$role == $ce->{userRoles}{ta})
 	{
-		$status = "P";
-		$role = $ce->{userRoles}{professor};
+		$status = "P"; # teaching staff status, doesn't get homework or graded
 	}
 	
 	# student record

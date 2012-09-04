@@ -21,8 +21,10 @@ sub new
 sub parse
 {
 	my ($self, $param) = @_;
+	my $ce = $self->{r}->ce;
 	my $course = $self->{course};
-	my $students = $self->{students};
+	# named students, but is actually the list of all users in the course
+	my $students = $self->{students}; 
 	%{$course} = ();
 	@{$students} = ();
 
@@ -52,12 +54,25 @@ sub parse
 
 	foreach(@members)
 	{ # process members
-		if ($_->{'roles'} =~ /instructor/i)
+		my %tmp = $self->parseUser($_);
+		# assign appropriate permissions based on roles
+		my $roles = $_->{'roles'};
+		if ($roles =~ /instructor/i ||
+			$roles =~ /contentdeveloper/i)
 		{ # make note of the instructor for later
 			$course->{'profid'} = $_->{'person_sourcedid'} . ',' . 
 				$course->{'profid'};
+			$tmp{'permission'} = $ce->{userRoles}{professor};
 		}
-		my %tmp = parseStudent($_);
+		elsif ($roles =~ /teachingassistant/i) 
+		{
+			$tmp{'permission'} = $ce->{userRoles}{ta};
+		}
+		else
+		{
+			$tmp{'permission'} = $ce->{userRoles}{student};
+		}
+		# store user info
 		push(@{$students}, \%tmp);
 	}
 	$course->{'profid'} = substr($course->{'profid'}, 0, -1); # rm extra comma 
@@ -67,9 +82,9 @@ sub parse
 
 ##### Helper Functions #####
 
-sub parseStudent
+sub parseUser
 {
-	my $tmp = shift;
+	my ($self, $tmp) = @_;
 	my %param = %{$tmp};
 	my %student;
 	$student{'firstname'} = $param{'person_name_given'};
