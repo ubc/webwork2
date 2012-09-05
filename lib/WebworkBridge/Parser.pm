@@ -59,31 +59,26 @@ sub getCourseName
 		$origname = $course;
 	}
 
-	# course name mapping has three levels, start from highest priority
-	# 1. custom course mapping 
- 	# 2. course mapping rules
-	# 3. using the name as is
-	for my $key (keys %{$ce->{bridge}{custom_course_mapping}})
+	# course name mapping has two levels, start from highest priority
+ 	# 1. course mapping rules
+	# 2. using the name as it is
+	for my $href (@{$ce->{bridge}{course_mapping_rules}}) 
 	{
-		if ($origname eq $key)
-		{
-			my $val = sanitizeCourseName($ce->{bridge}{custom_course_mapping}{$key});
-			debug("Using custom mapping for course '$origname' to '$val'");
-			return $val;
-		}
-	}
-
-	for my $key (keys %{$ce->{bridge}{course_mapping_rules}})
-	{
-		my $val = $ce->{bridge}{course_mapping_rules}{$key};
-		my $regex = qr/$key/;
-		if ($origname =~ $regex)
-		{
-			my $cname = eval($val);
-			my $ret = sanitizeCourseName($cname);
-			debug("Using mapping rules for course '$origname' to '$ret'");
-			return $ret;
-		}
+		for my $key ( keys %$href ) {
+			my $regex = qr/$key/;
+			if ($origname =~ $regex)
+			{
+				my $cname = eval($href->{$key});
+				# get the actual value of mapping if we don't need to eval it
+				if ($href->{$key} !~ /\$/) 
+				{
+					$cname = $href->{$key};
+				}
+				my $ret = sanitizeCourseName($cname);
+				debug("Using mapping rule '$key' for course '$origname' to '$ret'");
+				return $ret;
+			}
+		}	
 	}
 
 	# if no configuration, then we build our own course name 
