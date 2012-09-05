@@ -189,7 +189,8 @@ sub _isInstructor
 	my $self = shift;
 	my $r = $self->{r};
 
-	if ($r->param('roles') =~ /instructor/i)
+	if ($r->param('roles') =~ /instructor/i ||
+		$r->param('roles') =~ /contentdeveloper/i)
 	{
 		return 1;
 	}
