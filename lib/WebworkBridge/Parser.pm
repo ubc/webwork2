@@ -59,13 +59,30 @@ sub getCourseName
 		$origname = $course;
 	}
 
+	# course name mapping has three levels, start from highest priority
+	# 1. custom course mapping 
+ 	# 2. course mapping rules
+	# 3. using the name as is
 	for my $key (keys %{$ce->{bridge}{custom_course_mapping}})
 	{
 		if ($origname eq $key)
 		{
-			my $val = $ce->{bridge}{custom_course_mapping}{$key};
-			debug("Using mapping for course '$origname' to '$val'");
-			return sanitizeCourseName($val);
+			my $val = sanitizeCourseName($ce->{bridge}{custom_course_mapping}{$key});
+			debug("Using custom mapping for course '$origname' to '$val'");
+			return $val;
+		}
+	}
+
+	for my $key (keys %{$ce->{bridge}{course_mapping_rules}})
+	{
+		my $val = $ce->{bridge}{course_mapping_rules}{$key};
+		my $regex = qr/$key/;
+		if ($origname =~ $regex)
+		{
+			my $cname = eval($val);
+			my $ret = sanitizeCourseName($cname);
+			debug("Using mapping rules for course '$origname' to '$ret'");
+			return $ret;
 		}
 	}
 

@@ -400,6 +400,9 @@ $bridge{custom_course_mapping} = {
     'CTLT - CE Reporting Tool' => 'CTLT-CEReportingTool',
     'MATH 101 - Integral Calculus with Applications to Physical Sciences and Engineering - All T2 Sections - 2011W' => 'MATH101_2011W',
 };
+$bridge{course_mapping_rules} = {
+        '/[^.]*\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*).*/' => '$1_$2_$3_$4',
+}
 $bridge{course_template} = "";
 
 1; #final line of the file to reassure perl that it was read properly.

@@ -57,13 +57,13 @@ sub run
 	my $ce = $r->ce;
 
 	if ($r->param("lti_message_type") &&
-		$r->param("context_title"))
+		$r->param("context_label"))
 	{
 		debug("LTI detected\n");
 		# Check for course existence
 
 		my $parser = WebworkBridge::Bridges::LTIParser->new($r);
-		my $coursename = $parser->getCourseName($r->param("context_title"));
+		my $coursename = $parser->getCourseName($r->param("context_label"));
 		my $tmpce = WeBWorK::CourseEnvironment->new({
 				%WeBWorK::SeedCE,
 				courseName => $coursename
@@ -115,7 +115,7 @@ sub run
 	}
 	else
 	{
-		debug("LTI detected but unable to proceed, missing parameter 'context_title'.\n");
+		debug("LTI detected but unable to proceed, missing parameter 'context_label'.\n");
 	}
 
 }
@@ -219,7 +219,7 @@ sub _getAndParseRoster
 	{
 		return error("XML response received, but access denied.", "#e005");
 	}
-	$course_ref->{name} = $parser->getCourseName($r->param("context_title"));
+	$course_ref->{name} = $parser->getCourseName($r->param("context_label"));
 	$course_ref->{title} = $r->param("resource_link_title");
 	$course_ref->{id} = $r->param("resource_link_id");
 
