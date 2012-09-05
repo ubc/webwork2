@@ -136,8 +136,12 @@ sub updateUser
 		$oldInfo->student_id($newInfo->{'studentid'});
 		$update = 1;
 	}
-	# Update email
-	if ($newInfo->{'email'} ne $oldInfo->email_address())
+	# Update email, only students get updated, and the new email address 
+	# has to be non-empty
+	if (defined($newInfo->{'email'}) &&
+		$newInfo->{'permission'} == $ce->{userRoles}{student} &&
+		$newInfo->{'email'} ne "" &&
+		$newInfo->{'email'} ne $oldInfo->email_address())
 	{
 		$oldInfo->email_address($newInfo->{'email'});
 		$update = 1;

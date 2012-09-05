@@ -286,7 +286,7 @@ sub _verifyMessage()
 	my $ret = $ltiauthen->authenticate();
 	if (!$ret)
 	{
-		return error("Error: LTI message integrity could not verified. Check if the LTI launch URL has trailing slash.","#e015");
+		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");
 	}
 	return 0;
 }
