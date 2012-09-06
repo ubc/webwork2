@@ -37,8 +37,12 @@ $shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if the
 $shibboleth{manage_session_timeout} = 1; # allow shib to manage session time instead of webwork
 $shibboleth{hash_user_id_method} = "MD5"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url. 
 $shibboleth{hash_user_id_salt} = ""; # salt for hash function
-#define mapping between shib and webwork
-$shibboleth{mapping}{user_id} = "username";
+#define the attributes that we should look for user_id from
+$shibboleth{attributes} = [
+	'username',
+	'studentNumber',
+	'loginName',
+]; 
 
 =cut
 
@@ -72,28 +76,50 @@ sub get_credentials {
 		if ( $r->param("user") && ! $r->param("force_passwd_authen") ) {
 			return $self->SUPER::get_credentials( @_ );
 		}
-		
-		if ( defined ($ENV{$ce->{shibboleth}{session_header}}) && defined( $ENV{$ce->{shibboleth}{mapping}{user_id}} ) ) {
-			debug('Got shib header and user_id');
-			my $user_id = $ENV{$ce->{shibboleth}{mapping}{user_id}};
-			if ( defined ($ce->{shibboleth}{hash_user_id_method}) && 
-			     $ce->{shibboleth}{hash_user_id_method} ne "none" && 
-			     $ce->{shibboleth}{hash_user_id_method} ne "" ) {
-				use Digest;
-				my $digest  = Digest->new($ce->{shibboleth}{hash_user_id_method});
-				$digest->add(uc($user_id). ( defined $ce->{shibboleth}{hash_user_id_salt} ? $ce->{shibboleth}{hash_user_id_salt} : ""));
-				$user_id = $digest->hexdigest;
-			}
-			$self->{'user_id'} = $user_id;
-			$self->{r}->param("user", $user_id);
 
-			# set external auth parameter so that login.pm
-			#    knows not to rely on internal logins if
-			#    there's a check_user failure.
-			$self->{session_key}   = undef;
-			$self->{password}      = "youwouldneverpickthispassword";
-			$self->{login_type}    = "normal";
-			$self->{credential_source} = "params";
+		if ( defined ($ENV{$ce->{shibboleth}{session_header}})) {
+			debug('Got shib header and looking for user_id');
+			# loop through all attributes to find the one mapped to user_id 
+			foreach (@{$ce->{shibboleth}{attributes}}) {
+				my $key = $_;
+				if (defined( $ENV{$key} ) ) {
+					my $user_id;
+					# if we need hash the user_id
+					if ( defined ($ce->{shibboleth}{hash_user_id_method}) && 
+							$ce->{shibboleth}{hash_user_id_method} ne "none" && 
+							$ce->{shibboleth}{hash_user_id_method} ne "" ) {
+						use Digest;
+						my $digest  = Digest->new($ce->{shibboleth}{hash_user_id_method});
+						$digest->add($ENV{$key} . ( defined $ce->{shibboleth}{hash_user_id_salt} ? $ce->{shibboleth}{hash_user_id_salt} : ""));
+						$user_id = $digest->hexdigest;
+					} else {
+						$user_id = $ENV{$key};
+					}
+					
+					# got one match, login user
+					if ($db->getUser($user_id)) {
+						debug("Got user_id $user_id from shib attribute $key");
+						$self->{'user_id'} = $user_id;
+						$self->{r}->param("user", $user_id);
+
+						# set external auth parameter so that login.pm
+						#    knows not to rely on internal logins if
+						#    there's a check_user failure.
+						$self->{session_key}   = undef;
+						$self->{password}      = "youwouldneverpickthispassword";
+						$self->{login_type}    = "normal";
+						$self->{credential_source} = "params";
+						last;
+					}
+				}
+			} 
+
+			# no match, login failed
+			if (!defined($self->{'user_id'})) {
+				$self->{log_error} = "Access Denied.";
+				$self->{error} = "Access Denied.";
+				return 0;
+			}
 		} else {
 			debug("Couldn't shib header or user_id");
 			my $q = new CGI;
