@@ -66,10 +66,11 @@ sub getCourseName
 	{
 		for my $key ( keys %$href ) {
 			my $regex = qr/$key/;
+            my $need_eval = ($href->{$key} =~ /\$/);
 			if ($origname =~ $regex)
 			{
 				# get the actual value of mapping if we don't need to eval it
-                my $cname = ($href->{$key} !~ /\$/) ? $href->{$key} : eval($href->{$key});
+                my $cname = ($need_eval) ? eval($href->{$key}) : $href->{$key};
 				my $ret = sanitizeCourseName($cname);
 				debug("Using mapping rule '$key' for course '$origname' to '$ret'");
 				return $ret;
