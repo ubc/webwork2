@@ -41,7 +41,7 @@ foreach (@lines)
 	my $lcid = $line[1];
 	my $course = $line[2];
 
-	my $cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass.pl $userid $lcid $course";
+	my $cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_vista.pl $userid $lcid $course";
 	my $ret = `$cmd\n`;
 	if ($?)
 	{
