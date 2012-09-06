@@ -379,6 +379,7 @@ $bridge{vista_login_options} = {
 };
 $bridge{vista_importer} = $webworkDirs{root} . "/lib/WebworkBridge/Bridges/vistawebworksimporter.jar";
 $bridge{vista_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist";
+$bridge{lti_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist_lti";
 # If a student does not have an email address, we check this file to see if
 # we can manually enter a student id for them. Note that if the LMS provides
 # an email address, we ignore this file and uses the LMS provided one.

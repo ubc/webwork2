@@ -79,7 +79,11 @@ sub run
 				{
 					return $tmp;
 				}
-				#return $self->updateCourse(); #update everytime someone logs in
+
+				if ($r->param("ubc_auto_update"))
+				{
+					return $self->updateCourse(); 
+				}
 				return;
 			}
 			else
