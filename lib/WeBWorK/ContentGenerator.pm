@@ -1913,7 +1913,7 @@ sub systemLink {
     # when using a load balancer and SSL off-loading
     # Not sure why server_root_url is not used
     #$url = $r->ce->{apache_root_url} if $options{use_abs_url};
-    $url = $r->ce->{server_root_url}.$r->ce->{webwork_url};
+    $url = $r->ce->{server_root_url};
 	$url .= $r->location . $urlpath->path;
 	my $first = 1;
 	
