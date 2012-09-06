@@ -79,7 +79,8 @@ sub run
 				{
 					return $tmp;
 				}
-				return $self->updateCourse();
+				#return $self->updateCourse(); #update everytime someone logs in
+				return;
 			}
 			else
 			{
