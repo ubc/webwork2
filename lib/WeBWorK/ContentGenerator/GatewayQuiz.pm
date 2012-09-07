@@ -1792,9 +1792,12 @@ sub body {
 
 			# and show the score if we're allowed to do that
 			if ( $can{showScore} ) {
+				#print CGI::strong("Your score on this " .
+				#		  "$testNoun is ", 
+				#		  "$attemptScore/$totPossible.");
 				print CGI::strong("Your score on this " .
 						  "$testNoun is ", 
-						  "$attemptScore/$totPossible.");
+						  "$recordedScore/$totPossible.");
 			} else {
 				my $when = 
 					($set->hide_score eq 'BeforeAnswerDate')
@@ -1820,10 +1823,10 @@ sub body {
 	} elsif ( $checkAnswers ) {
 		if ( $can{showScore} ) {
 			print CGI::start_div({class=>'gwMessage'});
-			print CGI::strong("Your score on this (checked, not ",
-					  "recorded) submission is ",
-					  "$attemptScore/$totPossible."), 
-				CGI::br();
+			#print CGI::strong("Your score on this (checked, not ",
+			#		  "recorded) submission is ",
+			#		  "$attemptScore/$totPossible."), 
+			#	CGI::br();
 			print "The recorded score for this test is " .
 				"$recordedScore/$totPossible.  ";
 			print CGI::end_div();
