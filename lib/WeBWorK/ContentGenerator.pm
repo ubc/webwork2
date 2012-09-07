@@ -785,6 +785,24 @@ sub links {
 					print CGI::end_ul();
 				}
 				print CGI::end_li(); # end Stats
+				# old stats
+				print CGI::start_li(); # Stats_old
+				print &$makelink("${pfx}Stats_old", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args);
+				if ($userID ne $eUserID or defined $setID) {
+					print CGI::start_ul();
+					if ($userID ne $eUserID) {
+						print CGI::li(&$makelink("${pfx}Stats_old", text=>"$eUserID", urlpath_args=>{%args,statType=>"student",userID=>$eUserID}, systemlink_args=>\%systemlink_args));
+					}
+					if (defined $setID) {
+						# make sure we don't try to send a versioned
+						#    set id in to the Stats_old link
+						my ( $nvSetID ) = ( $setID =~ /(.+?)(,v\d+)?$/ );
+						my ( $nvPretty ) = ( $prettySetID =~ /(.+?)(,v\d+)?$/ );
+						print CGI::li(&$makelink("${pfx}Stats_old", text=>"$nvPretty", urlpath_args=>{%args,statType=>"set",setID=>$nvSetID}, systemlink_args=>\%systemlink_args));
+					}
+					print CGI::end_ul();
+				}
+				print CGI::end_li(); # end Stats_old
 				
 				print CGI::start_li(); # Student Progress
 				print &$makelink("${pfx}StudentProgress", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args);
@@ -1016,10 +1034,11 @@ sub footer(){
 	my $self = shift;
 	my $r = $self->r;
 	my $ce = $r->ce;
-	my $version = $ce->{WW_VERSION}||"unknown -- set version in defaults.config";
+	my $ww_version = $ce->{WW_VERSION}||"unknown -- set version in defaults.config";
+	my $pg_version = $ce->{PG_VERSION}||"unknown -- set version in defaults.config";
 	my $copyright_years = $ce->{WW_COPYRIGHT_YEARS}||"1996-2011";
 	print CGI::p({-id=>"last-modified"}, $r->maketext("Page generated at [_1]", timestamp($self)));
-	print CGI::div({-id=>"copyright"}, "WeBWorK &#169; $copyright_years", "| version: $version |", CGI::a({-href=>"http://webwork.maa.org/"}, $r->maketext("The WeBWorK Project"), ));
+	print CGI::div({-id=>"copyright"}, "WeBWorK &#169; $copyright_years", "| ww_version: $ww_version | pg_version: $pg_version|", CGI::a({-href=>"http://webwork.maa.org/"}, $r->maketext("The WeBWorK Project"), ));
 	return ""
 }
 

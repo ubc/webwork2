@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright ï¿½ 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/Instructor/Stats.pm,v 1.68 2007/08/13 22:59:56 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -552,13 +552,16 @@ my $problabelxpixel = 0;
 my $problabelypixel = 0;
 foreach my $probID (@problemIDs) {
     $linkstring = $self->systemLink($problemPage{$probID});
-    $percentcorrect = sprintf("%0.0f",100*$correct_answers_for_problem{$probID}/$number_of_students_attempting_problem{$probID});
+    
+    $percentcorrect = ($number_of_students_attempting_problem{$probID})?
+    	sprintf("%0.0f",100*$correct_answers_for_problem{$probID}/$number_of_students_attempting_problem{$probID})
+    	: 0;  #avoid division by zero
     $barheight = sprintf("%d", $percentcorrect * $plotwindowheight / 100 );
     $barxpixel = $leftmargin + $probID * ($barwidth + 2*$barsep) + $barsep;
     $barypixel = $topmargin + $plotwindowheight - $barheight;
     $problabelxpixel = $leftmargin + ($probID-1) * $totalbarwidth + $barsep;
     $problabelypixel = $topmargin + $plotwindowheight - $barheight;
-    $svg = $svg . "<a xlink:href=\"". $linkstring ."\" target=\"_blank\"><rect id=\"bar". $probID ."\" x=\"". $barxpixel ."\" y=\"". $barypixel ."\" width=\"". $barwidth ."\" height=\"". $barheight ."\" fill=\"rgb(0,153,198)\" /><text id=\"problem". $probID ."\" x=\"". $barxpixel ."\" y=\"". $barypixel ."\" font-family=\"sans-serif\" font-size=\"12\" fill=\"black\" text-anchor=\"middle\">". $probID ."</text></a>\n";
+    $svg = $svg . "<a xlink:href=\"". $linkstring ."\" target=\"_blank\"><rect id=\"bar". $probID ."\" x=\"". $barxpixel ."\" y=\"". $barypixel ."\" width=\"". $barwidth ."\" height=\"". $barheight ."\" fill=\"rgb(0,153,198)\" /><text id=\"problem". $probID ."\" x=\"". $problabelxpixel ."\" y=\"". $problabelypixel ."\" font-family=\"sans-serif\" font-size=\"12\" fill=\"black\" text-anchor=\"middle\">". $probID ."</text></a>\n";
 }
 
 $svg = $svg . "</svg>";
