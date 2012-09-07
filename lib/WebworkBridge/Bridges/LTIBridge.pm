@@ -80,10 +80,19 @@ sub run
 					return $tmp;
 				}
 
-				if ($r->param("ubc_auto_update"))
-				{
-					return $self->updateCourse(); 
-				}
+                # check roles to see if we can run update
+                if (defined($r->param('roles')) &&
+                    (defined($ce->{bridge}{update_class_on_login}) && $ce->{bridge}{update_class_on_login}) ||
+                    $r->param("ubc_auto_update")) {
+                    my @roles = split(/,/, $r->param("roles"));
+                    foreach my $role (@roles) {
+                        if ($ce->{bridge}{roles_can_update} =~ /$role/) {
+                            debug("The launch requset has role $role, so updating course.");
+                            return $self->updateCourse();
+                        }
+                    }
+                }
+
 				return;
 			}
 			else

@@ -83,7 +83,8 @@ my $request = Net::OAuth->request("request token")->new(
 		# extension params
 		ext_ims_lis_memberships_id => $courseID,# store
 		ext_ims_lis_memberships_url => $courseURL, # store
-		ubc_auto_update => 'true'
+        ubc_auto_update => 'true',
+        roles => 'AutoUpdater'
 	}
 );
 $request->sign;
