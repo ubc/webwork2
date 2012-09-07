@@ -151,7 +151,11 @@ sub template {
 				if ($cg->can($function)) {
 					my @result = $cg->$function({@args});
 					if (@result) {
-						print @result;
+                        {
+                            # suppress the warning when using gateway test, added by Compass
+                            no warnings 'uninitialized';
+                            print @result;
+                        }
 					} else {
 						warn "Template escape $function returned an empty list.";
 					}
