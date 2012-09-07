@@ -149,8 +149,11 @@ sub _runImport
 	push(@students, \%prof);
 
 	# store user data in loginlist
-	$self->_updateLoginList($course{'profid'}, $course{'id'}, $course{'name'}, 
-		$course{'vistaname'});
+	my $file = $r->ce->{bridge}{vista_loginlist};
+	$self->updateLoginList(
+		$file, 
+		($course{'profid'},$course{'id'},$course{'name'},$course{'vistaname'})
+	);
 	# make ce, check for course existence
 	my $tmpce = WeBWorK::CourseEnvironment->new({
 			%WeBWorK::SeedCE,
@@ -177,43 +180,6 @@ sub _runJavaImport
 
 	my $cmd = "java -jar $jar $profid $courseid";
 	return WebworkBridge::Importer::CourseCreator::customExec($cmd, $res);
-}
-
-sub _updateLoginList
-{
-	my ($self, $profid, $courseid, $course, $vistaname) = @_;
-
-	my $file = $self->{r}->ce->{bridge}{vista_loginlist};
-	my $time = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime);
-
-	my $info = "$profid\t$courseid\t$course\t$vistaname\t$time\n";
-
-	if (-e $file)
-	{
-		my $ret = open FILE, "+<$file";
-		if (!$ret)
-		{
-			return error("Update Login List Failed: Unable to open the loginlist file.","#e011");
-		}
-		my @lines = <FILE>;
-		foreach (@lines)
-		{
-			my @line = split(/\t/,$_);
-			if ($line[0] eq $profid && $line[1] eq $courseid)
-			{
-				return 0;
-			}
-		}
-		print FILE $info;
-		close FILE;
-	}
-	else
-	{
-		open FILE, ">$file";
-		print FILE $info;
-		close FILE;
-	}
-	return 0;
 }
 
 1;

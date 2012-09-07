@@ -91,4 +91,51 @@ sub updateCourse
 	return 0;
 }
 
+sub updateLoginList
+{
+	# fieldsList is required to have
+	# Element 0 as the user id
+	# Element 1 is the course name in webwork
+	# so that we can check duplicate entries
+	my ($self, $file, $fieldsList) = @_;
+	my @fields = @{$fieldsList};
+
+	my $time = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime);
+	my $info = "";
+
+	foreach (@fields)
+	{
+		$info .= "$_\t";
+	}
+	$info .= "$time\n";
+
+	if (-e $file)
+	{
+		my $ret = open FILE, "+<$file";
+		if (!$ret)
+		{
+			return error("Update Login List Failed. Unable to open the loginlist file: $file","#e011");
+		}
+		my @lines = <FILE>;
+		foreach (@lines)
+		{
+			my @line = split(/\t/,$_);
+			# if an entry already exists for the same course, ignore
+			if ($line[1] eq $fields[1])
+			{
+				return 0;
+			}
+		}
+		print FILE $info;
+		close FILE;
+	}
+	else
+	{
+		open FILE, ">$file";
+		print FILE $info;
+		close FILE;
+	}
+	return 0;
+}
+
 1;

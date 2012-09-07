@@ -142,6 +142,7 @@ sub getAuthenModule
 sub createCourse
 {
 	my $self = shift;
+	my $r = $self->{r};
 
 	my %course = ();
 	my @students = ();
@@ -162,6 +163,19 @@ sub createCourse
 	{
 		return error("Create course failed: $ret", "#e010");
 	}
+
+	# store LTI credentials for auto-update
+	my $file = $r->ce->{bridge}{lti_loginlist};
+	my @fields = (
+		$r->param('lis_person_sourcedid'),
+		$course{name},
+		$r->param('ext_ims_lis_memberships_id'),
+		$r->param('ext_ims_lis_memberships_url'),
+		$r->param('oauth_consumer_key'),
+		$r->param('context_label')
+	);
+	$self->updateLoginList($file, \@fields);
+
 	return 0;
 }
 
