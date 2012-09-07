@@ -18,6 +18,7 @@ BEGIN {
 		unless exists $ENV{WEBWORK_ROOT};
 	my $webwork_dir = $ENV{WEBWORK_ROOT};
 
+	$WeBWorK::Constants::WEBWORK_DIRECTORY = $ENV{WEBWORK_ROOT};
 	# link to WeBWorK code libraries
 	eval "use lib '$webwork_dir/lib'"; die $@ if $@;
 	eval "use WeBWorK::CourseEnvironment"; die $@ if $@;
