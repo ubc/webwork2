@@ -21,6 +21,7 @@ use strict;
 use warnings;
 use WeBWorK::Debug;
 use Net::OAuth;
+use utf8;
 
 sub get_credentials {
 	my $self = shift;
@@ -130,6 +131,7 @@ sub authenticate {
 	my %hash_params = ();
 	foreach my $key ($r->param) {
 		my $vals = $r->param($key);
+		utf8::decode($vals);
 		$hash_params{$key} = $vals;
 	}
 	my $key = $r->param('oauth_consumer_key');
