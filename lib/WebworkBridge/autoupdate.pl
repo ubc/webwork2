@@ -14,6 +14,14 @@ BEGIN
 use lib "$ENV{WEBWORK_ROOT}/lib";
 use WeBWorK::CourseEnvironment;
 
+# check params
+# LTI auto-updates are regular HTTP requests, there is no way
+# to know if it failed since the response we get back is just the Webwork
+# page. So we have this separate param to call another script that checks
+# if the LTI roster requests are actually successful. Right now, we're
+# not checking for any particular string, just that there is a param.
+my $check = shift;
+
 # bring up a minimal course environment
 my $ce = WeBWorK::CourseEnvironment->new({
 	webwork_dir => $ENV{WEBWORK_ROOT},
@@ -69,13 +77,22 @@ foreach (@lines)
 	my $courseURL = $line[3];
 	my $key = $line[4];
 
-	my $cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl $user $courseName $courseID $courseURL $key";
+	my $cmd;
+
+	if ($check)
+	{
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/checkclass_lti.pl $user $courseName $courseID $courseURL $key";
+	}
+	else
+	{
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl $user $courseName $courseID $courseURL $key";
+	}
 	my $ret = `$cmd\n`;
 	if ($?)
 	{
 		die "Autoupdate failed for $courseName.\n";
 	}
-	print "Autoupdate for $courseName done!\n";
+	print "Autoupdate for $courseName successful!\n";
 }
 
 close FILE;
