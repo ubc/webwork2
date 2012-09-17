@@ -388,7 +388,7 @@ $bridge{update_class_on_login} = 1;
 
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
-$bridge{roles_can_update} = 'Instructor AutoUpdater';
+$bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
 
 # If a student does not have an email address, we check this file to see if
 # we can manually enter a student id for them. Note that if the LMS provides
