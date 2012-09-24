@@ -1,9 +1,9 @@
-<p color=red>Having Trouble to Login?</p>
+<p><font color="red">Having Trouble to Login?</font></p>
 <ul>
     <li>Make sure you are loggin into correct course/section</li>
     <li>If you registered late, please allow upto 24 hours for the registration information to be processed to WeBWorK</li>
     <li>If you still get "Access Denied", please try to close your browser completed, including all windows and tabs. Then try again. Or try reboot your computer</li>
-    <li>Make sure you are registered into the correct section<li>
+    <li>Make sure you are registered into the correct section</li>
 </ul>
 
 <p>If above methods don't work, please send an email to webwork.support@ubc.ca with the following information:</p>
