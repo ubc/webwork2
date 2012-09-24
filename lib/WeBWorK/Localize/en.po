@@ -13,7 +13,7 @@ msgstr ""
 
 #
 msgid "_REDUCED_CREDIT_MESSAGE_1"
-msgstr "tr: This assignment has a Reduced Credit Period that begins %1 and ends on the due date, %2.  During this period all additional work done counts %3\% of the original."
+msgstr "tr: This assignment has a Reduced Credit Period that begins %1 and ends on the due date, %2.  During this period all additional work done counts %3\\% of the original."
 
 #
 msgid "_REQUEST_ERROR"
@@ -25,7 +25,7 @@ msgstr " This is the homework sets editor page where you can view and edit the h
 
 #
 msgid "_EXTERNAL_AUTH_MESSAGE"
-msgstr "<font color=\"red\">Access Denied</font>. You have successfully logged in to %1 but you do not have access to this course. <br /><br /> If you are experiencing any issues regarding WeBWorK, please contact webwork.support@ubc.ca. Or click on \"Courses\" link on the left to login to another course."
+msgstr "<font color=\"red\">Access Denied</font>. You have successfully logged in to %1 but you do not have access to this course. "
 
 #
 msgid "navProbList"
@@ -57,7 +57,7 @@ msgstr "This is the classlist editor page, where you can view and edit the recor
 
 #
 msgid "_REDUCED_CREDIT_MESSAGE_2"
-msgstr "This assignment had a Reduced Credit Period that began %1 and ended on the due date, %2.  During that period all additional work done counted %3\% of the original."
+msgstr "This assignment had a Reduced Credit Period that began %1 and ended on the due date, %2.  During that period all additional work done counted %3\\% of the original."
 
 #
 msgid "_LOGIN_MESSAGE"
