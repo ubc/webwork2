@@ -1,15 +1,23 @@
+<p color=red>Having Trouble to Login?</p>
+<ul>
+    <li>Make sure you are loggin into correct course/section</li>
+    <li>If you registered late, please allow upto 24 hours for the registration information to be processed to WeBWorK</li>
+    <li>If you still get "Access Denied", please try to close your browser completed, including all windows and tabs. Then try again. Or try reboot your computer</li>
+    <li>Make sure you are registered into the correct section<li>
+</ul>
+
+<p>If above methods don't work, please send an email to webwork.support@ubc.ca with the following information:</p>
+<ul>
+    <li>Your full name</li>
+    <li>Your emai</li>
+    <li>Your student ID</li>
+    <li>Your CWL username</li>
+    <li>Course and section you registered</li>
+</ul>
+
 <p>WeBWorK is an on-line homework system for delivering individualized homework problems over the web. It gives students instant feedback as to whether or not their answers are correct. Please click on a course below to login with your CWL account. You will only be able to login to the course you enrolled.</p>
 
 <img src="https://www.auth.cwl.ubc.ca/CWL_login_button.gif" width="76" height="25"
 alt="CWL Login" border="0" valign="middle">Please select the course on the left to login and login with your CWL account.
 
 <!--<p color=red>NOTE: There is a scheduled server maintenance on 10AM~11AM Nov. 13th. The webwork service will not be available during that time. If you have any question, please contact us at webwork.support\@ubc.ca. Sorry for the inconvenience.</p>-->
-
-<p>NOTE: If you have trouble to login to the system, please send an email with the following information to <a href=mailto:webwork.support@ubc.ca>webwork.support@ubc.ca</a> to activate your account.</p>
-<ul>
-<li>Your full name</li>
-<li>Your email</li>
-<li>Your student ID</li>
-<li>Your CWL username</li>
-<li>Course and section you registered</li>
-</ul>
