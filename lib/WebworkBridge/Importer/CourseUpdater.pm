@@ -113,7 +113,7 @@ sub updateCourse
 			#$db->deleteUser($key); # we might delete users in the future
 		}
 	}
-	debug("Student Update From Vista Finished!\n");
+	debug("Student Update Finished!\n");
 	debug(("-" x 80) . "\n");
 	return 0;
 }
