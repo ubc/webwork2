@@ -91,6 +91,7 @@ sub parseUser
 	$student{'lastname'} = $param{'person_name_family'};
 	$student{'studentid'} = $param{'user_id'};
 	$student{'loginid'} = $param{'person_sourcedid'};
+	$student{'sourcedid'} = $param{'lis_result_sourcedid'};
 	$student{'email'} = $param{'person_contact_email_primary'};
 	$student{'password'} = "";
 	return %student;

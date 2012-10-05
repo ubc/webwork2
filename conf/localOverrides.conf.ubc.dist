@@ -381,11 +381,6 @@ $bridge{vista_importer} = $webworkDirs{root} . "/lib/WebworkBridge/Bridges/vista
 $bridge{vista_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist";
 $bridge{lti_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist_lti";
 
-# the switch for launching LTI membership request on login
-# if the switch is off, the LTI requset has to have ubc_auto_update parameter to launch 
-# membership the request
-$bridge{update_class_on_login} = 1;
-
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
 $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';

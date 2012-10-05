@@ -4,20 +4,23 @@ use base qw(WebworkBridge::Bridge);
 ##### Library Imports #####
 use strict;
 use warnings;
+
+use UNIVERSAL 'isa';
+use Net::OAuth;
+use HTTP::Request::Common;
+use LWP::UserAgent;
+use Data::Dumper;
+
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
 
-use Net::OAuth;
-use HTTP::Request::Common;
-use LWP::UserAgent;
-
+use WebworkBridge::Exporter::GradesExport;
 use WebworkBridge::Importer::Error;
 use WebworkBridge::Parser;
 use WebworkBridge::Bridges::LTIParser;
 use WeBWorK::Authen::LTI;
-use Data::Dumper;
 
 # Constructor
 sub new 
@@ -79,21 +82,8 @@ sub run
 				{
 					return $tmp;
 				}
-
-                # check roles to see if we can run update
-                if (defined($r->param('roles')) &&
-                    (defined($ce->{bridge}{update_class_on_login}) && $ce->{bridge}{update_class_on_login}) ||
-                    $r->param("ubc_auto_update")) {
-                    my @roles = split(/,/, $r->param("roles"));
-                    foreach my $role (@roles) {
-                        if ($ce->{bridge}{roles_can_update} =~ /$role/) {
-                            debug("The launch requset has role $role, so updating course.");
-                            return $self->updateCourse();
-                        }
-                    }
-                }
-
-				return;
+                
+				return $self->updateCourse();
 			}
 			else
 			{
@@ -191,25 +181,172 @@ sub createCourse
 sub updateCourse
 {
 	my $self = shift;
+	my $r = $self->{r};
+	my $ce = $r->ce;
+
+	debug("Checking to see if we can update the course.");
+	# check roles to see if we can run update
+	if (!defined($r->param('roles')))
+	{
+		return error("LTI launch missing roles, NOT updating course.", "#e025");
+	}
+	my @roles = split(/,/, $r->param("roles"));
+	my $allowedUpdate = 0;
+	foreach my $role (@roles) 
+	{
+		if ($ce->{bridge}{roles_can_update} =~ /$role/) 
+		{
+			debug("Role $role allowed to update course.");
+			$allowedUpdate = 1;
+			last;
+		}
+	}
+	if (!$allowedUpdate)
+	{
+		return error("User not allowed to update course.");
+	}
 
 	my %course = ();
 	my @students = ();
 
-	my $ret = $self->_getAndParseRoster(\%course, \@students);
+	# try to update course enrolment
+	my $ret = $self->_updateCourseEnrolment(\%course, \@students);
+	if ($ret)
+	{ # failed to update course enrolment, stop here
+		debug("Course enrolment update failed, bailing.");
+		return $ret;
+	}
+
+	# try to push out grades back to the LMS
+	$ret = $self->_pushGrades(\@students);
+
+	return $ret;
+}
+
+# Push grades from Webwork to the lms
+sub _pushGrades()
+{
+	my ($self, $studentsList) = @_;
+	my $r = $self->{r};
+	unless ($r->param("ext_ims_lis_basic_outcome_url"))
+	{
+		debug("Server does not allow outcome submissions.\n");
+		return 0;
+	}
+
+	my %students = map {($_->{'loginid'} => $_)} @$studentsList;
+
+	my $grades = WebworkBridge::Exporter::GradesExport->new($r);
+	my $scores = $grades->getGrades();
+	while (my ($studentID, $records) = each(%$scores))
+	{
+		while (my ($setName, $setRecords) = each(%$records))
+		{
+			$self->_pushGrade($setName, $setRecords, $studentID, \%students);
+		}
+	}
+
+	return 0;
+}
+
+# Sync course enrolment from the lms with Webwork
+sub _updateCourseEnrolment()
+{
+	my ($self, $course, $students) = @_;
+
+	debug("Trying to update course enrolment.");
+	my $r = $self->{r};
+	unless ($r->param("ext_ims_lis_memberships_url"))
+	{
+		debug("Server does not allow roster retrival.\n");
+		return 0;
+	}
+
+	my $ret = $self->_getAndParseRoster($course, $students);
 	if ($ret)
 	{
 		return error("Get roster failed: $ret", "#e009");
 	}
 
-	if (@students) 
+	if (@$students) 
 	{
-		$ret = $self->SUPER::updateCourse(\%course, \@students);
+		$ret = $self->SUPER::updateCourse($course, $students);
 		if ($ret)
 		{
 			return error("Update course failed: $ret", "#e010");
 		}
 	}
 	return 0;
+}
+
+sub _pushGrade()
+{
+	my ($self, $name,  $record, $userid, $students) = @_;
+	if (ref($record) eq 'ARRAY')
+	{
+	}
+	else
+	{
+		if ($record->{status})
+		{
+			my $score = $record->{totalRight}. "/" .$record->{total};
+			$self->_ltiUpdateGrade($name, $score, $students->{$userid});
+		}
+	}
+}
+
+sub _ltiUpdateGrade()
+{
+	my ($self, $name, $score, $student) = @_;
+	my $r = $self->{r};
+	my $ce = $r->ce;
+
+	my $user = $student->{'sourcedid'} . ":$name";
+	my $courseURL = $r->param("ext_ims_lis_basic_outcome_url");
+	my $key = $r->param("oauth_consumer_key");
+	my $secret = $ce->{bridge}{$key};
+
+	my $request = Net::OAuth->request("request token")->new(
+		consumer_key => $key,
+		consumer_secret => $secret,
+		protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
+		request_url => $courseURL,
+		request_method => 'POST',
+		signature_method => 'HMAC-SHA1',
+		timestamp => time(),
+		nonce => rand(),
+		callback => 'about:blank',
+		extra_params => {
+			lti_version => 'LTI-1p0',
+			lti_message_type => 'basic-lis-updateresult',
+			sourcedid => $user,
+			result_resultscore_textstring => $score,
+			result_resultvaluesourcedid => 'ratio',
+			# Optional parameters, may not be supported
+			#result_resultscore_language => 'en_US',
+			#result_statusofresult => 'final',
+			#result_date => strftime("%Y-%m-%dT%H:%M:%S", gmtime(time())) . 'Z',
+			#result_datasource => 'blah'
+		}
+	);
+	$request->sign;
+
+	my $ua = LWP::UserAgent->new;
+	push @{ $ua->requests_redirectable }, 'POST';
+
+	my $res = $ua->post($courseURL, $request->to_hash);
+	if ($res->is_success) 
+	{
+		debug($res->content . "\n");
+		if ($res->content =~ /codemajor>Failure/)
+		{
+			debug("Grade update failed, unable to authenticate.");
+		}
+	}
+	else
+	{
+		debug("Grade update failed, POST request failed.");
+	}
 }
 
 sub _isInstructor
@@ -229,11 +366,6 @@ sub _getAndParseRoster
 {
 	my ($self, $course_ref, $students_ref) = @_;
 	my $r = $self->{r};
-	unless ($r->param("ext_ims_lis_memberships_url"))
-	{
-		debug("Server does not allow roster retrival.\n");
-		return 0;
-	}
 	
 	my $xml;
 	my $ret = $self->_getRoster(\$xml);
