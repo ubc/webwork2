@@ -71,7 +71,7 @@ sub getGrades
 		}
 	}
 
-	debug("Grades found: ". Dumper(\%scores));
+	#debug("Grades found: ". Dumper(\%scores));
 
 	return \%scores;
 }

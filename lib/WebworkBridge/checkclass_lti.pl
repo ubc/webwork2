@@ -78,7 +78,7 @@ push @{ $ua->requests_redirectable }, 'POST';
 my $res = $ua->post($courseURL, $request->to_hash);
 if ($res->is_success) 
 {
-	if ($res->content =~ /codemajor>Failure/)
+	if ($res->content =~ /codemajor>Failure/i)
 	{
 		die "Course update failed, unable to authenticate.";
 	}

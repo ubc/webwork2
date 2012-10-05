@@ -223,32 +223,6 @@ sub updateCourse
 	return $ret;
 }
 
-# Push grades from Webwork to the lms
-sub _pushGrades()
-{
-	my ($self, $studentsList) = @_;
-	my $r = $self->{r};
-	unless ($r->param("ext_ims_lis_basic_outcome_url"))
-	{
-		debug("Server does not allow outcome submissions.\n");
-		return 0;
-	}
-
-	my %students = map {($_->{'loginid'} => $_)} @$studentsList;
-
-	my $grades = WebworkBridge::Exporter::GradesExport->new($r);
-	my $scores = $grades->getGrades();
-	while (my ($studentID, $records) = each(%$scores))
-	{
-		while (my ($setName, $setRecords) = each(%$records))
-		{
-			$self->_pushGrade($setName, $setRecords, $studentID, \%students);
-		}
-	}
-
-	return 0;
-}
-
 # Sync course enrolment from the lms with Webwork
 sub _updateCourseEnrolment()
 {
@@ -279,22 +253,75 @@ sub _updateCourseEnrolment()
 	return 0;
 }
 
+# Push grades from Webwork to the lms
+sub _pushGrades()
+{
+	my ($self, $studentsList) = @_;
+	my $r = $self->{r};
+	unless ($r->param("ext_ims_lis_basic_outcome_url"))
+	{
+		debug("Server does not allow outcome submissions.\n");
+		return 0;
+	}
+
+	unless (defined($r->param('ext_ims_lis_resultvalue_sourcedids')) &&
+		$r->param('ext_ims_lis_resultvalue_sourcedids') =~ /ratio/i)
+	{
+		return error("Grade update failed: no ratio result support.", "#e021");
+	}
+
+	my %students = map {($_->{'loginid'} => $_)} @$studentsList;
+
+	my $grades = WebworkBridge::Exporter::GradesExport->new($r);
+	my $scores = $grades->getGrades();
+	while (my ($studentID, $records) = each(%$scores))
+	{
+		while (my ($setName, $setRecords) = each(%$records))
+		{
+			my $ret = $self->_pushGrade(
+				$setName, $setRecords, $studentID, \%students);
+			if ($ret)
+			{
+				return error("Grade update failed: $ret", "#e020");
+			}
+		}
+	}
+
+	return 0;
+}
+
+# There are two kinds of grades, gateway quizzes and regular
+# assignments. Gateway quizzes can have multiple attempts,
+# so we have to send more requests to deal with that.
+# Right now, gateway quiz attempts are marked with a _vN
+# in the name, where N is a number, e.g.: quiz1_v1 would be
+# a student's first attempt at quiz1
 sub _pushGrade()
 {
 	my ($self, $name,  $record, $userid, $students) = @_;
+	my $ret = "";
 	if (ref($record) eq 'ARRAY')
 	{
-	}
-	else
-	{
-		if ($record->{status})
+		my $i = 1;
+		foreach my $attempt (@$record)
 		{
-			my $score = $record->{totalRight}. "/" .$record->{total};
-			$self->_ltiUpdateGrade($name, $score, $students->{$userid});
+			my $score = $attempt->{totalRight}. "/" .$attempt->{total};
+			$ret .= $self->_ltiUpdateGrade(
+				$name."_v$i", $score, $students->{$userid});
+			$i++;
 		}
+		return $ret;
 	}
+
+	if ($record->{status})
+	{
+		my $score = $record->{totalRight}. "/" .$record->{total};
+		$ret = $self->_ltiUpdateGrade($name, $score, $students->{$userid});
+	}
+	return $ret;
 }
 
+# Perform the actual LTI request to send a grade to the LMS
 sub _ltiUpdateGrade()
 {
 	my ($self, $name, $score, $student) = @_;
@@ -337,15 +364,22 @@ sub _ltiUpdateGrade()
 	my $res = $ua->post($courseURL, $request->to_hash);
 	if ($res->is_success) 
 	{
-		debug($res->content . "\n");
-		if ($res->content =~ /codemajor>Failure/)
+		debug($res->content);
+		if ($res->content =~ /codemajor>Failure/i)
 		{
-			debug("Grade update failed, unable to authenticate.");
+			return "Grade update failed for $user, unable to authenticate.";
 		}
+		elsif ($res->content =~ /codeminor>User not found/i)
+		{
+			return "Grade update failed for $user, can't find user.";
+		}
+		debug("Grade update successful for $user.");
+		return "";
 	}
 	else
 	{
-		debug("Grade update failed, POST request failed.");
+		return "Grade update failed, POST request failed.";
+
 	}
 }
 
