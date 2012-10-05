@@ -112,10 +112,6 @@ sub info {
 	}
 }
 
-sub links {
-	my @return = (" ");
-	return( @return);
-}
 
 sub body {
 	my ($self) = @_;

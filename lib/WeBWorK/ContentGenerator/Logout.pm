@@ -97,10 +97,6 @@ sub if_loggedin {
 	return 1;
 }
 
-## suppress links
-sub links {
-	return "";
-}
 
 sub path {
 	my ($self, $args) = @_;
