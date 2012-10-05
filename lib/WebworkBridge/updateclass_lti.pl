@@ -24,7 +24,7 @@ BEGIN {
 	eval "use WeBWorK::CourseEnvironment"; die $@ if $@;
 }
 
-if (scalar(@ARGV) != 5) 
+if (scalar(@ARGV) < 5) 
 {
 	print "Parameter count incorrect, please enter all parameters:";
 	print "\nupdateclass UserID CourseName CourseID CourseURL Key\n";
@@ -33,6 +33,7 @@ if (scalar(@ARGV) != 5)
 	print "\nCourseID - The course's ID in the site we're updating from.";
 	print "\nCourseURL - The url we submit LTI membership requests to.";
 	print "\nKey - The consumer key to use for calculation LTI OAuth hash.\n";
+	print "\nGrades (Optional) - If given, will try to send grades to LMS.\n";
 	print "\ne.g.: updateclass A1B2C3D4 Math100-100 _100_1 https://lms.ubc.ca/lti/membership LTISecret\n";
 	exit();
 }
@@ -42,6 +43,7 @@ my $courseName = shift;
 my $courseID = shift;
 my $courseURL = shift;
 my $key = shift;
+my $grade = shift;
 
 # bring up a minimal course environment
 my $ce = WeBWorK::CourseEnvironment->new({
@@ -59,6 +61,13 @@ my $request_url = $ce->{server_root_url} . $ce->{webwork_url};
 if (substr($request_url, -1, 1) ne "/")
 {
 	$request_url .= "/";
+}
+
+my %gradeParams;
+if (defined($grade))
+{
+	$gradeParams{'ext_ims_lis_basic_outcome_url'} = $courseURL;
+	$gradeParams{'ext_ims_lis_resultvalue_sourcedids'} = "ratio";
 }
 
 my $request = Net::OAuth->request("request token")->new(
@@ -85,7 +94,8 @@ my $request = Net::OAuth->request("request token")->new(
 		ext_ims_lis_memberships_id => $courseID,# store
 		ext_ims_lis_memberships_url => $courseURL, # store
         ubc_auto_update => 'true',
-        roles => 'AutoUpdater'
+        roles => 'AutoUpdater',
+		%gradeParams
 	}
 );
 $request->sign;
