@@ -270,12 +270,14 @@ use constant FIELD_PROPERTIES => {
 		type      => "edit",
 		size      => 6,
 		override  => "any",
+                default => "1",
 	},
 	max_attempts => {
 		name      => "Max&nbsp;attempts",
 		type      => "edit",
 		size      => 6,
 		override  => "any",
+                default => "unlimited",
 		labels    => {
 				"-1" => "unlimited",
 		},
@@ -292,7 +294,7 @@ use constant FIELD_PROPERTIES => {
 		type      => "edit",
 		size      => 6,
 		override  => "one",
-		default   => 0,
+		default   => "0",
 	},
 	attempted => {
 		name      => "Attempted",
@@ -303,7 +305,7 @@ use constant FIELD_PROPERTIES => {
 				1 => "Yes",
 				0 => "No",
 		},
-		default   => 0,
+		default   => "0",
 	},
 	last_answer => {
 		name      => "Last Answer",
@@ -314,13 +316,13 @@ use constant FIELD_PROPERTIES => {
 		name      => "Correct",
 		type      => "hidden",
 		override  => "none",
-		default   => 0,
+		default   => "0",
 	},
 	num_incorrect => {
 		name      => "Incorrect",
 		type      => "hidden",
 		override  => "none",
-		default   => 0,
+		default   => "0",
 	},	
 };
 
@@ -989,9 +991,9 @@ sub initialize {
 
 					if (defined $override && $override eq $field) {
 
-						my $param = $r->param("set.$setID.$field");
-						$param = $properties{$field}->{default} || "" unless defined $param && $param ne "";
-						my $unlabel = $undoLabels{$field}->{$param};
+					    my $param = $r->param("set.$setID.$field");
+					    $param = defined $properties{$field}->{default} ? $properties{$field}->{default} : "" unless defined $param && $param ne "";
+					    my $unlabel = $undoLabels{$field}->{$param};
 						$param = $unlabel if defined $unlabel;
 #						$param = $undoLabels{$field}->{$param} || $param;
 						if ($field =~ /_date/) {
@@ -1097,8 +1099,7 @@ sub initialize {
 				next unless canChange($forUsers, $field);
 
 				my $param = $r->param("set.$setID.$field");
-				$param = $properties{$field}->{default} || "" unless defined $param && $param ne "";
-
+				$param = defined $properties{$field}->{default} ? $properties{$field}->{default} : "" unless defined $param && $param ne "";
 				my $unlabel = $undoLabels{$field}->{$param};
 				$param = $unlabel if defined $unlabel;
 				if ($field =~ /_date/) {
@@ -1285,7 +1286,7 @@ sub initialize {
 						if (defined $override && $override eq $field) {
 
 							my $param = $r->param("problem.$problemID.$field");
-							$param = $properties{$field}->{default} || "" unless defined $param && $param ne "";
+							$param = defined $properties{$field}->{default} ? $properties{$field}->{default} : "" unless defined $param && $param ne "";
 							my $unlabel = $undoLabels{$field}->{$param};
 							$param = $unlabel if defined $unlabel;
 												#protect exploits with source_file
@@ -1311,7 +1312,7 @@ sub initialize {
 						next unless canChange($forUsers, $field);
 
 						my $param = $r->param("problem.$problemID.$field");
-						$param = $properties{$field}->{default} || "" unless defined $param && $param ne "";
+						$param = defined $properties{$field}->{default} ? $properties{$field}->{default} : "" unless defined $param && $param ne "";
 						my $unlabel = $undoLabels{$field}->{$param};
 						$param = $unlabel if defined $unlabel;
 											#protect exploits with source_file
@@ -1344,7 +1345,7 @@ sub initialize {
 					next unless canChange($forUsers, $field);
 
 					my $param = $r->param("problem.$problemID.$field");
-					$param = $properties{$field}->{default} || "" unless defined $param && $param ne "";
+					$param = defined $properties{$field}->{default} ? $properties{$field}->{default} : "" unless defined $param && $param ne "";
 					my $unlabel = $undoLabels{$field}->{$param};
 					$param = $unlabel if defined $unlabel;
 					
@@ -1388,7 +1389,7 @@ sub initialize {
 							next unless canChange($forUsers, $field);
 
 							my $param = $r->param("problem.$problemID.$field");
-							$param = $properties{$field}->{default} || "" unless defined $param && $param ne "";
+							$param = defined $properties{$field}->{default} ? $properties{$field}->{default} : "" unless defined $param && $param ne "";
 							my $unlabel = $undoLabels{$field}->{$param};
 							$param = $unlabel if defined $unlabel;
 							$changed ||= changed($record->$field, $param);
@@ -2052,23 +2053,51 @@ sub body {
 					problem_list => [$problemFile],     #  [$problemRecord->source_file],
 				);
 			}
-
 			# we want to show the "Try It" and "Edit It" links if there's a 
 			#    well defined problem to view; this is when we're editing a 
 			#    homework set, or if we're editing a gateway set version, or 
 			#    if we're editing a gateway set and the problem is not a 
-			#    group problem
+			#    group problem		
+
+			# we also want "needs grading" or "regrade" links for problems which
+			# have essay questions.  
+	
 			my $showLinks = ( ! $isGatewaySet || 
 					  ( $editingSetVersion || $problemFile !~ /^group/ ));
-
-
+			
+			my $gradingLink = "";
+			if ($showLinks) {
+			    my @setUsers = $db->listSetUsers($setID);
+			    my $gradeable = 0;
+			    my $needs_grading = 0;
+			    foreach my $userID (@setUsers)  {
+				my $userProblem = $db->getUserProblem($userID,$setID,$problemID);
+				if ($userProblem->flags =~ /needs_grading/) {
+				    $needs_grading = 1;
+				    $gradeable = 1;
+				    last;
+				} elsif ($userProblem->flags =~ /graded/) {
+				    $gradeable=1;
+				}
+				
+			    }
+			    if ($gradeable) {
+				
+				my $gradeProblemPage = $urlpath->new(type => 'instructor_problem_grader', args => { courseID => $courseID, setID => $fullSetID, problemID => $problemID });
+				$gradingLink = CGI::Tr({}, CGI::td({}, CGI::a({href => $self->systemLink($gradeProblemPage)}, $needs_grading ? "Needs Grading" : "Regrade")));
+			}
+			
+		}
+		
+			
 			print CGI::Tr({}, CGI::td({}, [
 				CGI::start_table({border => 0, cellpadding => 1}) .
-					CGI::Tr({}, CGI::td({}, problem_number_popup($problemID, $maxProblemNumber))) .
+				CGI::Tr({}, CGI::td({}, problem_number_popup($problemID, $maxProblemNumber))) .
 					CGI::Tr({}, CGI::td({}, 
 							    $showLinks ? CGI::a({href => $editProblemLink, target=>"WW_Editor"}, $r->maketext("Edit it")) : "" )) .
 					CGI::Tr({}, CGI::td({}, 
 							    $showLinks ? CGI::a({href => $viewProblemLink, target=>"WW_View"}, $r->maketext("Try it") . ($forOneUser ? " (as $editForUser[0])" : "")) : "" )) .
+						      $gradingLink . 
 					($forUsers ? "" : CGI::Tr({}, CGI::td({}, CGI::checkbox({name => "deleteProblem", value => $problemID, label => $r->maketext("Delete it?")})))) .
 #					CGI::Tr({}, CGI::td({}, "Delete&nbsp;it?" . CGI::input({type => "checkbox", name => "deleteProblem", value => $problemID}))) .
 					($forOneUser ? "" : CGI::Tr({}, CGI::td({}, CGI::checkbox({name => "markCorrect", value => $problemID, label => $r->maketext("Mark Correct?")})))) .
