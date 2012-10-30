@@ -203,7 +203,7 @@ sub updateCourse
 	}
 	if (!$allowedUpdate)
 	{
-		return error("User not allowed to update course.");
+		return error("User not allowed to update course.", "#e022");
 	}
 
 	my %course = ();

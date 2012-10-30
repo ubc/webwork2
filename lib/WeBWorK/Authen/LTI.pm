@@ -21,7 +21,7 @@ use strict;
 use warnings;
 use WeBWorK::Debug;
 use Net::OAuth;
-use utf8;
+use Encode qw(decode);
 
 sub get_credentials {
 	my $self = shift;
@@ -129,9 +129,12 @@ sub authenticate {
 	# OAuth verification
 	# convert the param object into a hash for passing into OAuth object
 	my %hash_params = ();
-	foreach my $key ($r->param) {
+	foreach my $key ($r->param) 
+	{
 		my $vals = $r->param($key);
-		utf8::decode($vals);
+		# let's hope incoming text is UTF-8 or signature calculation will fail
+		$key = decode('UTF-8', $key); 
+		$vals = decode('UTF-8', $vals); 
 		$hash_params{$key} = $vals;
 	}
 	my $key = $r->param('oauth_consumer_key');
