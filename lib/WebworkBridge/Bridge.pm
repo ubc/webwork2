@@ -19,7 +19,8 @@ sub new
 	my $self = {
 		r => $r,
 		useAuthenModule => 0,
-		useDisplayModule => 0
+		useDisplayModule => 0,
+		homeworkSet => 0
 	};
 	bless $self, $class;
 	return $self;
@@ -61,6 +62,12 @@ sub getAuthenModule
 {
 	my $self = shift;
 	die "Not implemented";
+}
+
+sub getHomeworkSet
+{
+	my $self = shift;
+	return $self->{homeworkSet};
 }
 
 sub createCourse

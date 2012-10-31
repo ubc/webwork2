@@ -59,6 +59,16 @@ sub run
 	my $r = $self->{r};
 	my $ce = $r->ce;
 
+	# check if user wants to go directly to an assignment
+	my $hwset = $r->param("custom_homework_set");
+	if ($hwset)
+	{
+		# not perfect sanitization, but need something
+		$hwset = WebworkBridge::Parser::sanitizeCourseName($hwset);
+		$self->{homeworkSet} = $hwset;
+	}
+
+	# LTI processing
 	if ($r->param("lti_message_type") &&
 		$r->param("context_label"))
 	{
@@ -93,15 +103,24 @@ sub run
 				# our url doesn't exceed 2000 characters.
 				use URI::Escape;
 				my @tmp;
-				foreach my $key ($r->param) {
+				foreach my $key ($r->param) 
+				{
 					my $val = $r->param($key);
 					push(@tmp, "$key=" . uri_escape($val)); 	
 				}
 				my $args = join('&', @tmp);
 
+				# direct the student directly to a homework assignment
+				# if needed
+				my $redir = $r->uri . $coursename ;
+				if ($self->getHomeworkSet())
+				{
+					$redir .= "/" . $self->getHomeworkSet();
+				}
+				$redir .= "/?". $args;
+				debug("Redirecting with url: $redir");
 				use CGI;
 				my $q = CGI->new();
-				my $redir = $r->uri . $coursename . "/?". $args;
 				print $q->redirect($redir);
 			}
 		}
