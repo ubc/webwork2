@@ -332,11 +332,10 @@ sub _pushGrade()
 		return $ret;
 	}
 
-	if ($record->{status})
-	{
-		my $score = $record->{totalRight}. "/" .$record->{total};
-		$ret = $self->_ltiUpdateGrade($name, $score, $students->{$userid});
-	}
+	# send all scores, even if it's 0 or the user hasn't attempted it
+	my $score = $record->{totalRight}. "/" .$record->{total};
+	$ret = $self->_ltiUpdateGrade($name, $score, $students->{$userid});
+
 	return $ret;
 }
 
