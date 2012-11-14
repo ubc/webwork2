@@ -289,6 +289,14 @@ sub _pushGrades()
 		return error("Grade update failed: no ratio result support.", "#e021");
 	}
 
+	unless (defined($r->param('custom_gradesync'))) 
+	{
+		debug("Normal LTI grade sync, don't do anything.");
+		return 0;
+	}
+
+	debug("Allowed to do mass grade syncing.");
+
 	my %students = map {($_->{'loginid'} => $_)} @$studentsList;
 
 	my $grades = WebworkBridge::Exporter::GradesExport->new($r);
