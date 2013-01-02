@@ -139,9 +139,12 @@ foreach (@lines)
 	my $ret = `$cmd\n`;
 	if ($?)
 	{
-		die "Autoupdate failed for $courseName.\n";
+		print "Autoupdate failed for $courseName.\n";
 	}
-	print "Autoupdate for $courseName successful!\n";
+	else
+	{
+		print "Autoupdate for $courseName successful!\n";
+	}
 }
 
 close FILE;
