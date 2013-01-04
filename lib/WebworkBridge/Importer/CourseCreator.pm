@@ -101,8 +101,8 @@ sub createClassList
 	{
 		my $id = $i->{'loginid'};
 		print FILE "$i->{'studentid'},"; # student id
-		print FILE "$i->{'lastname'},"; # last name
-		print FILE "$i->{'firstname'},"; # first name
+		print FILE "\"$i->{'lastname'}\","; # last name
+		print FILE "\"$i->{'firstname'}\","; # first name
 		($i->{'permission'} > $ce->{userRoles}{student}) ? 
 			print FILE "P," : 
 			print FILE "C,"; # status
