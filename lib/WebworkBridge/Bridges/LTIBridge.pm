@@ -89,7 +89,7 @@ sub run
 				debug("CourseID found, trying authentication\n");
 				$self->{useAuthenModule} = 1;
 				if (my $tmp = $self->_verifyMessage())
-				{
+				{ # LTI OAuth verification failed
 					return $tmp;
 				}
                 
@@ -476,14 +476,14 @@ sub _getRoster
 	);
 	$request->sign;
 
-	# remove the params in URL from post body so that they will not be send twice
+	# remove the params in URL from post body so that they will not be sent twice
 	my @params = split('&', uri_unescape($request->to_post_body));
 	my $url = URI->new($request->request_url);
 	foreach my $k ($url->query_param) {
 		@params = grep {$_ ne $k.'='.$url->query_param($k)} @params;
 	}	
 
-	# have to generate the post parameters oursevles because of the way blti building block check the hash (membeships_id)
+	# have to generate the post parameters ourselves because of the way blti building block check the hash (membeships_id)
 	my %p = map { (split('=', $_, 2))[0] => (split('=', $_, 2))[1] } @params;
 	my $res = $ua->request((POST $request->request_url, \%p));
 	if ($res->is_success) 

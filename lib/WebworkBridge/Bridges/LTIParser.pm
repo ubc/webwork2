@@ -89,6 +89,11 @@ sub parseUser
 	my %student;
 	$student{'firstname'} = $param{'person_name_given'};
 	$student{'lastname'} = $param{'person_name_family'};
+	# convert from internal perl UTF8 to binary UTF8, note that this means
+	# I'm expecting these to go straight into the database, not be used in
+	# any more perl ops
+	utf8::encode($student{'firstname'});
+	utf8::encode($student{'lastname'});
 	$student{'studentid'} = $param{'user_id'};
 	$student{'loginid'} = $param{'person_sourcedid'};
 	$student{'sourcedid'} = $param{'lis_result_sourcedid'};

@@ -65,7 +65,14 @@ sub get_credentials {
 		return 0;
 	}
 	# set user id for the Authen module (inherited methods in particular)
-	$self->{user_id} = $r->param("lis_person_sourcedid");
+	if ($r->param("ubc_auto_update"))
+	{ # Keep auto-update from logging real users out
+		$self->{user_id} = "admin";
+	}
+	else 
+	{
+		$self->{user_id} = $r->param("lis_person_sourcedid");
+	}
 
 	debug("Checking for required OAuth parameters\n");
 
