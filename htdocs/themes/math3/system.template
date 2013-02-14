@@ -196,13 +196,13 @@
 						<!--#output_email_instructor-->
 					<!--#endif-->
 				</div>
+				<p>
+				Having trouble entering your answer? Make sure you're
+				using the right
+				<a href='http://webwork.maa.org/wiki/Available_Functions'>
+				functions and symbols</a>.
+				</p>
 			<!--#endif-->
-			<p>
-			Having trouble entering your answer? Make sure you're
-			using the right
-			<a href='http://webwork.maa.org/wiki/Available_Functions'>
-			functions and symbols</a>.
-			</p>
 		
 		<!--#if warnings="1"-->
 		
