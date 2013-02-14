@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright ï¿½ 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/Debug.pm,v 1.10 2006/06/28 16:20:39 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -28,7 +28,7 @@ head1 SYNOPSIS
  use WeBWorK::Debug;
  
  # Enable debugging
- $WeBWorK::Debug::Enabled = 1;
+ $WeBWorK::Debug::Enabled = 0;
  
  # Log to a file instead of STDERR
  $WeBWorK::Debug::Logfile = "/path/to/debug.log";
