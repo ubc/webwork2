@@ -113,6 +113,16 @@ sub info {
 }
 
 
+sub pre_header_initialize {
+	my ($self) = @_;
+	my $authen = $self->r->authen;
+	
+	if ( defined($authen->{redirect}) && $authen->{redirect} ) {
+		$self->reply_with_redirect($authen->{redirect});
+	}
+}
+
+
 sub body {
 	my ($self) = @_;
 	my $r = $self->r;

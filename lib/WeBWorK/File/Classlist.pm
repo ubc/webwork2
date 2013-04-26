@@ -44,6 +44,8 @@ sub parse_classlist($) {
 		or die "Failed to open classlist '$file' for reading: $!\n";
 	
 	my (@records);
+
+	my $csv = Text::CSV->new({ binary => 1 }); # binary for utf8 compat
 	
 	my $csv = Text::CSV->new({ binary => 1 }); # binary for utf8 compat
 	
