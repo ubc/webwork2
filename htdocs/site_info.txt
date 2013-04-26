@@ -1,9 +1,9 @@
-<p><font color="red">Having Trouble to Login?</font></p>
+<p><font color="red">Login Problems?</font></p>
 <ul>
-    <li>Make sure you are loggin into correct course/section</li>
-    <li>If you registered late, please allow upto 24 hours for the registration information to be processed to WeBWorK</li>
-    <li>If you still get "Access Denied", please try to close your browser completed, including all windows and tabs. Then try again. Or try reboot your computer</li>
-    <li>Make sure you are registered into the correct section</li>
+    <li>Make sure you are logging in to the correct course/section.</li>
+    <li>If you registered late, please allow upto 24 hours for the registration show up in WeBWorK.</li>
+    <li>If you still get "Access Denied", please try to close your browser completely, including all windows and tabs, then try again. Or try rebooting your computer.</li>
+    <li>Make sure you are actually registered in the correct section.</li>
 </ul>
 
 <p>If above methods don't work, please send an email to webwork.support@ubc.ca with the following information:</p>
@@ -15,7 +15,7 @@
     <li>Course and section you registered</li>
 </ul>
 
-<p>WeBWorK is an on-line homework system for delivering individualized homework problems over the web. It gives students instant feedback as to whether or not their answers are correct. Please click on a course below to login with your CWL account. You will only be able to login to the course you enrolled.</p>
+<p>WeBWorK is an on-line homework system for delivering individualized homework problems over the web. It gives students instant feedback as to whether or not their answers are correct. Please click on a course below to login with your CWL account. You will only be able to login to the course you are enrolled.</p>
 
 <img src="https://www.auth.cwl.ubc.ca/CWL_login_button.gif" width="76" height="25"
 alt="CWL Login" border="0" valign="middle">Please select the course on the left to login and login with your CWL account.
