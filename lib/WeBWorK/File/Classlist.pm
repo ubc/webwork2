@@ -47,8 +47,6 @@ sub parse_classlist($) {
 
 	my $csv = Text::CSV->new({ binary => 1 }); # binary for utf8 compat
 	
-	my $csv = Text::CSV->new({ binary => 1 }); # binary for utf8 compat
-	
 	while (<$fh>) {
 		chomp;
 		next if /^#/;
