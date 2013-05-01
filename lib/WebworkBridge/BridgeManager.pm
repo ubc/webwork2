@@ -31,7 +31,6 @@ sub run
 
 	my @bridges = (
 		"WebworkBridge::Bridges::LTIBridge",
-		"WebworkBridge::Bridges::VistaBridge"
 	);
 
 	# find a compatible bridge

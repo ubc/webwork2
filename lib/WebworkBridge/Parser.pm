@@ -47,58 +47,38 @@ sub getCourseName
 	my $r = $self->{r};
 	my $ce = $r->ce;
 
-	# read configuration to see if there are any custom mappings we
-	# should use instead
-	my $origname;
-	if ($section)
-	{	
-		$origname = $course . ' - ' . $section;
-	}
-	else
-	{
-		$origname = $course;
-	}
-
-	# course name mapping has two levels, start from highest priority
- 	# 1. course mapping rules
+	# Read configuration to see if there are any custom mappings we should use.
+	# Course name mapping has two levels, start from highest priority.
+	# 1. course mapping rules
 	# 2. using the name as it is
-	for my $href (@{$ce->{bridge}{course_mapping_rules}}) 
+	for my $href (@{$ce->{bridge}{course_mapping_rules}})
 	{
-		for my $key ( keys %$href ) {
+		for my $key ( keys %$href )
+		{
 			my $regex = qr/$key/;
-            my $need_eval = ($href->{$key} =~ /\$/);
-			if ($origname =~ $regex)
+			my $need_eval = ($href->{$key} =~ /\$/);
+			if ($course =~ $regex)
 			{
 				# get the actual value of mapping if we don't need to eval it
-                my $cname = ($need_eval) ? eval($href->{$key}) : $href->{$key};
+				my $cname = ($need_eval) ? eval($href->{$key}) : $href->{$key};
 				my $ret = sanitizeCourseName($cname);
-				debug("Using mapping rule '$key' for course '$origname' to '$ret'");
+				debug("Using mapping '$key' for course '$course' to '$ret'");
 				return $ret;
 			}
-		}	
+		}
 	}
 
-	# if no configuration, then we build our own course name 
-	$section ||= '';
-	my $sectionnum = $section;
-	$sectionnum =~ m/(\d\d\d[A-Za-z]|\d\d\d)/g;
-	$sectionnum = $1;
+	my $ret = $course; # If nothing matches, fall back to using the course as is
 
-	my $ret;
-	if ($sectionnum)
+	# Try to parse course name in the Connect format
+	my $res = $self->_parseConnectCourse($course);
+	if ($res)
 	{
-		$ret = $course .'-'. $sectionnum;
+		$ret = $res;
 	}
-	elsif ($section)
-	{
-		$ret = $course . '-' . $section;	
-	}
-	else
-	{
-		$ret = $course;
-	}
+
 	$ret = sanitizeCourseName($ret);
-
+	debug("Course name is: $ret");
 	return $ret;
 }
 
@@ -115,6 +95,104 @@ sub sanitizeCourseName
 	# additional characters after the course name, so, to be safe, we'll
 	# have an error margin of 24 chars.
 	return $course;
+}
+
+# Create course names from the course name in Connect
+# 
+# Note that we need to save space in the course id. The course id is used
+# as a prefix for webwork to create MySQL tables. There's a limit to the
+# length of table names. So we'll disregard title and instructor.
+# 
+# There's a weakness in this implementation where if there's a typo
+# in one of the course name that makes it unrecognizable as a course, e.g.:
+# 'CPS100' instead of 'CPSC100', we'll still accept the whole string
+# as long as there was at least one course before it that was validly 
+# formatted.
+#
+# We expect the courses to be in the format: Term-Course-Section,
+# with the Course-Section part being repeatable if it's a crosslisted course:
+# E.g.: Term-Course1-Section1-Course2-Section2
+# Section can be composed of section numbers, e.g.: 100
+# Section can have multiple section numbers, e.g.: 100, 101a, 102b, etc.
+#
+# There is one exception to - delimiting in that a course which spans
+# 2 terms will have the terms delimited by a - too, e.g.: 2012W1-2
+sub _parseConnectCourse
+{
+	my ($self, $input) = @_;
+	my @parts = split('-', $input);
+	debug("Connect course name parsing start with: $input");
+
+	# Assuming that there are at least 4 parts in all course names.
+	# Note that there might be an optional Instructors part. This is only
+	# sometimes present and might have more than 1 instructor.
+	# Term-Course-Section-Title
+	if (@parts < 4) 
+	{
+		debug("Unrecognized course format.");
+		return 0;
+	}
+
+	# Parse Term
+	my $term = shift(@parts);
+	# special case handling for courses that span 2 terms, e.g.: 2012W1-2
+	if ($parts[0] =~ /^\d$/)
+	{
+		$term .= shift(@parts);
+	}
+
+	# Parser Course & Section
+	my @courses = ();
+	my @sections = ();
+
+	while (scalar @parts > 0)
+	{
+		my $next = shift(@parts);
+		if ($next =~ /^[A-Za-z]{4}\d+/) 
+		{ # matches the course format
+			push(@courses, $next);
+			my $section = shift(@parts); # course is always followed by section
+			if ($section =~ /^all/i)
+			{
+				$section = 'ALL';
+			}
+			elsif ($section !~ /^\d\d\d/)
+			{ # section isn't in the expected format, bail
+				last;
+			}
+			push(@sections, $section);
+		}
+	}
+
+	# Find out if parsing encountered any difficulties
+	if (!@courses) 
+	{
+		debug("No courses found.");
+		return 0;
+	}
+	elsif (!@sections)
+	{
+		debug("No sections found.");
+		return 0;
+	}
+	elsif (@courses != @sections)
+	{
+		debug("Mismatched course and sections.");
+		return 0;
+	}
+
+	# Create the final course name string
+	my $ret = "";
+	for (my $i = 0; $i < @courses; $i++)
+	{ # pair up section and course
+		$sections[$i] =~ s/ //g;
+		$sections[$i] =~ s/,/-/g;
+		$ret .= $courses[$i] . "-" . $sections[$i] . "_";
+	}
+	$ret .= $term;
+	debug("Connect course name parsing success: $ret");
+
+	return $ret;
 }
 
 1;
