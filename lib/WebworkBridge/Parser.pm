@@ -150,6 +150,11 @@ sub _parseConnectCourse
 		my $next = shift(@parts);
 		if ($next =~ /^[A-Za-z]{4}\d+/) 
 		{ # matches the course format
+			# Fix case when there's a slash in the course name, e.g.:
+			# MATH101/103
+			# Which indicates that both Math101 and Math103 uses this course.
+			$next =~ s/\//-/g;
+
 			push(@courses, $next);
 			my $section = shift(@parts); # course is always followed by section
 			if ($section =~ /^all/i)
@@ -191,6 +196,7 @@ sub _parseConnectCourse
 	}
 	$ret .= $term;
 	debug("Connect course name parsing success: $ret");
+
 
 	return $ret;
 }
