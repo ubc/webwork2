@@ -20,7 +20,8 @@ sub new
 		r => $r,
 		useAuthenModule => 0,
 		useDisplayModule => 0,
-		homeworkSet => 0
+		homeworkSet => 0,
+		quizSet => 0
 	};
 	bless $self, $class;
 	return $self;
@@ -68,6 +69,12 @@ sub getHomeworkSet
 {
 	my $self = shift;
 	return $self->{homeworkSet};
+}
+
+sub getQuizSet
+{
+	my $self = shift;
+	return $self->{quizSet};
 }
 
 sub createCourse

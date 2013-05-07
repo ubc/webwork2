@@ -67,6 +67,14 @@ sub run
 		$hwset = WebworkBridge::Parser::sanitizeCourseName($hwset);
 		$self->{homeworkSet} = $hwset;
 	}
+	my $qset = $r->param("custom_quiz_set");
+	if ($qset)
+	{
+		# not perfect sanitization, but need something
+		$qset = WebworkBridge::Parser::sanitizeCourseName($qset);
+		$self->{quizSet} = $qset;
+	}
+
 
 	# LTI processing
 	if ($r->param("lti_message_type") &&
@@ -110,12 +118,16 @@ sub run
 				}
 				my $args = join('&', @tmp);
 
-				# direct the student directly to a homework assignment
+				# direct the student directly to a homework assignment or quiz
 				# if needed
 				my $redir = $r->uri . $coursename ;
 				if ($self->getHomeworkSet())
 				{
 					$redir .= "/" . $self->getHomeworkSet();
+				}
+				elsif ($self->getQuizSet())
+				{
+					$redir .= "/quiz_mode/" . $self->getQuizSet();
 				}
 				$redir .= "/?". $args;
 				debug("Redirecting with url: $redir");
