@@ -15,6 +15,8 @@
     <li>Course and section you registered</li>
 </ul>
 
+<p>Notes for instructors:<br /><br />If you are looking for the old courses, please try <a href="http://wiki.ubc.ca/Documentation:WeBWorK/Course_Listing">here</a></p>
+
 <p>WeBWorK is an on-line homework system for delivering individualized homework problems over the web. It gives students instant feedback as to whether or not their answers are correct. Please click on a course below to login with your CWL account. You will only be able to login to the course you are enrolled.</p>
 
 <img src="https://www.auth.cwl.ubc.ca/CWL_login_button.gif" width="76" height="25"
