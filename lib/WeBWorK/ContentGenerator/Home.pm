@@ -99,8 +99,7 @@ sub body {
 		next if $courseID eq "admin"; # done already above
 		next if -f "$coursesDir/$courseID/hide_directory";
 		my $urlpath = $r->urlpath->newFromModule("WeBWorK::ContentGenerator::ProblemSets", $r, courseID => $courseID);
-        # changed by Compass
-        print CGI::li(CGI::a({href=>$self->systemLink($urlpath, authen => 0)}, '<img src="https://www.auth.cwl.ubc.ca/CWL_login_button.gif" width="76" height="25" alt="CWL Login" border="0">&nbsp;'.$courseID));
+		print CGI::li(CGI::a({href=>$self->systemLink($urlpath, authen => 0)}, $courseID));
     }
 
 	print CGI::end_ul();
