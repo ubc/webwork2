@@ -199,7 +199,10 @@ sub addUser
 	my $role = $ce->{userRoles}{student}; # defaults to student
 
 	# modify status and role if user is a teaching staff
-	$role = $new_user_info->{'permission'};
+	if ($new_user_info->{'permission'}) 
+	{ # override default permission if necessary
+		$role = $new_user_info->{'permission'};
+	}
 	if ($role == $ce->{userRoles}{professor} ||
 		$role == $ce->{userRoles}{ta})
 	{

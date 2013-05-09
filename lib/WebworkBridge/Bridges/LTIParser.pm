@@ -102,6 +102,26 @@ sub parseUser
 	return %student;
 }
 
+sub parseLaunchUser
+{
+	my $self = shift;
+	my $r = $self->{r};
+
+	my %student;
+	$student{'firstname'} = $r->param('lis_person_name_given');
+	$student{'lastname'} = $r->param('lis_person_name_family');
+	# convert from internal perl UTF8 to binary UTF8, note that this means
+	# I'm expecting these to go straight into the database, not be used in
+	# any more perl ops
+	utf8::encode($student{'firstname'});
+	utf8::encode($student{'lastname'});
+	$student{'studentid'} = $r->param('user_id');
+	$student{'loginid'} = $r->param('lis_person_sourcedid');
+	$student{'email'} = $r->param('lis_person_contact_email_primary');
+	$student{'password'} = "";
+	return %student;
+}
+
 # test code
 #open FILE, "test.xml" or die "Cannot open XML file. $!";
 #

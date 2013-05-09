@@ -94,7 +94,18 @@ sub run
 			debug("We're trying to authenticate to an existing course.");
 			if ($ce->{"courseName"})
 			{
-				debug("CourseID found, trying authentication\n");
+				debug("CourseID found.");
+
+				# check if we're allowed to create a new student entry
+				# if a student tries to access the course before
+				# they've been synced in Webwork
+				my $createStudent = $r->param("custom_create_student");
+				if ($createStudent && $createStudent eq 'true')
+				{
+					$self->_createStudent();
+				}
+
+				debug("Trying authentication\n");
 				$self->{useAuthenModule} = 1;
 				if (my $tmp = $self->_verifyMessage())
 				{ # LTI OAuth verification failed
@@ -522,6 +533,43 @@ sub _verifyMessage()
 		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");
 	}
 	return 0;
+}
+
+# If the student currently trying to login does not exist, create the student
+# and assign them all the available assignments.
+sub _createStudent()
+{
+	debug("Create student on demand enabled.");
+	my $self = shift;
+	my $r = $self->{r};
+	my $ce = $r->ce;
+	my $db = new WeBWorK::DB($ce->{dbLayout});
+
+	# restrict this to students only
+	if (!($r->param('roles') =~ /Learner/)) 
+	{
+		debug("User not a student.");
+		return;
+	}
+	debug("Student does not exist. Parsing student information.");
+
+	# parse user from launch request
+	my $parser = WebworkBridge::Bridges::LTIParser->new($r);
+	my %student = $parser->parseLaunchUser();
+	debug(Dumper(\%student));
+
+	# check if user exists
+	if ($db->existsUser($student{'loginid'})) 
+	{ # user already exists, no need to do anything
+		debug("Student already exists. No need to do anything.");
+		return;
+	}
+
+	# user doesn't exist, so we have to create them
+	debug("Attempt to create student & assign assignments.");
+	my $updater = WebworkBridge::Importer::CourseUpdater->new($r, "", "");
+	$updater->addUser(\%student, $db, "");
+	debug("Done.");
 }
 
 1;
