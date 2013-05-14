@@ -73,10 +73,10 @@ my $ce = WeBWorK::CourseEnvironment->new({
 
 # LTI Update
 
-$loginlistdir = $ce->{bridge}{lti_loginlist};
+my $loginlistdir = $ce->{bridge}{lti_loginlist};
 open FILE, $loginlistdir or die "Cannot open LTI loginlist file! $!\n";
 
-@lines = <FILE>;
+my @lines = <FILE>;
 foreach (@lines)
 {
 	my @line = split(/\t/, $_);
