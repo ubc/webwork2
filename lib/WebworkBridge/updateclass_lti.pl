@@ -86,7 +86,7 @@ my $request = Net::OAuth->request("request token")->new(
 		lti_message_type => 'basic-lti-launch-request',
 		resource_link_id => $courseName,# store
 		# other params
-		context_label => $courseName,# same as resource_link_id
+		context_title => $courseName,# same as resource_link_id
 		roles => 'instructor', # need, but can hard code
 		# lis stuff
 		lis_person_sourcedid => $user, # store
