@@ -71,6 +71,27 @@ sub updateCourse
 	my %perms = map {($_->user_id => $_ )} @permsList;
 	my %users = map {($_->user_id => $_ )} @usersList;
 
+	# we received _ people from LTI, there was _ people in the course before update
+	# Summary log entry
+	my $numCurAct = 0;
+	my $numCurDrop = 0;
+	while (my ($key, $person) = each(%users))
+	{
+		if ($person->status() ne "D")
+		{
+			$numCurAct++;
+		}
+		else
+		{
+			$numCurDrop++;
+		}
+	}
+
+	my $numLTI = @students;
+	my $sum = " -- Course $courseid currently has $numCurAct people active, " .
+		"$numCurDrop people dropped, we received $numLTI people from LTI.";
+	$self->addlog($sum);
+
 	# Update has 3 components 
 	#	1. Check existing users to see if we have anyone who dropped the course
 	#		but decided to re-register or if their info needs updating.
@@ -109,10 +130,19 @@ sub updateCourse
 		{ 
 			$person->status("D");
 			$db->putUser($person);
-			$self->addlog("Student $key dropped $courseid");
-			#$db->deleteUser($key); # we might delete users in the future
+			if ($perms{$key}->permission() == $ce->{userRoles}{student})
+			{
+				$self->addlog("Student $key dropped $courseid");
+			}
+			else
+			{
+				$self->addlog("Teaching staff $key dropped $courseid");
+			}
+			#$db->deleteUser($key); # uncomment to actually delete user
 		}
 	}
+
+
 	debug("Student Update Finished!\n");
 	debug(("-" x 80) . "\n");
 	return 0;
