@@ -110,6 +110,7 @@ use WebworkWebservice::LibraryActions;
 use WebworkWebservice::MathTranslators;
 use WebworkWebservice::SetActions;
 use WebworkWebservice::CourseActions;
+use WebworkWebservice::GradeActions;
 
 ###############################################################################
 package WebworkXMLRPC;
@@ -545,6 +546,22 @@ sub sendEmail{
     return $self->do(WebworkWebservice::CourseActions::sendEmail($self, $in));
 }
 
+# Grades Actions
+
+# Expecting a hash $in composed of
+#{
+#	'userID' => 'admin',		# these are the usual
+#	'password' => 'admin',		# auth credentials
+#	'courseID' => 'Math',		# used to initiate a
+#	'session_key' => 'key',		# session.
+#	"set_id": "set"			# The set id to get grades for
+#}
+sub getDetailedSetGrades {
+    my $class = shift;
+    my $in = shift;
+    my $self = $class->initiate_session($in);
+    return $self->do(WebworkWebservice::GradeActions::getDetailedSetGrades($self, $in));
+}
 
 
 # -- SOAP::Lite -- guide.soaplite.com -- Copyright (C) 2001 Paul Kulchenko --
