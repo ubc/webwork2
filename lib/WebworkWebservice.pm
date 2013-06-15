@@ -157,7 +157,10 @@ sub initiate_session {
 	my $language= $ce->{language} || "en";
 	my $language_handle = WeBWorK::Localize::getLoc($language) ;
 
-	my $user_authen_module = WeBWorK::Authen::class($ce, "user_module");
+	# Original:
+	#my $user_authen_module = WeBWorK::Authen::class($ce, "user_module");
+	# Modified authentication to be compatible with shibbloeth:
+	my $user_authen_module = WeBWorK::Authen::class($ce, "xmlrpc");
     runtime_use $user_authen_module;
     
 if ($UNIT_TESTS_ON) {
