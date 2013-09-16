@@ -30,11 +30,23 @@ sub parse
 
 	my $xml = new XML::Simple;
 
-	my $data = $xml->XMLin($param, SuppressEmpty=>'');
+	my $extralog = WebworkBridge::ExtraLog->new($self->{r});
+
+	my $data;
+	eval
+	{
+		$data = $xml->XMLin($param, SuppressEmpty=>'');
+	};
+	if ($@)
+	{
+		$extralog->logXML("XML parsing failed.");
+		return error("XML parsing failed\n");
+	}
 
 	# only one person in the course
 	if ($data->{'statusinfo'}{'codemajor'} ne 'Success')
 	{ # check status code
+		$extralog->logXML("Retrived roster has failure status code.");
 		return error("Failed to retrieve roster.", "#e001");
 	}
 

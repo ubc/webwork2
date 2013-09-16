@@ -20,6 +20,8 @@ use WebworkBridge::Exporter::GradesExport;
 use WebworkBridge::Importer::Error;
 use WebworkBridge::Parser;
 use WebworkBridge::Bridges::LTIParser;
+use WebworkBridge::ExtraLog;
+
 use WeBWorK::Authen::LTI;
 
 # Constructor
@@ -509,14 +511,18 @@ sub _getRoster
 	# have to generate the post parameters ourselves because of the way blti building block check the hash (membeships_id)
 	my %p = map { (split('=', $_, 2))[0] => (split('=', $_, 2))[1] } @params;
 	my $res = $ua->request((POST $request->request_url, \%p));
+	# extra prod logging when debug is disabled
+	my $extralog = WebworkBridge::ExtraLog->new($r);
 	if ($res->is_success) 
 	{
 		$$xml = $res->content;
 		debug("LTI Get Roster Success! \n" . $$xml . "\n");	
+		$extralog->logXML("Successfully retrieved roster: \n" . $$xml);
 		return 0;
 	}
 	else
 	{
+		$extralog->logXML("Roster retrival failed, unable to connect.");
 		return error("Unable to perform OAuth request.","#e007");
 	}
 }
