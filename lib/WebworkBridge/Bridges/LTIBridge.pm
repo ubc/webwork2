@@ -513,6 +513,7 @@ sub _getRoster
 	my $res = $ua->request((POST $request->request_url, \%p));
 	# extra prod logging when debug is disabled
 	my $extralog = WebworkBridge::ExtraLog->new($r);
+	$extralog->logXML("--- " . $r->param('context_title') . " ---");
 	if ($res->is_success) 
 	{
 		$$xml = $res->content;
