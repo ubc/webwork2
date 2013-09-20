@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright ï¿½ 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/Login.pm,v 1.47 2012/06/08 22:59:55 wheeler Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -168,7 +168,7 @@ sub body {
 				CGI::p({}, CGI::b($course), "uses an external", 
 				"authentication system.  Please go there to try again."));
 			} else {
-				print CGI::p({}, $r->maketext("_EXTERNAL_AUTH_MESSAGE", CGI::strong($r->maketext($course))));
+				print CGI::p({}, $r->maketext("_EXTERNAL_AUTH_MESSAGE", CGI::strong($r->maketext($course))).localtime);
 			}
 		} else {
 	    	print CGI::p({}, "Your session has expired due to inactivity.  ",
