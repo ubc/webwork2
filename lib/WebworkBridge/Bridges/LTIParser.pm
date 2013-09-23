@@ -43,7 +43,6 @@ sub parse
 		return error("XML parsing failed\n");
 	}
 
-	# only one person in the course
 	if ($data->{'statusinfo'}{'codemajor'} ne 'Success')
 	{ # check status code
 		$extralog->logXML("Retrived roster has failure status code.");
@@ -64,11 +63,30 @@ sub parse
 
 	$course->{'profid'} = ""; # Initialize profid to empty string
 
+	# we want to make sure that the student we received are actually
+	# in the course that we sent the request for, we can do this
+	# by checking their lis_result_sourcedid if they have LTI grade sync
+	# enabled. The raw string looks like :_101_1::webworkdev:0004
+	# we only want the _101_1 part.
+	my $ltiIdRegex = qr/:(.+?):.+/;
+	my $expectedLTIId = $self->{r}->param('ext_ims_lis_memberships_id');
+	($expectedLTIId) = $expectedLTIId =~ $ltiIdRegex;
+
 	foreach(@members)
 	{ # process members
 		my %tmp = $self->parseUser($_);
 		# assign appropriate permissions based on roles
 		my $roles = $_->{'roles'};
+		if (exists $_->{'lis_result_sourcedid'} && $expectedLTIId ne "")
+		{
+			my $sourcedid = $_->{'lis_result_sourcedid'};
+			$sourcedid =~ $ltiIdRegex;
+			if ($1 ne $expectedLTIId)
+			{ # student does not match course
+				$extralog->logXML("Update aborted, got student in wrong course: $1");
+				return error("Student does not match course.");
+			}
+		}
 		if ($roles =~ /instructor/i ||
 			$roles =~ /contentdeveloper/i)
 		{ # make note of the instructor for later

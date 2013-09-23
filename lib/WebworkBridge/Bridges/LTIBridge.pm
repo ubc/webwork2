@@ -508,12 +508,15 @@ sub _getRoster
 		@params = grep {$_ ne $k.'='.$url->query_param($k)} @params;
 	}	
 
-	# have to generate the post parameters ourselves because of the way blti building block check the hash (membeships_id)
+	# have to generate the post parameters ourselves because of the way blti building block check the hash (memberships_id)
 	my %p = map { (split('=', $_, 2))[0] => (split('=', $_, 2))[1] } @params;
-	my $res = $ua->request((POST $request->request_url, \%p));
 	# extra prod logging when debug is disabled
 	my $extralog = WebworkBridge::ExtraLog->new($r);
 	$extralog->logXML("--- " . $r->param('context_title') . " ---");
+	$extralog->logXML("LTI ID is " . $r->param('ext_ims_lis_memberships_id'));
+	$extralog->logXML("User role: " . $r->param('roles'));
+	# attempt actual request
+	my $res = $ua->request((POST $request->request_url, \%p));
 	if ($res->is_success) 
 	{
 		$$xml = $res->content;
