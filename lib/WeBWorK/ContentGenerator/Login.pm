@@ -168,7 +168,7 @@ sub body {
 				CGI::p({}, CGI::b($course), "uses an external", 
 				"authentication system.  Please go there to try again."));
 			} else {
-				print CGI::p({}, $r->maketext("_EXTERNAL_AUTH_MESSAGE", CGI::strong($r->maketext($course))).localtime);
+				print CGI::p({}, $r->maketext("_EXTERNAL_AUTH_MESSAGE", CGI::strong($r->maketext($course))).'('.localtime().','.CGI::remote_host().','.$ENV{'cwlLoginName'}.')');
 			}
 		} else {
 	    	print CGI::p({}, "Your session has expired due to inactivity.  ",
