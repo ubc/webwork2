@@ -165,7 +165,8 @@ sub body {
 			),
 			CGI::Tr({},
 				CGI::td($r->maketext("[_1]'s New Address",$e_user_name)),
-				CGI::td(CGI::textfield(-name=>"newAddress", -text=>$newA)),
+#				CGI::td(CGI::textfield(-name=>"newAddress", -text=>$newA)),
+				CGI::td(CGI::textfield(-name=>"newAddress")),
 			),
 		);
 	} else {
