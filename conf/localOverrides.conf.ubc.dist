@@ -57,7 +57,7 @@ $mail{feedbackRecipients}    = [
 # Theme
 ################################################################################
 
-$defaultTheme = "math3";
+$defaultTheme = "math4";
 $defaultThemeTemplate = "system";
 
 ################################################################################
@@ -90,7 +90,7 @@ $webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/
 
 
 ################################################################################
-# National Problem Library
+# NationalProblemLibrary -- OpenProblemLibrary
 ################################################################################
 
 
@@ -98,7 +98,11 @@ $webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/
 # http://webwork.maa.org/wiki/National_Problem_Library
 # The directory containing the natinal problem library files. Set to "" if no problem
 # library is installed.
-$problemLibrary{root}        ="/opt/webwork/libraries/NationalProblemLibrary";
+#$problemLibrary{root}        = "/opt/webwork/libraries/NationalProblemLibrary";
+#$problemLibrary{version}     = "2";
+# uncomment these lines below and comment out the line above if using OPL instead of NPL
+$problemLibrary{root}       = "/opt/webwork/libraries/webwork-open-problem-library/OpenProblemLibrary";
+$problemLibrary{version}    = "2.5";  
 
 # Additional library buttons can be added to the Library Browser (SetMaker.pm)
 # by adding the libraries you want to the following line.  For each key=>value
@@ -239,22 +243,22 @@ $problemDefaults{max_attempts} = -1;
 # These will disappear (or at least decrease in number) once the final editor verisons
 # are determined. 
  %showeditors = (
- 	classlisteditor1   => 1,
-# 	classlisteditor2   => 1,
+# 	classlisteditor1   => 1,
+ 	classlisteditor2   => 1,
 #	classlisteditor3   => 1,
 # 	
- 	homeworkseteditor1 => 1,
-# 	homeworkseteditor2 => 1,
+# 	homeworkseteditor1 => 1,
+ 	homeworkseteditor2 => 1,
 # 	
+# 	librarybrowsernojs    => 1,
  	librarybrowser1    => 1,
 # 	librarybrowser2    => 1,
 # 	librarybrowser3    => 1,
 # 	
-	pgproblemeditor1   => 1,
-# 	pgproblemeditor2   => 1,
-# 	pgproblemeditor3   => 1,
+#	pgproblemeditor1   => 1,
+	pgproblemeditor2   => 1,
+ 	pgproblemeditor3   => 1,
 );
-
 
 ################################################################################
 # Directory for temporary files
@@ -333,6 +337,18 @@ $authen{user_module} = {
 #$session_management_via = "session_cookie";
 
 ################################################################################
+# Achievement Facebook Integration
+################################################################################
+
+## Because of the way facebook works, in order to use facebook integration
+## with webwork, you will need to create a facebook "app" specific to the 
+## domain name of the server you are running.  Once you have created the app
+## you can enable facebook integration by setting the variables below
+
+#$allowFacebooking = 1;
+#$facebookAppId = your_app_id_here;
+
+################################################################################
 # Custom Params
 ################################################################################
 
@@ -401,21 +417,26 @@ $bridge{vista_login_options} = {
 $bridge{vista_importer} = $webworkDirs{root} . "/lib/WebworkBridge/Bridges/vistawebworksimporter.jar";
 $bridge{vista_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist";
 $bridge{lti_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist_lti";
+
 # If a student does not have an email address, we check this file to see if
 # we can manually enter a student id for them. Note that if the LMS provides
 # an email address, we ignore this file and uses the LMS provided one.
 $bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emaillist";
 
+# the switch for launching LTI membership request on login
+# if the switch is off, the LTI requset has to have ubc_auto_update parameter to launch 
+# membership the request
+$bridge{update_class_on_login} = 1;
+
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
-$bridge{update_class_on_login} = 1;
-$bridge{roles_can_update} = 'Instructor AutoUpdater ContentDeveloper';
+$bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
 
 # List of Vista ids that are blacklisted from import. Note that id matching
 # is done using m//, so any occurance of the string below in an id will mark
 # that id as blacklisted.
 $bridge{vista_blacklist} = (
-	"webct_demo"
+    "webct_demo"
 );
 # Note that the mapped Webwork course name still goes through sanitization. 
 # Please make sure they match these requirements or the courses will not match.
@@ -437,6 +458,6 @@ $bridge{course_mapping_rules} = [
 	{ 'WS\.[^.]*\.(.*)' => '"$1"' }, # non-credit/workshop without SIS link
 ];
 
-$bridge{course_template} = "";
+$bridge{course_template} = "modelCourse";
 
 1; #final line of the file to reassure perl that it was read properly.
