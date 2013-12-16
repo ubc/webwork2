@@ -1202,6 +1202,7 @@ sub pre_header_initialize {
 			my %oldAnswers = decodeAnswers( $ProblemN->last_answer);
 			$formFields->{$_} = $oldAnswers{$_} foreach ( keys %oldAnswers );
 		}
+		
 		push( @problems, $ProblemN );
 
 		# if we don't have to translate this problem, just save the 
@@ -1235,9 +1236,14 @@ sub head {
         print qq{
            <script type="text/javascript" src="$webwork_htdocs_url/js/jquery-1.7.1.min.js"></script>
            <link href="$webwork_htdocs_url/css/knowlstyle.css" rel="stylesheet" type="text/css" />
-           <script type="text/javascript" src="$webwork_htdocs_url/js/knowl.js"></script>};
+           <script type="text/javascript" src="$webwork_htdocs_url/js/Base64.js"></script>
+           <script type="text/javascript" src="$webwork_htdocs_url/js/knowl.js"></script>
+           
 
-        return $self->{pg}->{head_text} if $self->{pg}->{head_text};
+           
+        };
+
+        return $self->{pg}->{head_text} if defined($self->{pg}->{head_text});
 }
 
 sub path {
@@ -2101,7 +2107,8 @@ sub body {
 				print CGI::a({-name=>"#$i1"},"");
 				print CGI::strong("Problem $problemNumber."), 
 					"$points\n", $recordMessage;
-				print CGI::p($pg->{body_text}),
+				print CGI::div({class=>
+"problem-content"}, $pg->{body_text}),
 				CGI::p($pg->{result}->{msg} ? 
 				       CGI::b("Note: ") : "", 
 				       CGI::i($pg->{result}->{msg}));

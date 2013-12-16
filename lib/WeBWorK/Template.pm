@@ -90,7 +90,7 @@ For example:
  <!--#endif-->
  <!--#if can="path"-->
  <div class="Path">
- 	<!--#path style="text" image="/webwork2_files/images/right_arrow.png" text=" > "-->
+ 	<!--#path style="text" image="<!--#url type="webwork" name="htdocs"-->/images/right_arrow.png" text=" > "-->
  </div>
  <!--#endif-->
 
@@ -150,12 +150,8 @@ sub template {
 			} elsif ($ifstack[-1]) {
 				if ($cg->can($function)) {
 					my @result = $cg->$function({@args});
-					if (@result) {
-                        {
-                            # suppress the warning when using gateway test, added by Compass
-                            no warnings 'uninitialized';
-                            print @result;
-                        }
+					if (@result && defined($result[0])) {
+						print @result;
 					} else {
 						warn "Template escape $function returned an empty list.";
 					}

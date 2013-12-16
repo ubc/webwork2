@@ -174,7 +174,7 @@ sub body {
 	}
 	
 	print CGI::br();
-	print CGI::submit("changeOptions", "Change User Options");
+	print CGI::submit("changeOptions", $r->maketext("Change User Options"));
 	print CGI::end_form();
 	
 	return "";

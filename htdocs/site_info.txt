@@ -6,7 +6,7 @@
     <li>Make sure you are actually registered in the correct section.</li>
 </ul>
 
-<p>If above methods don't work, please send an email to webwork.support@ubc.ca with the following information:</p>
+<p>If above methods did not help, please send an email to webwork.support@ubc.ca with the following information:</p>
 <ul>
     <li>Your full name</li>
     <li>Your emai</li>
