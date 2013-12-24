@@ -15,7 +15,7 @@
  * Artistic License for more details.
  */
 
-/* Bootstrap overrides */
+/**** Bootstrap overrides ****/
 .row-fluid [class*="span"] {
     min-height:0px;
 }
@@ -24,34 +24,39 @@ input[type="checkbox"] {
     margin-right:.25em;
 }
 
-/* Banner */
-#masthead {
-	background-color: #038;
-	margin: 0;
-	padding: 0;
-	padding: 5px;
-}
-
-/* Bootstrap Overrides */
 .container-fluid {
 	padding: 0.5em;
 }
 
-.webwork_logo {
+/**** Banner ****/
+#masthead {
+	background-color: #038;
+	margin-bottom: 0.5em;
+}
+
+#masthead .webwork_logo, #masthead .maa_logo {
+	margin: 5px;
+	display: inline-block;
+}
+
+/* the maa logo looks to be slightly offcenter compared to the webwork logo,
+ * so give it a bit higher margin-top to compensate */
+#masthead .maa_logo {
+	margin-top: 7px;
+}
+
+#masthead .webwork_logo {
+	max-width: 155px;
+	font-size: 1.5em;
+	white-space: nowrap;
 	background-color: #1048ae;
-	font-size: 1.6em;
-	font-weight: 500;
 	border: 1px solid #5577b0;
-	padding: 2px 10px 0 6px; /* attempt to even out the blank space so that
+	padding: 2px 5px 0 0; /* attempt to even out the blank space so that
 								the logo & text doesn't look lopsided */
 }
 
-.webwork_logo img {
-	padding-right: 5px; /* distance itself to the Webwork text */
-}
-
-.maa_logo img {
-	vertical-align: center;
+#masthead .webwork_logo img {
+	padding-right: 3px; /* distance itself to the Webwork text */
 }
 
 #masthead a {
@@ -62,14 +67,6 @@ input[type="checkbox"] {
 	text-decoration: none;
 }
 
-#loginstatus {
-    	padding-top:1ex;
-	color: white;
-	text-align: right;
-	font-size: 0.85em;
-	font-weight: normal;
-} 
-
 #loginstatus a {
 	color: black;
 }
@@ -78,10 +75,23 @@ input[type="checkbox"] {
 	font-size: 1em;
 }
 
+#loginstatus {
+	margin: 5px;
+	vertical-align: bottom;
+	color: white;
+	text-align: right;
+	font-size: 0.85em;
+	font-weight: normal;
+/* the loginstatus div needs to preserve its left margin due to bootstrap's
+ * fluid offsets, so we need to manually set its other margins to line up with
+ * the rest of the logos */
+} 
+
 
 /* Nav */
 
 #site-links ul {
+	margin-top: 0;
 	border: 1px solid #e6e6e6;
 	background: #f6f6f6;
 	overflow: hidden;
