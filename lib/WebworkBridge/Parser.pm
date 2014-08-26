@@ -114,6 +114,7 @@ sub sanitizeCourseName
 # E.g.: Term-Course1-Section1-Course2-Section2
 # Section can be composed of section numbers, e.g.: 100
 # Section can have multiple section numbers, e.g.: 100, 101a, 102b, etc.
+# Section can also start with a character, e.g.: V01
 #
 # There is one exception to - delimiting in that a course which spans
 # 2 terms will have the terms delimited by a - too, e.g.: 2012W1-2
@@ -161,7 +162,7 @@ sub _parseConnectCourse
 			{
 				$section = 'ALL';
 			}
-			elsif ($section !~ /^\d\d\d/)
+			elsif ($section !~ /^\d\d\d/ and $section !~ /^[A-Z]\d\d/)
 			{ # section isn't in the expected format, bail
 				last;
 			}
