@@ -6,6 +6,7 @@ use warnings;
 
 use Time::HiRes qw/gettimeofday/;
 use Date::Format;
+use App::Genpass;
 
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
@@ -255,8 +256,9 @@ sub addUser
 		$cryptedpassword = cryptPassword($new_user_info->{'password'});
 	}
 	else
-	{
-		$cryptedpassword = cryptPassword($new_user->student_id());
+	{ # no password given, so default to random password
+		my $genpass = App::Genpass->new(length=>16);
+		$cryptedpassword = cryptPassword($genpass->generate);
 	}
 	my $password = $db->newPassword(user_id => $id);
 	$password->password($cryptedpassword);

@@ -12,6 +12,7 @@ use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
 
 use WebworkBridge::Importer::Error;
 
+use App::Genpass;
 use Text::CSV;
 
 # Constructor
@@ -97,6 +98,7 @@ sub createClassList
 	# write students
 	# profid may be a comma separated list of ids, to support multiple profs
 	my @profid = split(/,/, $course{profid});
+	my $genpass = App::Genpass->new(length=>16);
 	foreach my $i (@students)
 	{
 		my $id = $i->{'loginid'};
@@ -115,7 +117,7 @@ sub createClassList
 		print FILE "$id,"; # login id
 		$i->{password} ? 
 			print FILE cryptPassword($i->{password})."," : 
-			print FILE ","; # password
+			print FILE $genpass->generate,","; # password
 		print FILE "$i->{'permission'}\n"; # permission
 	}
 
