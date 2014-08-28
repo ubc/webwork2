@@ -129,7 +129,7 @@ sub initialize {
 		#if the instructor added a comment we should save that to the latest answer
 		if ($r->param("$userID.comment")) {
 		    my $comment = $r->param("$userID.comment");
-
+	        
 		    my $userPastAnswerID = $db->latestProblemPastAnswer($courseName, $userID, $setID, $problemID); 
 		    
 		    if ($userPastAnswerID) {
@@ -224,11 +224,7 @@ sub body {
 	print CGI::start_form({method=>"post", action => $self->systemLink( $urlpath, authen=>0), id=>"problem-grader-form", name=>"problem-grader-form" });
 	 
 	my $selectAll =CGI::input({-type=>'button', -name=>'check_all', -value=>'Mark All',
-				   onClick => "for (i in document.forms['problem-grader-form'].elements)  { 
-	                       if (document.forms['problem-grader-form'].elements[i].className == 'mark_correct') { 
-	                           document.forms['problem-grader-form'].elements[i].checked = true
-	                       }
-	                    }" });
+				   onClick => "\$('.mark_correct').each(function () { if (\$(this).attr('checked')) {\$(this).attr('checked',false);} else {\$(this).attr('checked',true);}});" });
 
 	print CGI::start_table({width=>"1020px"});
 	print CGI::Tr({-valign=>"top"}, CGI::th(["Section", "Name","&nbsp;","Latest Answer","&nbsp;","Mark Correct<br>".$selectAll, "&nbsp;", "Score (%)", "&nbsp;", "Comment"]));
