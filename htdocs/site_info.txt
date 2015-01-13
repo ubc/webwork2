@@ -1,3 +1,9 @@
+<!-- For production servers you should consider replacing this file with one 
+  that is not tracked by git and setting and setting the variable
+  $webworkFiles{site_info} in localOverrides.conf.  This will prevent the file 
+  from being overwritten when you switch branches or by upgrades.  
+ -->
+
 <p><font color="red">Login Problems?</font></p>
 <ul>
     <li>Make sure you are logging in to the correct course/section.</li>

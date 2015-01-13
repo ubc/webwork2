@@ -1,6 +1,8 @@
 #!/user/bin/perl -w
 
 # initialize SOAP interface as well
+
+use JSON;
 use WebworkSOAP;
 use WebworkSOAP::WSDL;
 
@@ -183,6 +185,7 @@ if ($UNIT_TESTS_ON) {
 		ce          =>  $ce,
 		db          =>  $db,
 		language_handle => $language_handle,
+		xmlrpc		=>  1,		# Set a flag for Authen modules
 	};	
 	$self = bless $self, $class;
 	# need to bless self before it can be used as an argument for the authentication module
@@ -368,6 +371,27 @@ sub buildBrowseTree {
 	return $self->do(WebworkWebservice::LibraryActions::buildBrowseTree($self,$in));
 }	
 
+sub loadBrowseTree {
+	my $class = shift;
+	my $in = shift;
+	my $self = $class->initiate_session($in);
+	return $self->do(WebworkWebservice::LibraryActions::loadBrowseTree($self,$in));
+}	
+
+sub loadLocalLibraryTree {
+	my $class = shift;
+	my $in = shift;
+	my $self = $class->initiate_session($in);
+	return $self->do(WebworkWebservice::LibraryActions::loadLocalLibraryTree($self,$in));
+}
+
+sub getLocalProblems {
+	my $class = shift;
+	my $in = shift;
+	my $self = $class->initiate_session($in);
+	return $self->do(WebworkWebservice::LibraryActions::getLocalProblems($self,$in));	
+}
+
 sub getProblemTags {
 	my $class = shift;
 	my $in = shift;
@@ -449,6 +473,12 @@ sub updateProblem {
 	my ($class,$in) = @_;
 	my $self = $class->initiate_session($in);
 	return $self->do(WebworkWebservice::SetActions::updateProblem($self,$in));
+}
+
+sub saveProblem {
+	my ($class,$in) = @_;
+	my $self = $class->initiate_session($in);
+	return $self->do(WebworkWebservice::LibraryActions::saveProblem($self,$in));
 }
 
 sub readFile {
@@ -636,6 +666,13 @@ sub getUserSets {
     return $self->do(WebworkWebservice::SetActions::getUserSets($self, $in));
 }
 
+sub saveUserSets {
+    my $class = shift;
+    my $in = shift;
+    my $self = $class->initiate_session($in);
+    return $self->do(WebworkWebservice::SetActions::saveUserSets($self, $in));
+}
+
 
 sub getSet {
     my $class = shift;
@@ -686,6 +723,15 @@ sub updateSetting {
 	my $self = $class->initiate_session($in);
 	return $self->do(WebworkWebservice::CourseActions::updateSetting($self,$in));	
 }
+
+sub renderProblem2 {
+	my $class = shift;
+	my $in = shift;
+	my $self = $class->initiate_session($in);
+	return $self->do(WebworkWebservice::RenderProblem::renderProblem2($self,$in));	
+}
+
+
 
 
 # -- SOAP::Lite -- guide.soaplite.com -- Copyright (C) 2001 Paul Kulchenko --
