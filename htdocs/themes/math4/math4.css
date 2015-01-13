@@ -82,18 +82,27 @@ legend {
 /* Banner */
 #masthead {
 	background-color: #038;
-	margin-bottom: 0.5em;
+	margin: 0;
+	padding: 0;
+	padding: 5px;
+	width: 99%; /* dirty hack to prevent creation of horizontal scroll bar */
 }
 
 .webwork_logo {
 	background-color: #1048ae;
+	font-size: 1.6em;
+	font-weight: 500;
 	border: 1px solid #5577b0;
-	padding: 2px 5px 0 0; /* attempt to even out the blank space so that
+	padding: 2px 10px 0 6px; /* attempt to even out the blank space so that
 								the logo & text doesn't look lopsided */
 }
 
-#masthead .webwork_logo img {
-	padding-right: 3px; /* distance itself to the Webwork text */
+.webwork_logo img {
+	padding-right: 5px; /* distance itself to the Webwork text */
+}
+
+.maa_logo img {
+	vertical-align: center;
 }
 
 .webwork_logo a,
@@ -110,7 +119,7 @@ legend {
 }
 
 #loginstatus {
-    	padding-top:.5ex;
+	padding-top:.5ex;
 	color: white;
 	text-align: right;
 	font-size: 0.85em;
@@ -128,23 +137,10 @@ legend {
 	font-size: 1em;
 }
 
-#loginstatus {
-	margin: 5px;
-	vertical-align: bottom;
-	color: white;
-	text-align: right;
-	font-size: 0.85em;
-	font-weight: normal;
-/* the loginstatus div needs to preserve its left margin due to bootstrap's
- * fluid offsets, so we need to manually set its other margins to line up with
- * the rest of the logos */
-} 
-
 
 /* Nav */
 
 #site-links ul {
-	margin-top: 0;
 	border: 1px solid #e6e6e6;
 	background: #f6f6f6;
 	overflow: hidden;

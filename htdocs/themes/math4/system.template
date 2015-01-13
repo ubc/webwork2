@@ -88,11 +88,8 @@ var tabberOptions = {manualStartup:true};
 	<div class="span4 maa_logo">
 		<a href="http://www.maa.org"><img src="<!--#url type="webwork" name="htdocs"-->/images/maa_logo_small.png" alt="to MAA (Mathematical Association of America) main web site" /></a>
 	</div>
-	</div>
-	<div class="span5">
-		<div id="loginstatus">
-			<!--#loginstatus-->
-		</div>
+	<div id="loginstatus" class="offset3 span3">
+		<!--#loginstatus-->
 	</div>
 </div>
 
