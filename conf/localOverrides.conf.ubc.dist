@@ -214,7 +214,7 @@ $pg{options}{displayMode}        = "images";
 # If your new applets location is a subdirectory of the webwork htdocs directory, you may
 # use notation such as "$webworkURLs{htdocs}/newsubdir"
 
-# $pg{directories}{appletPath} = [ @{$pg{directories}{appletPath}} , "new/url" ];
+$pg{directories}{appletPath} = [ @{$pg{directories}{appletPath}} , "$webworkURLs{htdocs}/applets/CSUOhio" ];
 
 ################################################################################
 # Problem creation defaults
