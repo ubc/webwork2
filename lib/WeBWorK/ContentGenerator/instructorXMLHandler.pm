@@ -27,6 +27,8 @@ package WeBWorK::ContentGenerator::instructorXMLHandler;
 use base qw(WeBWorK::ContentGenerator);
 use MIME::Base64 qw( encode_base64 decode_base64);
 use WeBWorK::Debug;
+use WeBWorK::Utils qw(readFile);
+use PGUtil qw(not_null);
 
 our $UNIT_TESTS_ON      = 0;  # should be called DEBUG??  FIXME
 
@@ -207,7 +209,7 @@ sub pre_header_initialize {
             student_id     			=> $r->param('student_id') || undef,
             id             			=> $r->param('user_id') || undef,
             email_address  			=> $r->param('email_address') || undef,
-            permission     			=> $r->param('permission') || 0,	# valid values from %userRoles in defaults.config
+            permission     			=> $r->param('permission') // 0,	# valid values from %userRoles in defaults.config
             status         			=> $r->param('status') || undef,#'Enrolled, audit, proctor, drop
             section        			=> $r->param('section') || undef,
             recitation     			=> $r->param('recitation') || undef,
@@ -215,7 +217,7 @@ sub pre_header_initialize {
             new_password   			=> $r->param('new_password') || undef,
             userpassword   			=> $r->param('userpassword') || undef,	# defaults to studentid if empty
 	     	set_props	    		=> $r->param('set_props') || undef,
-	     	set_id	    			=> $r->param('set_id') || undef,
+	     	set_id	    			=> not_null($r->param('set_id')) ? $r->param('set_id') : undef,
 	     	due_date	    		=> $r->param('due_date') || undef,
 	     	set_header     		   	=> $r->param('set_header') || undef,
 	        hardcopy_header 	   	=> $r->param('hardcopy_header') || undef,
@@ -258,10 +260,10 @@ sub pre_header_initialize {
 		   format_hash_ref($input);
 	}
 	my $source = "";
-	#print $r->param('problemSource');
-	my $problem = $r->param('problemSource');
-	if (defined($problem) and $problem and -r $problem ) {
-    	$source = `cat $problem`;
+	#print $r->param('problemPath');
+	my $problemPath = $r->param('problemPath');
+	if (defined($problemPath) and $problemPath and -r $problemPath ) {
+    	eval { $source = WeBWorK::Utils::readFile($problemPath) };
     	#print "SOURCE\n".$source;
     	$input->{source} = encode_base64($source);
 	}
