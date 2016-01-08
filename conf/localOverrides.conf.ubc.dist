@@ -3,12 +3,12 @@
 # WeBWorK Online Homework Delivery System
 # Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/conf/localOverrides.conf.dist,v 1.225 2010/05/18 18:03:31 apizer Exp $
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
 # Free Software Foundation; either version 2, or (at your option) any later
 # version, or (b) the "Artistic License" which comes with this package.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
@@ -29,8 +29,8 @@
 # when installing WeBWorK on a new site. The configurations in defaults.config
 # and in database.conf can usually remain untouched.
 #
-# localOverride.conf is the appropriate place to override permission settings, 
-# paths to macros and other customizations that are specific to your 
+# localOverride.conf is the appropriate place to override permission settings,
+# paths to macros and other customizations that are specific to your
 # WeBWorK site
 
 
@@ -40,9 +40,9 @@
 
 # This setting is only used if you need to send email from within a PG problem
 # (e.g. surveys, essay questions).  It is not necessary for using the email
-# tools in WeBWorK.  You can set email addresses here for users who need to 
+# tools in WeBWorK.  You can set email addresses here for users who need to
 # receive email from problems in all courses, or in course.conf for professors
-# who will receive email from problems in a single course. 
+# who will receive email from problems in a single course.
 
 $mail{feedbackRecipients}    = [
 	#'prof1@yourserver.yourdomain.edu',
@@ -53,18 +53,18 @@ $mail{feedbackRecipients}    = [
 # Repository Information
 ###############################################################################
 # This is where you put your remote and branch for your WeBWorK, PG and OPL
-# github repositories.  
+# github repositories.
 # To disable checking for a particular repository, set the remote and branch
-# variables to be empty strings.  
+# variables to be empty strings.
 
-# Note:  This process uses git ls-remote which can be very slow on some 
+# Note:  This process uses git ls-remote which can be very slow on some
 # systems.  If your course list page in the admin course is very slow
-# consider disabling this option.  
+# consider disabling this option.
 
 $enableGitUpgradeNotifier = 0;
 
 $gitWeBWorKRemoteName = "origin";
-$gitWeBWorKBranchName = "master";
+$gitWeBWorKBranchName = "ubc";
 $gitPGRemoteName = "origin";
 $gitPGBranchName = "master";
 $gitLibraryRemoteName = "origin";
@@ -81,7 +81,7 @@ $defaultThemeTemplate = "system";
 # Language
 ################################################################################
 
-$language = "en";   
+$language = "en";
 # Check the directory .../webwork2/lib/WeBWorK/Localize to what languages are
 # currently supported (e.g. en, es,. fr, heb, tr, zk_hk).
 
@@ -105,7 +105,7 @@ $webworkFiles{hardcopySnippets}{setHeader}     = "$webworkDirs{conf}/snippets/AS
 # The set header is displayed on the problem set page. It is a PG file.
 # One of these default files which is used if a specific files is not selected
 
-$webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/ASimpleCombinedHeaderFile.pg"; 
+$webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/ASimpleCombinedHeaderFile.pg";
 
 # $webworkFiles{screenSnippets}{setHeader}         = "$courseDirs{templates}/ASimpleScreenHeaderFile.pg"; # An alternate default screen HTML only header file
 # $webworkFiles{screenSnippets}{setHeader}         = "$courseDirs{templates}/ASimpleCombinedHeaderFile.pg";
@@ -123,8 +123,9 @@ $webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/
 #$problemLibrary{root}        = "/opt/webwork/libraries/NationalProblemLibrary";
 #$problemLibrary{version}     = "2";
 # uncomment these lines below and comment out the line above if using OPL instead of NPL
-$problemLibrary{root}       = "/opt/webwork/libraries/webwork-open-problem-library/OpenProblemLibrary";
-$problemLibrary{version}    = "2.5";  
+$problemLibrary{root}       = "/www_data/libraries/opl/OpenProblemLibrary";
+$contribLibrary{root}       = "/www_data/libraries/opl/Contrib";
+$problemLibrary{version}    = "2.5";
 
 # Additional library buttons can be added to the Library Browser (SetMaker.pm)
 # by adding the libraries you want to the following line.  For each key=>value
@@ -133,24 +134,25 @@ $problemLibrary{version}    = "2.5";
 # the top of the problem browser.  (No button will appear if there is no
 # directory or link with the given name in the templates directory.)  For
 # example,
-# 
+#
 #     $courseFiles{problibs} = {rochester => "Rochester", asu => "ASU"};
-# 
+#
 # would add two buttons, one for the Rochester library and one for the ASU
-# library, provided templates/rochester and templates/asu exists either as 
+# library, provided templates/rochester and templates/asu exists either as
 # subdirectories or links to other directories. The "NPL Directory" button
-# activated below gives access to all the directories in the National 
+# activated below gives access to all the directories in the National
 # Problem Library.
- 
+
 $courseFiles{problibs}    = {
 	Library          => "OPL Directory",
+	ubcLibrary       => "UBC Library",
 # 	rochesterLibrary => "Rochester",
 # 	unionLibrary     => "Union",
 # 	asuLibrary       => "Arizona State",
 # 	dcdsLibrary      => "Detroit CDS",
 # 	dartmouthLibrary => "Dartmouth",
 # 	indianaLibrary   => "Indiana",
-# 	osuLibrary       => "Ohio State",	
+# 	osuLibrary       => "Ohio State",
 #       capaLibrary      => "CAPA",
 };
 
@@ -165,12 +167,12 @@ $courseFiles{problibs}    = {
 
 # User roles in order of increasing permissions. Each level has all of the privileges of
 # the lower levels.
-# 	guest 
-# 	student 
+# 	guest
+# 	student
 # 	login_proctor
 # 	grade_proctor
-# 	ta 
-# 	professor 
+# 	ta
+# 	professor
 # 	admin
 
 # The complete list of permissions is available in defaults.config.  If you want
@@ -181,7 +183,16 @@ $courseFiles{problibs}    = {
 # The above code would give the permission to login to any user with permission
 # level guest or higher.
 
-$permissionLevels{dont_log_past_answers} = undef;
+$permissionLevels{dont_log_past_answers} = "professor";
+$permissionLevels{become_student} = "ta";
+$permissionLevels{send_email} = "ta";
+$permissionLevels{create_and_delete_problem_sets} = "ta";
+$permissionLevels{assign_problem_sets} = "ta";
+$permissionLevels{modify_problem_sets} = "ta";
+$permissionLevels{modify_student_data} = "ta";
+$permissionLevels{modify_set_def_files} = "ta";
+$permissionLevels{manage_course_files} = "ta";
+$permissionLevels{avoid_recording_answers} = "ta";
 #$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
 #$permissionLevels{record_answers_when_acting_as_student} = "professor";
 
@@ -199,7 +210,7 @@ $pg{displayModes} = [
 
 # Default display mode. Should be an uncommented item listed above.
 $pg{options}{displayMode}        = "MathJax";
- 
+
 ################################################################################
 #  Adding to the macro file search path. (Check with entries in defaults.config before overriding)
 ################################################################################
@@ -223,11 +234,11 @@ $pg{options}{displayMode}        = "MathJax";
 
 # If a full URL is given, it is used unmodified. If an
 # absolute path is given, the URL of the local server is prepended to it.
-# 
+#
 # For example, if an item is "/math/applets",
 # and the local server is  "https://math.yourschool.edu",
 # then the URL "https://math.yourschool.edu/math/applets" will be used.
-# 
+#
 # If your new applets location is a subdirectory of the webwork htdocs directory, you may
 # use notation such as "$webworkURLs{htdocs}/newsubdir"
 
@@ -237,69 +248,65 @@ $pg{directories}{appletPath} = [ @{$pg{directories}{appletPath}} , "$webworkURLs
 # Problem creation defaults
 ################################################################################
 
-# The default weight (also called value) of a problem to use when using the 
+# The default weight (also called value) of a problem to use when using the
 # Library Browser, Problem Editor or Hmwk Sets Editor to add problems to a set
 # or when this value is left blank in an imported set definition file.
 
-$problemDefaults{value} = 1;  
+$problemDefaults{value} = 1;
 
-# The default max_attempts for a problem to use when using the 
+# The default max_attempts for a problem to use when using the
 # Library Browser, Problem Editor or Hmwk Sets Editor to add problems to a set
-# or when this value is left blank in an imported set definition file.  Note that 
+# or when this value is left blank in an imported set definition file.  Note that
 # setting this to -1 gives students unlimited attempts.
 
-$problemDefaults{max_attempts} = -1;   
+$problemDefaults{max_attempts} = -1;
 
-# The default showMeAnother for a problem to use when using the 
+# The default showMeAnother for a problem to use when using the
 # Library Browser, Problem Editor or Hmwk Sets Editor to add problems to a set
-# or when this value is left blank in an imported set definition file.  Note that 
+# or when this value is left blank in an imported set definition file.  Note that
 # setting this to -1 disables the showMeAnother button
-$problemDefaults{showMeAnother} = -1;   
+$problemDefaults{showMeAnother} = -1;
 
 ################################################################################
 # "Special" PG environment variables. (Stuff that doesn't fit in anywhere else.)
 ################################################################################
 
-# $pg{specialPGEnvironmentVars}{DragMath} = 0;
+ $pg{specialPGEnvironmentVars}{DragMath} = 0;
+ #$pg{specialPGEnvironmentVars}{CAPA_Tools}             = "$courseDirs{templates}/Contrib/CAPA/macros/CAPA_Tools/",
+ #$pg{specialPGEnvironmentVars}{CAPA_MCTools}           = "$courseDirs{templates}/Contrib/CAPA/macros/CAPA_MCTools/",
+ # The link Contrib in the course templates directory should point to ../webwork-open-problem-library/Contrib
 
 ################################################################################
 # Temporary hack for displaying the different versions of the editors
 ################################################################################
 # These configurations can be placed in course.conf file to tune the behavior for individual courses
-# The items below can be used to override the settings in defaults.config
-# One can also use $showeditors{classlisteditor1}=0; to override
-# These will disappear (or at least decrease in number) once the final editor verisons
-# are determined. 
- %showeditors = (
-# 	classlisteditor1   => 1,
- 	classlisteditor2   => 1,
-# 	
-# 	homeworkseteditor1 => 1,
- 	homeworkseteditor2 => 1,
-# 	
-# 	librarybrowsernojs    => 1,
- 	librarybrowser1    => 1,
-# 	librarybrowser2    => 1,
-#	librarybrowser3    => 1,
-# 	
-#	pgproblemeditor1   => 1,
-	pgproblemeditor2   => 1,
-# 	pgproblemeditor3   => 1,
-);
+
+# These will enable the versions of the problem set detail page and library browser page
+# that do not use the xmlrpc pathway
+
+#$showeditors{problemsetdetail1} = 1;
+#$showeditors{librarybrowsernojs} = 1;
+
+# This will enable the slightly fancier PG problem editor 3
+
+#$showeditors{pgproblemeditor3} = 1;
+
+# This will turn off ww3
+#$showeditors{ww3} = 0;
 
 ################################################################################
 # Directory for temporary files
-################################################################################ 
-# Location of web-accessible temporary files, such as equation images. 
+################################################################################
+# Location of web-accessible temporary files, such as equation images.
 # Default which is set in defaults.config:
 #$webworkDirs{htdocs_temp}   = "$webworkDirs{htdocs}/tmp";
 #$webworkURLs{htdocs_temp}   = "$webworkURLs{htdocs}/tmp";
 
-# Alternate locations -- this allows you to place temporary files in a location 
+# Alternate locations -- this allows you to place temporary files in a location
 # that is not backed up and is the recommended set up for most installations.
 # See http://webwork.maa.org/wiki/Store_WeBWorK%27s_temporary_files_in_a_separate_directory_or_partition
-# for more information.   Note that the wwtmp directory (or partition) should be 
-# created under Apache's main server document root which is usually /var/www. If this 
+# for more information.   Note that the wwtmp directory (or partition) should be
+# created under Apache's main server document root which is usually /var/www. If this
 # is in a different location on your system, edit the lines below accordingly.
 # To implement, uncomment the following 6 lines:
 #$webworkDirs{htdocs_temp}  =  '/var/www/wwtmp';
@@ -309,7 +316,7 @@ $problemDefaults{showMeAnother} = -1;
 #$courseDirs{html_temp}  =  "/var/www/wwtmp/$courseName";
 #$courseURLs{html_temp}   = "/wwtmp/$courseName";
 
-################################################################################ 
+################################################################################
 # Student Date Format
 ################################################################################
 
@@ -353,29 +360,25 @@ $authen{user_module} = {
 # Session Management
 ################################################################################
 
-## For session management using session_cookies, uncomment the following line,
-## which will override the setting  $session_management_via = "key"
-## in defaults.config.
-## 
 ## For a discussion of session_management_via session_cookies or the
 ## Key database, see the   Session Managment section
 ## of defaults.config.dist
 
-#$session_management_via = "session_cookie";
+## For session management using the key databasse table, uncomment the following line,
+## which will override the setting  $session_management_via = "session_cookie"
+## set in defaults.config.
+
+#  $session_management_via = "key";
 
 ################################################################################
-# Achievement Facebook Integration
+# Searching for set.def files to import
 ################################################################################
+## Uncomment below so that when the homework sets editor searches for set def
+## files, it searches beyond templates; it can search deeper subfolders of
+## templates, and optionally also descend into Library
 
-#  Note:  This feature is out of date and no longer works with facebooks api
-
-## Because of the way facebook works, in order to use facebook integration
-## with webwork, you will need to create a facebook "app" specific to the 
-## domain name of the server you are running.  Once you have created the app
-## you can enable facebook integration by setting the variables below
-
-#$allowFacebooking = 1;
-#$facebookAppId = your_app_id_here;
+#$options{setDefSearchDepth}=4; #search down 4 levels
+#$options{useOPLdefFiles}=1;
 
 ################################################################################
 # Custom Params
@@ -385,35 +388,24 @@ $authen{user_module} = {
 # Users marked as "Enrolled" or "Teaching" can be modified during course
 # enrolment sync, e.g.: they can be dropped.
 #
-# Users marked as "EnrolledNoDrop" or "TeachingNoDrop" are exempted from 
+# Users marked as "EnrolledNoDrop" or "TeachingNoDrop" are exempted from
 # modification during course enrolment sync.
 
-%statuses = (
-	Enrolled => {
-		abbrevs => [qw/ C c current enrolled /],
-		behaviors => [qw/ allow_course_access include_in_assignment include_in_stats include_in_email include_in_scoring /],
-	},
-	Audit => {
-		abbrevs => [qw/ A a audit /],
-		behaviors => [qw/ allow_course_access include_in_assignment include_in_stats include_in_email /],
-	},
-	Drop => {
-		abbrevs => [qw/ D d drop withdraw /],
-		behaviors => [qw/  /],
-	},
-	Teaching => { 
-		abbrevs => [qw/ P p professor /],
-		behaviors => [qw/ allow_course_access /],
-	},
-	EnrolledNoDrop => { 
-		abbrevs => [qw/ E e enrollednodrop /],
-		behaviors => [qw/ allow_course_access include_in_assignment include_in_stats include_in_email include_in_scoring /],
-	},
-	TeachingNoDrop => { 
-		abbrevs => [qw/ T t teachingnodrop /],
-		behaviors => [qw/ allow_course_access /],
-	},
-);
+$statuses{Teaching} = {
+    abbrevs => [qw/ P p professor /],
+    behaviors => [qw/ allow_course_access /],
+};
+$statuses{EnrolledNoDrop} = {
+    abbrevs => [qw/ E e enrollednodrop /],
+    behaviors => [qw/ allow_course_access include_in_assignment include_in_stats include_in_email include_in_scoring /],
+};
+$statuses{TeachingNoDrop} = {
+    abbrevs => [qw/ T t teachingnodrop /],
+    behaviors => [qw/ allow_course_access /],
+};
+
+# URL of WeBWorK Bugzilla database.
+$webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
 
 # Add in custom authen modules
 $authen{lti} = "WeBWorK::Authen::LTI";
@@ -431,6 +423,7 @@ $bridge{classlistdir} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/";
 $bridge{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
 # Set password for the admin user created for all imported courses.
 $bridge{adminuserpw} = "admin";
+$bridge{bbprod} = "";
 $bridge{lti_secret} = "secret";
 # Options for particular authentication modules
 $bridge{vista_login_options} = {
@@ -453,13 +446,14 @@ $bridge{lti_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/log
 $bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emaillist";
 
 # the switch for launching LTI membership request on login
-# if the switch is off, the LTI requset has to have ubc_auto_update parameter to launch 
+# if the switch is off, the LTI requset has to have ubc_auto_update parameter to launch
 # membership the request
 $bridge{update_class_on_login} = 1;
 
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
 $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
+$bridge{update_class_on_login} = 1;
 
 # List of Vista ids that are blacklisted from import. Note that id matching
 # is done using m//, so any occurance of the string below in an id will mark
@@ -467,20 +461,20 @@ $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
 $bridge{vista_blacklist} = (
     "webct_demo"
 );
-# Note that the mapped Webwork course name still goes through sanitization. 
+# Note that the mapped Webwork course name still goes through sanitization.
 # Please make sure they match these requirements or the courses will not match.
 # - Allowed characters in regex form: [a-zA-Z0-9_-]
 # - Max length 40 characters
-# See WebworkBridge's Parser::sanitizeCourseName() for implementation 
+# See WebworkBridge's Parser::sanitizeCourseName() for implementation
 #
 # Maping Rules:
 # 1. Rule can be either extact match or regex
-# 2. Rules has priority, first come first match. If webwork got a match, 
+# 2. Rules has priority, first come first match. If webwork got a match,
 #    it will use the match and the rules after that will not get evaluated.
 # 3. Using regex grouping for substituion
 $bridge{course_mapping_rules} = [
 	# Custom course mapping
-	{ 'WS.UBC.MATH.104.101.2012W1.12422' => 'MATH104_2012W1' }, 
+	{ 'WS.UBC.MATH.104.101.2012W1.12422' => 'MATH104_2012W1' },
 	# Connect course naming convention
 	{ '(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*' => '"$2_$3_$4_$5"' }, # SIS/workshop course section
 	{ 'CL\.[^.]*\.(.*)' => '"$1"' }, # cross listed course
@@ -488,5 +482,44 @@ $bridge{course_mapping_rules} = [
 ];
 
 $bridge{course_template} = "modelCourse";
+
+$shibboleth{login_script} = "/Shibboleth.sso/Login";
+$shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url;
+$shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if there is an existing shibboleth session
+$shibboleth{manage_session_timeout} = 0; #allow shib to manage session time instead of webwork
+$shibboleth{hash_user_id_method} = "none"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url.
+$shibboleth{hash_user_id_salt} = ""; # salt for hash function
+#define mapping between shib and webwork
+$shibboleth{attributes} = [
+        'puid',
+        'studentNumber',
+        'employeeNumber',
+        'cwlLoginName',
+];
+
+push @{$pg{modules}},
+   [qw( Statistics::R::IO::Rserve )],
+   [qw( Statistics::R::IO::ParserState )],
+   [qw( Statistics::R::REXP::Character )],
+   [qw( Statistics::R::REXP::Double )],
+   [qw( Statistics::R::REXP::Environment )],
+   [qw( Statistics::R::REXP::GlobalEnvironment )],
+   [qw( Statistics::R::REXP::Integer )],
+   [qw( Statistics::R::REXP::Language )],
+   [qw( Statistics::R::REXP::List )],
+   [qw( Statistics::R::REXP::Logical )],
+   [qw( Statistics::R::REXP::Null )],
+   [qw( Statistics::R::REXP::Raw )],
+   [qw( Statistics::R::REXP::Symbol )],
+   [qw( Statistics::R::REXP::Unknown )],
+   [qw( Statistics::R::REXP::Vector )],
+   [qw( Statistics::R::REXP )],
+   [qw( Math::Complex )],
+   [qw( IO::File )],
+   [qw( IO::Handle )],
+   [qw( Moose )],
+   [qw( Class::MOP )];
+
+$pg{specialPGEnvironmentVars}{Rserve} = {host => ''};
 
 1; #final line of the file to reassure perl that it was read properly.
