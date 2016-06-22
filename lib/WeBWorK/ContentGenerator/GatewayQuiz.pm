@@ -2,12 +2,12 @@
 # WeBWorK Online Homework Delivery System
 # Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/GatewayQuiz.pm,v 1.54 2008/07/01 13:12:56 glarose Exp $
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
 # Free Software Foundation; either version 2, or (at your option) any later
 # version, or (b) the "Artistic License" which comes with this package.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
@@ -40,6 +40,7 @@ use WeBWorK::DB::Utils qw(global2user user2global);
 use WeBWorK::Utils::Tasks qw(fake_set fake_set_version fake_problem);
 use WeBWorK::Debug;
 use WeBWorK::ContentGenerator::Instructor qw(assignSetVersionToUser);
+use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
 use PGrandom;
 
 # template method
@@ -47,23 +48,13 @@ sub templateName {
 	return "gateway";
 }
 
-# small utility to round scores to 5 decimal places
-# use wwRound instead (akp 11/2014)
-#sub tidy_score {
-#	my $s = shift;
-#	$s = sprintf("%.5f", $s);
-#	$s =~ s/0+$// if $s =~ /\./;
-#	$s =~ s/\.$//;
-#	return $s;
-#}
-
 ################################################################################
 # "can" methods
 ################################################################################
 
 # Subroutines to determine if a user "can" perform an action. Each subroutine is
 # called with the following arguments:
-# 
+#
 #     ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem)
 
 # *** The "can" routines are taken from Problem.pm, with small modifications
@@ -73,48 +64,53 @@ sub templateName {
 sub can_showOldAnswers {
 	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem, $tmplSet ) = @_;
 	my $authz = $self->r->authz;
-# we'd like to use "! $Set->hide_work()", but that hides students' work 
+# we'd like to use "! $Set->hide_work()", but that hides students' work
 # as they're working on the set, which isn't quite right.  so use instead:
 	return 0 unless $authz->hasPermissions($User->user_id,"can_show_old_answers");
 
-	return( before( $Set->due_date() ) || 
-		
+	return( before( $Set->due_date() ) ||
+
 		$authz->hasPermissions($User->user_id,"view_hidden_work") ||
-		( $Set->hide_work() eq 'N' || 
+		( $Set->hide_work() eq 'N' ||
 		  ( $Set->hide_work() eq 'BeforeAnswerDate' && time > $tmplSet->answer_date ) ) );
 }
 
 # gateway change here: add $submitAnswers as an optional additional argument
 #   to be included if it's defined
 sub can_showCorrectAnswers {
-	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem, 
+	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem,
 	    $tmplSet, $submitAnswers) = @_;
 	my $authz = $self->r->authz;
-	
+
 # gateway change here to allow correct answers to be viewed after all attempts
 #   at a version are exhausted as well as if it's after the answer date
 # $addOne allows us to count the current submission
 	my $addOne = defined( $submitAnswers ) ? $submitAnswers : 0;
 	my $maxAttempts = $Set->attempts_per_version() || 0;
-	my $attemptsUsed = $Problem->num_correct + $Problem->num_incorrect + 
+	my $attemptsUsed = $Problem->num_correct + $Problem->num_incorrect +
 	    $addOne || 0;
 
 # this is complicated by trying to address hiding scores by problem---that
-#    is, if $set->hide_score_by_problem and $set->hide_score are both set, 
-#    then we should allow scores to be shown, but not show the score on 
-#    any individual problem.  to deal with this, we make 
-#    can_showCorrectAnswers give the least restrictive view of hiding, and 
+#    is, if $set->hide_score_by_problem and $set->hide_score are both set,
+#    then we should allow scores to be shown, but not show the score on
+#    any individual problem.  to deal with this, we make
+#    can_showCorrectAnswers give the least restrictive view of hiding, and
 #    then filter scores for the problems themselves later
-	my $canShowScores = ( $Set->hide_score eq 'N' ||
-			      $Set->hide_score_by_problem eq 'Y' ||
-			      ( $Set->hide_score eq 'BeforeAnswerDate' &&
-				after($tmplSet->answer_date) ) );
 
-	return ( ( ( after( $Set->answer_date ) || 
-		     ( $attemptsUsed >= $maxAttempts && 
+#    showing correcrt answers but not showing scores doesn't make sense
+#    so we should hide the correct answers if we aren not showing
+#    scores GG.
+
+	my $canShowScores = $Set->hide_score_by_problem eq 'N' &&
+	  ( $Set->hide_score eq 'N' ||
+	    ( $Set->hide_score eq 'BeforeAnswerDate' &&
+	      after($tmplSet->answer_date) ) );
+
+	return ( ( ( after( $Set->answer_date ) ||
+		     ( $attemptsUsed >= $maxAttempts &&
 		       $maxAttempts != 0 &&
 		       $Set->due_date() == $Set->answer_date() ) ) ||
-		   $authz->hasPermissions($User->user_id, 
+		   $authz->hasPermissions($User->user_id,
 				"show_correct_answers_before_answer_date") ) &&
 		 ( $authz->hasPermissions($User->user_id, "view_hidden_work") ||
 		   $canShowScores ) );
@@ -122,18 +118,18 @@ sub can_showCorrectAnswers {
 
 sub can_showHints {
 	#my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem) = @_;
-	
+
 	return 1;
 }
 
 # gateway change here: add $submitAnswers as an optional additional argument
 #   to be included if it's defined
 sub can_showSolutions {
-	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem, 
+	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem,
 	    $tmplSet, $submitAnswers) = @_;
 	my $authz = $self->r->authz;
 
-# this is the same as can_showCorrectAnswers	
+# this is the same as can_showCorrectAnswers
 # gateway change here to allow correct answers to be viewed after all attempts
 #   at a version are exhausted as well as if it's after the answer date
 # $addOne allows us to count the current submission
@@ -142,21 +138,25 @@ sub can_showSolutions {
 	my $attemptsUsed = $Problem->num_correct+$Problem->num_incorrect+$addOne || 0;
 
 # this is complicated by trying to address hiding scores by problem---that
-#    is, if $set->hide_score_by_problem and $set->hide_score are both set, 
-#    then we should allow scores to be shown, but not show the score on 
-#    any individual problem.  to deal with this, we make can_showSolutions 
-#    give the least restrictive view of hiding, and then filter scores for 
+#    is, if $set->hide_score_by_problem and $set->hide_score are both set,
+#    then we should allow scores to be shown, but not show the score on
+#    any individual problem.  to deal with this, we make can_showSolutions
+#    give the least restrictive view of hiding, and then filter scores for
 #    the problems themselves later
-	my $canShowScores = ( $Set->hide_score eq 'N' ||
-			      $Set->hide_score_by_problem eq 'Y' ||
-			      ( $Set->hide_score eq 'BeforeAnswerDate' &&
-				after($tmplSet->answer_date) ) );
+#    showing correcrt answers but not showing scores doesn't make sense
+#    so we should hide the correct answers if we aren not showing
+#    scores GG.
 
-	return ( ( ( after( $Set->answer_date ) || 
+	my $canShowScores = $Set->hide_score_by_problem eq 'N' &&
+	  ( $Set->hide_score eq 'N' ||
+	    ( $Set->hide_score eq 'BeforeAnswerDate' &&
+	      after($tmplSet->answer_date) ) );
+
+	return ( ( ( after( $Set->answer_date ) ||
 		     ( $attemptsUsed >= $attempts_per_version &&
 		       $attempts_per_version != 0 &&
 		       $Set->due_date() == $Set->answer_date() ) ) ||
-		   $authz->hasPermissions($User->user_id, 
+		   $authz->hasPermissions($User->user_id,
 				"show_correct_answers_before_answer_date") ) &&
 		 ( $authz->hasPermissions($User->user_id, "view_hidden_work") ||
 		   $canShowScores ) );
@@ -165,11 +165,11 @@ sub can_showSolutions {
 # gateway change here: add $submitAnswers as an optional additional argument
 #   to be included if it's defined
 # we also allow for a version_last_attempt_time which is the time the set was
-#   submitted; if that's present we use that instead of the current time to 
-#   decide if we can record the answers.  this deals with the time between the 
+#   submitted; if that's present we use that instead of the current time to
+#   decide if we can record the answers.  this deals with the time between the
 #   submission time and the proctor authorization.
 sub can_recordAnswers {
-	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem, 
+	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem,
 	    $tmplSet, $submitAnswers) = @_;
 	my $authz = $self->r->authz;
 
@@ -181,7 +181,7 @@ sub can_recordAnswers {
 	my $grace = $self->{ce}->{gatewayGracePeriod};
 
 	my $submitTime = ( defined($Set->version_last_attempt_time()) &&
-			   $Set->version_last_attempt_time() ) ? 
+			   $Set->version_last_attempt_time() ) ?
 			   $Set->version_last_attempt_time() : $timeNow;
 
 	if ($User->user_id ne $EffectiveUser->user_id) {
@@ -210,7 +210,7 @@ sub can_recordAnswers {
 # gateway change here; we look at maximum attempts per version, not for the set,
 #   to determine the number of attempts allowed
 # $addOne allows us to count the current submission
-	    my $addOne = ( defined( $submitAnswers ) && $submitAnswers ) ? 
+	    my $addOne = ( defined( $submitAnswers ) && $submitAnswers ) ?
 		1 : 0;
 	    my $attempts_per_version = $Set->attempts_per_version() || 0;
 	    my $attempts_used = $Problem->num_correct+$Problem->num_incorrect+$addOne;
@@ -229,8 +229,8 @@ sub can_recordAnswers {
 # gateway change here: add $submitAnswers as an optional additional argument
 #   to be included if it's defined
 # we also allow for a version_last_attempt_time which is the time the set was
-#   submitted; if that's present we use that instead of the current time to 
-#   decide if we can check the answers.  this deals with the time between the 
+#   submitted; if that's present we use that instead of the current time to
+#   decide if we can check the answers.  this deals with the time between the
 #   submission time and the proctor authorization.
 sub can_checkAnswers {
 	my ($self, $User, $PermissionLevel, $EffectiveUser, $Set, $Problem,
@@ -238,9 +238,9 @@ sub can_checkAnswers {
 	my $authz = $self->r->authz;
 
 	# if we can record answers then we dont need to be able to check them
-	# unless we have that specific permission. 
+	# unless we have that specific permission.
 	if ($self->can_recordAnswers($User,$PermissionLevel,$EffectiveUser,
-				     $Set,$Problem,$tmplSet,$submitAnswers) 
+				     $Set,$Problem,$tmplSet,$submitAnswers)
 	    && !$authz->hasPermissions($User->user_id, "can_check_and_submit_answers")) {
 	    return 0;
 	}
@@ -248,21 +248,25 @@ sub can_checkAnswers {
 	my $timeNow = ( defined($self->{timeNow}) ) ? $self->{timeNow} : time();
    # get the sag time after the due date in which we'll still grade the test
 	my $grace = $self->{ce}->{gatewayGracePeriod};
-	
+
 	my $submitTime = ( defined($Set->version_last_attempt_time()) &&
-			   $Set->version_last_attempt_time() ) ? 
+			   $Set->version_last_attempt_time() ) ?
 			   $Set->version_last_attempt_time() : $timeNow;
 
-	# this is further complicated by trying to address hiding scores by 
-	#    problem---that is, if $set->hide_score_by_problem and 
-	#    $set->hide_score are both set, then we should allow scores to 
-	#    be shown, but not show the score on any individual problem.  
-	#    to deal with this, we use the least restrictive view of hiding 
+	# this is further complicated by trying to address hiding scores by
+	#    problem---that is, if $set->hide_score_by_problem and
+	#    $set->hide_score are both set, then we should allow scores to
+	#    be shown, but not show the score on any individual problem.
+	#    to deal with this, we use the least restrictive view of hiding
 	#    here, and then filter for the problems themselves later
-	my $canShowScores = ( $Set->hide_score eq 'N' ||
-			      $Set->hide_score_by_problem eq 'Y' ||
-			      ( $Set->hide_score eq 'BeforeAnswerDate' &&
-				after($tmplSet->answer_date) ) );
+	#    showing correcrt answers but not showing scores doesn't make sense
+	#    so we should hide the correct answers if we aren not showing
+	#    scores GG.
+
+	my $canShowScores = $Set->hide_score_by_problem eq 'N' &&
+	  ( $Set->hide_score eq 'N' ||
+	    ( $Set->hide_score eq 'BeforeAnswerDate' &&
+	      after($tmplSet->answer_date) ) );
 
 	if (before($Set->open_date, $submitTime)) {
 		return $authz->hasPermissions($User->user_id, "check_answers_before_open_date");
@@ -271,7 +275,7 @@ sub can_checkAnswers {
 # gateway change here; we look at maximum attempts per version, not for the set,
 #   to determine the number of attempts allowed
 # $addOne allows us to count the current submission
-	    my $addOne = (defined( $submitAnswers ) && $submitAnswers) ? 
+	    my $addOne = (defined( $submitAnswers ) && $submitAnswers) ?
 		1 : 0;
 	    my $attempts_per_version = $Set->attempts_per_version()||0;
 	    my $attempts_used = $Problem->num_correct+$Problem->num_incorrect+$addOne;
@@ -281,7 +285,7 @@ sub can_checkAnswers {
 				 ( $authz->hasPermissions($User->user_id, "view_hidden_work") ||
 				   $canShowScores ) );
 		} else {
-			return ( $authz->hasPermissions($User->user_id, "check_answers_after_open_date_without_attempts") && 
+			return ( $authz->hasPermissions($User->user_id, "check_answers_after_open_date_without_attempts") &&
 				 ( $authz->hasPermissions($User->user_id, "view_hidden_work") ||
 				   $canShowScores ) );
 		}
@@ -305,7 +309,6 @@ sub can_showScore {
 
 	# address hiding scores by problem
 	my $canShowScores = ( $Set->hide_score eq 'N' ||
-			      $Set->hide_score_by_problem eq 'Y' ||
 			      ( $Set->hide_score eq 'BeforeAnswerDate' &&
 				after($tmplSet->answer_date) ) );
 
@@ -324,7 +327,7 @@ sub can_useMathView {
 # output utilities
 ################################################################################
 
-# subroutine is modified from that in Problem.pm to produce a different 
+# subroutine is modified from that in Problem.pm to produce a different
 #    table format
 sub attemptResults {
 	my $self = shift;
@@ -343,10 +346,10 @@ sub attemptResults {
 	my $courseName = $ce->{courseName};
 	my @links = ("Homework Sets" , "$root/$courseName", "navUp");
 	my $tail = "";
-	
+
 	my $problemResult = $pg->{result}; # the overall result of the problem
 	my @answerNames = @{ $pg->{flags}->{ANSWER_ENTRY_ORDER} };
-	
+
 	my $showMessages = $showAttemptAnswers && grep { $pg->{answers}->{$_}->{ans_message} } @answerNames;
 
 	# for color coding the responses.
@@ -361,7 +364,7 @@ sub attemptResults {
 
 	# to make grabbing these options easier, we'll pull them out now...
 	my %imagesModeOptions = %{$ce->{pg}->{displayModeOptions}->{images}};
-	
+
 	my $imgGen = WeBWorK::PG::ImageGenerator->new(
 		tempDir         => $ce->{webworkDirs}->{tmp},
 		latex	        => $ce->{externalPrograms}->{latex},
@@ -376,7 +379,7 @@ sub attemptResults {
 
 	my @rows;
 	my @row;
-	
+
 	push @row, CGI::th({scope=>"col"},$r->maketext('Entered')) if $showAttemptAnswers;
 	push @row, CGI::th({scope=>"col"},$r->maketext('Answer Preview')) if $showAttemptPreview;
 	push @row, CGI::th({scope=>"col"},$r->maketext('Correct')) if $showCorrectAnswers;
@@ -404,7 +407,7 @@ sub attemptResults {
 	    $numCorrect += $answerScore > 0;
 	    $numEssay += ($answerResult->{type}//'') eq 'essay';
 	    $numBlanks++ unless $studentAnswer =~/\S/ || $answerScore >= 1;
-	    
+
 	    my $resultString;
 	    if ($answerScore >= 1) {
 		$resultString = $r->maketext("correct");
@@ -419,13 +422,13 @@ sub attemptResults {
 		$resultString =  $r->maketext("[_1]% correct", int($answerScore*100));
 		push @{$self->{incorrect_ids}}, $name if $colorAnswers;
 	    }
-	    
+
 	    push @row, CGI::td({scope=>"col"},$self->nbsp($studentAnswer)) if $showAttemptAnswers;
 	    push @row, CGI::td({scope=>"col"}, $self->nbsp($preview)) if $showAttemptPreview;
 	    push @row, CGI::td({scope=>"col"}, $self->nbsp($correctAnswer)) if $showCorrectAnswers;
 	    push @row, CGI::td({scope=>"col"}, $self->nbsp($resultString)) if $showAttemptResults;
 	    push @row, CGI::td({scope=>"col"},  $self->nbsp($answerMessage)) if $showMessages;
-	    
+
 	    push @rows, CGI::Tr(@row);
 	    $numAns++;
 
@@ -495,32 +498,18 @@ sub previewAnswer {
 	my $set           = $self->{set};
 	my $problem       = $self->{problem};
 	my $displayMode   = $self->{displayMode};
-	
+
 	# note: right now, we have to do things completely differently when we are
 	# rendering math from INSIDE the translator and from OUTSIDE the translator.
 	# so we'll just deal with each case explicitly here. there's some code
 	# duplication that can be dealt with later by abstracting out tth/dvipng/etc.
-	
+
 	my $tex = $answerResult->{preview_latex_string};
-	
+
 	return "" unless defined $tex and $tex ne "";
-	
+
 	if ($displayMode eq "plainText") {
 		return $tex;
-	# this display mode is no longer supported
-#	} elsif ($displayMode eq "formattedText") {
-#		my $tthCommand = $ce->{externalPrograms}->{tth}
-#			. " -L -f5 -r 2> /dev/null <<END_OF_INPUT; echo > /dev/null\n"
-#			. "\\(".$tex."\\)\n"
-#			. "END_OF_INPUT\n";
-		
-		# call tth
-#		my $result = `$tthCommand`;
-#		if ($?) {
-#			return "<b>[tth failed: $? $@]</b>";
-#		} else {
-#			return $result;
-#		}
 	} elsif ($displayMode eq "images") {
 		$imgGen->add($tex);
 	} elsif ($displayMode eq "MathJax") {
@@ -560,7 +549,7 @@ sub pre_header_initialize {
 
 	# user checks
 	my $User = $db->getUser($userName);
-	die "record for user $userName (real user) does not exist." 
+	die "record for user $userName (real user) does not exist."
 		unless defined $User;
 	my $EffectiveUser = $db->getUser($effectiveUserName);
 	die "record for user $effectiveUserName (effective user) does " .
@@ -583,12 +572,12 @@ sub pre_header_initialize {
 # gateway set and problem collection
 ###################################
 
-# we need the template (user) set, the merged set-version, and a 
-#    problem from the set to be able to test whether we're creating a 
+# we need the template (user) set, the merged set-version, and a
+#    problem from the set to be able to test whether we're creating a
 #    new set version.  assemble these
 	my ( $tmplSet, $set, $Problem ) = ( 0, 0, 0 );
 
-# if the set comes in as "Undefined_Set", then we're trying/editing a 
+# if the set comes in as "Undefined_Set", then we're trying/editing a
 #    single problem in a set, and so create a fake set with which to work
 #    if the user has the authorization to do that.
 	if ( $setName eq "Undefined_Set" ) {
@@ -668,41 +657,41 @@ sub pre_header_initialize {
 #    if this fails/failed in authz->checkSet, then $self->{invalidSet} is
 #    set
 		$tmplSet = $db->getMergedSet( $effectiveUserName, $setName );
-		
-		$self->{isOpen} = $authz->hasPermissions($userName, "view_unopened_sets") || (time >= $tmplSet->open_date && !(
-			  $ce->{options}{enableConditionalRelease} && 
-			  is_restricted($db, $tmplSet, $effectiveUserName)));
-		
-		die("You do not have permission to view unopened sets") unless $self->{isOpen};	
-		
 
-	# now we know that we're in a gateway test, save the assignment test 
-	#    for the processing of proctor keys for graded proctored tests; 
-	#    if we failed to get the set from the database, we store a fake 
+		$self->{isOpen} = $authz->hasPermissions($userName, "view_unopened_sets") || (time >= $tmplSet->open_date && !(
+			  $ce->{options}{enableConditionalRelease} &&
+			  is_restricted($db, $tmplSet, $effectiveUserName)));
+
+		die("You do not have permission to view unopened sets") unless $self->{isOpen};
+
+
+	# now we know that we're in a gateway test, save the assignment test
+	#    for the processing of proctor keys for graded proctored tests;
+	#    if we failed to get the set from the database, we store a fake
 	#    value here to be able to continue
 		$self->{'assignment_type'} = $tmplSet->assignment_type() ||
 			'gateway';
 
-	# next, get the latest (current) version of the set if we don't have a 
+	# next, get the latest (current) version of the set if we don't have a
 	#     requested version number
 		my @allVersionIds = $db->listSetVersions($effectiveUserName,
 							 $setName);
 		my $latestVersion = (@allVersionIds ? $allVersionIds[-1] : 0);
 
 	# double check that any requested version makes sense
-		$requestedVersion = $latestVersion 
+		$requestedVersion = $latestVersion
 		  if ( $requestedVersion !~ /^\d+$/ ||
 		       $requestedVersion > $latestVersion ||
 		       $requestedVersion < 0 );
 
-		die("No requested version when returning to problem?!") 
+		die("No requested version when returning to problem?!")
 			if ( ( $r->param("previewAnswers") ||
 			       $r->param("checkAnswers") ||
 			       $r->param("submitAnswers") ||
 			       $r->param("newPage") ) && ! $requestedVersion );
 
-	# to test for a proctored test, we need the set version, not the 
-	#    template, to allow a finished proctored test to be checked as an 
+	# to test for a proctored test, we need the set version, not the
+	#    template, to allow a finished proctored test to be checked as an
 	#    unproctored test.  so we get the versioned set here
 		if ( $requestedVersion ) {
 	# if a specific set version was requested, it was stored in the $authz
@@ -711,17 +700,17 @@ sub pre_header_initialize {
 							$setName,
 							$requestedVersion);
 		} elsif ( $latestVersion ) {
-	# otherwise, if there's a current version, which we take to be the 
+	# otherwise, if there's a current version, which we take to be the
 	#    latest version taken, we use that
 			$set = $db->getMergedSetVersion($effectiveUserName,
 							$setName,
 							$latestVersion);
 		} else {
-	# and if neither of those work, get a dummy set so that we have 
+	# and if neither of those work, get a dummy set so that we have
 	#    something to work with
 			my $userSetClass = $ce->{dbLayout}->{set_version}->{record};
 # FIXME RETURN TO: should this be global2version?
-			$set = global2user($userSetClass, 
+			$set = global2user($userSetClass,
 					   $db->getGlobalSet($setName));
 			die "set  $setName  not found."  unless $set;
 			$set->user_id($effectiveUserName);
@@ -741,8 +730,8 @@ sub pre_header_initialize {
 	#    as a whole (that is, the merged user|global set).  because the
 	#    set could be bad (if $self->{invalidSet}), we check ->open_date
 	#    before actually testing the date
-	my $isOpen = $tmplSet && $tmplSet->open_date && 
-		( after($tmplSet->open_date()) || 
+	my $isOpen = $tmplSet && $tmplSet->open_date &&
+		( after($tmplSet->open_date()) ||
 		  $authz->hasPermissions($userName, "view_unopened_sets") );
 
 	# FIXME for $isClosed, "record_answers_after_due_date" isn't quite
@@ -751,12 +740,12 @@ sub pre_header_initialize {
 		( after($tmplSet->due_date()) &&
 		  ! $authz->hasPermissions($userName, "record_answers_after_due_date") );
 
-	# to determine if we need a new version, we need to know whether this 
+	# to determine if we need a new version, we need to know whether this
 	#    version exceeds the number of attempts per version.  (among other
-	#    things,) the number of attempts is a property of the problem, so 
-	#    get a problem to check that.  note that for a gateway/quiz all 
-	#    problems will have the same number of attempts.  This means that 
-	#    if the set doesn't have any problems we're up a creek, so check 
+	#    things,) the number of attempts is a property of the problem, so
+	#    get a problem to check that.  note that for a gateway/quiz all
+	#    problems will have the same number of attempts.  This means that
+	#    if the set doesn't have any problems we're up a creek, so check
 	#    for that here and bail if it's the case
 	my @setPNum = $setName eq "Undefined_Set" ? ( 1 ) :
 		$db->listUserProblems($EffectiveUser->user_id, $setName);
@@ -789,17 +778,17 @@ sub pre_header_initialize {
 				     $versionsPerInterval eq '');
 
 	# every problem in the set must have the same submission characteristics
-	my $currentNumAttempts    = ( defined($Problem) && 
-				      $Problem->num_correct() ne '' ) ? 
+	my $currentNumAttempts    = ( defined($Problem) &&
+				      $Problem->num_correct() ne '' ) ?
 				      $Problem->num_correct() +
 				      $Problem->num_incorrect() : 0;
 
 	# $maxAttempts turns into the maximum number of versions we can create;
 	#    if $Problem isn't defined, we can't have made any attempts, so it
 	#    doesn't matter
-	my $maxAttempts           = ( defined($Problem) && 
+	my $maxAttempts           = ( defined($Problem) &&
 				      defined($Problem->max_attempts()) &&
-				      $Problem->max_attempts() ) ? 
+				      $Problem->max_attempts() ) ?
 				      $Problem->max_attempts() : -1;
 
 	# finding the number of versions per time interval is a little harder.
@@ -836,13 +825,13 @@ sub pre_header_initialize {
 
 	my $versionIsOpen = 0;  # can we do anything to this version?
 
-	# recall $isOpen = timeNow > openDate [for the merged userset] and 
+	# recall $isOpen = timeNow > openDate [for the merged userset] and
 	#    $isClosed = timeNow > dueDate [for the merged userset]
-	#    again, if $self->{invalidSet} is already set, we don't need to 
+	#    again, if $self->{invalidSet} is already set, we don't need to
 	#    to check this
 	if ( $isOpen && ! $isClosed && ! $self->{invalidSet} ) {
 
-	# if no specific version is requested, we can create a new one if 
+	# if no specific version is requested, we can create a new one if
 	#    need be
 		if ( ! $requestedVersion ) {
 			if ( ( $maxAttempts == -1 ||
@@ -854,7 +843,7 @@ sub pre_header_initialize {
 				   ||
 				   $timeNow >= $set->due_date + $grace )
 				 &&
-				 ( ! $versionsPerInterval 
+				 ( ! $versionsPerInterval
 				   ||
 				   $currentNumVersions < $versionsPerInterval )
 				 )
@@ -865,15 +854,15 @@ sub pre_header_initialize {
 				  ( $authz->hasPermissions($userName, "create_new_set_version_when_acting_as_student") && $verCreateOK ) ) )
 
 			   ) {
-				# assign set, get the right name, version 
-				#    number, etc., and redefine the $set 
+				# assign set, get the right name, version
+				#    number, etc., and redefine the $set
 				#    and $Problem we're working with
 				my $setTmpl = $db->getUserSet($effectiveUserName,$setName);
 				WeBWorK::ContentGenerator::Instructor::assignSetVersionToUser($self, $effectiveUserName, $setTmpl);
 				$setVersionNumber++;
 
 				# get a clean version of the set to save,
-				#    and the merged version to use in the 
+				#    and the merged version to use in the
 				#    rest of the routine
 				my $cleanSet = $db->getSetVersion(
 					$effectiveUserName, $setName,
@@ -883,20 +872,20 @@ sub pre_header_initialize {
 					$setVersionNumber );
 
 				$Problem = $db->getMergedProblemVersion(
-					$effectiveUserName, $setName, 
+					$effectiveUserName, $setName,
 					$setVersionNumber, 1);
 
-				# because we're creating this on the fly, 
+				# because we're creating this on the fly,
 				#    it should be visible
 				$set->visible(1);
 				# set up creation time, open and due dates
-				my $ansOffset = $set->answer_date() - 
+				my $ansOffset = $set->answer_date() -
 					$set->due_date();
 				$set->version_creation_time( $timeNow );
 				$set->open_date( $timeNow );
 				# figure out the due date, taking into account
 				#    any time limit cap
-				my $dueTime = 
+				my $dueTime =
 				    ( $timeLimit == 0 || ($set->time_limit_cap &&
 				      $timeNow+$timeLimit > $set->due_date) ) ?
 				      $set->due_date : $timeNow+$timeLimit;
@@ -905,7 +894,7 @@ sub pre_header_initialize {
 				$set->answer_date($set->due_date + $ansOffset);
 				$set->version_last_attempt_time( 0 );
 
-				# put this new info into the database.  we 
+				# put this new info into the database.  we
 				#    put back that data which we need for the
 				#    version, and leave blank any information
 				#    that we'd like to inherit from the user
@@ -926,11 +915,11 @@ sub pre_header_initialize {
 				# we have a new set version, so it's open
 				$versionIsOpen = 1;
 
-				# also reset the number of attempts for this 
+				# also reset the number of attempts for this
 				#    set to zero
 				$currentNumAttempts = 0;
 
-			} elsif ( $maxAttempts != -1 && 
+			} elsif ( $maxAttempts != -1 &&
 				  $totalNumVersions > $maxAttempts ) {
 				$self->{invalidSet} = "No new versions of " .
 					"this assignment are available,\n" .
@@ -965,8 +954,8 @@ sub pre_header_initialize {
 
 			} elsif (($maxAttemptsPerVersion == 0 || $currentNumAttempts < $maxAttemptsPerVersion) &&
 				 $timeNow < $set->due_date() + $grace ) {
-				if ( between($set->open_date(), 
-					     $set->due_date() + $grace, 
+				if ( between($set->open_date(),
+					     $set->due_date() + $grace,
 					     $timeNow) ) {
 					$versionIsOpen = 1;
 				} else {
@@ -978,7 +967,7 @@ sub pre_header_initialize {
 						" limit has expired.\n";
 				}
 
-			} elsif ($versionsPerInterval && 
+			} elsif ($versionsPerInterval &&
 				 ($currentNumVersions >= $versionsPerInterval)){
 				$self->{invalidSet} = "You have already taken" .
 					" all available versions of this\n" .
@@ -990,16 +979,16 @@ sub pre_header_initialize {
 
 		} else {
 		# (we're still in the $isOpen && ! $isClosed conditional here)
-		#    if a specific version is requested, then we only check to 
+		#    if a specific version is requested, then we only check to
 		#    see if it's open
-			if ( 
+			if (
 			     ( $currentNumAttempts < $maxAttemptsPerVersion )
-			     && 
+			     &&
 			     ( $effectiveUserName eq $userName ||
 			       $authz->hasPermissions($userName,
 						      "record_set_version_answers_when_acting_as_student") )
 			   ) {
-				if ( between($set->open_date(), 
+				if ( between($set->open_date(),
 					     $set->due_date() + $grace,
 					     $timeNow) ) {
 					$versionIsOpen = 1;
@@ -1049,10 +1038,10 @@ sub pre_header_initialize {
 	# also get the current page, if it's given
 	my $currentPage = $r->param("currentPage") || 1;
 
-	# this is a hack manage previewing a page.  we set previewAnswers to 
+	# this is a hack manage previewing a page.  we set previewAnswers to
 	# yes if either of the following are true:
 	#  1. the "previewAnswers" input is set (the "preview" button was
-	#     clicked), or 
+	#     clicked), or
 	#  2. the "previewHack" input is set (a preview link was used)
 	my $prevOr = $r->param('previewAnswers') || $r->param('previewHack');
 	$r->param('previewAnswers', $prevOr) if ( defined( $prevOr ) );
@@ -1060,7 +1049,7 @@ sub pre_header_initialize {
         # [This section lifted from Problem.pm] ##############################
 
 	# set options from form fields (see comment at top of file for names)
-	my $displayMode      = $User->displayMode || 
+	my $displayMode      = $User->displayMode ||
 		$ce->{pg}->{options}->{displayMode};
 	my $redisplay        = $r->param("redisplay");
 	my $submitAnswers    = $r->param("submitAnswers") // 0;
@@ -1076,7 +1065,7 @@ sub pre_header_initialize {
 	$self->{previewAnswers} = $previewAnswers;
 	$self->{formFields}     = $formFields;
 
-	# now that we've set all the necessary variables quit out if the set or 
+	# now that we've set all the necessary variables quit out if the set or
 	#    problem is invalid
 
 	return if $self->{invalidSet} || $self->{invalidProblem};
@@ -1095,18 +1084,18 @@ sub pre_header_initialize {
 	}
 
 	# what does the user want to do?
-	my %want = 
+	my %want =
 	    (showOldAnswers     => $User->showOldAnswers ne '' ?
 	     $User->showOldAnswers : $ce->{pg}->{options}->{showOldAnswers},
-	     showCorrectAnswers => ($r->param("showCorrectAnswers") || 
+	     showCorrectAnswers => ($r->param("showCorrectAnswers") ||
  	                       	   $ce->{pg}->{options}->{showCorrectAnswers}) &&
                                    ($submitAnswers || $checkAnswers),
-	     showHints          => $r->param("showHints") || 
+	     showHints          => $r->param("showHints") ||
 		                   $ce->{pg}->{options}->{showHints},
-	     showSolutions      => ($r->param("showSolutions") || 
+	     showSolutions      => ($r->param("showSolutions") ||
 		                   $ce->{pg}->{options}->{showSolutions}) &&
                                    ($submitAnswers || $checkAnswers),
-	     recordAnswers      => $submitAnswers && !$authz->hasPermissions($userName, 
+	     recordAnswers      => $submitAnswers && !$authz->hasPermissions($userName,
 							    "avoid_recording_answers"),
 	# we also want to check answers if we were checking answers and are
 	#    switching between pages
@@ -1115,7 +1104,7 @@ sub pre_header_initialize {
 	     );
 
 	# are certain options enforced?
-	my %must = 
+	my %must =
 	    (showOldAnswers     => 0,
 	     showCorrectAnswers => 0,
 	     showHints          => 0,
@@ -1126,11 +1115,11 @@ sub pre_header_initialize {
 	     );
 
 	# does the user have permission to use certain options?
-	my @args = ($User, $PermissionLevel, $EffectiveUser, $set, $Problem, 
+	my @args = ($User, $PermissionLevel, $EffectiveUser, $set, $Problem,
 		    $tmplSet);
 	my $sAns = ( $submitAnswers ? 1 : 0 );
-	my %can = 
-	    (showOldAnswers     => $self->can_showOldAnswers(@args), 
+	my %can =
+	    (showOldAnswers     => $self->can_showOldAnswers(@args),
 	     showCorrectAnswers => $self->can_showCorrectAnswers(@args, $sAns),
 	     showHints          => $self->can_showHints(@args),
 	     showSolutions      => $self->can_showSolutions(@args, $sAns),
@@ -1149,13 +1138,13 @@ sub pre_header_initialize {
 	}
 	##### store fields #####
 
-## FIXME: the following is present in Problem.pm, but missing here.  how do we 
+## FIXME: the following is present in Problem.pm, but missing here.  how do we
 ##   deal with it in the context of multiple problems with possible hints?
 ## ##### fix hint/solution options #####
-## $can{showHints}     &&= $pg->{flags}->{hintExists}  
+## $can{showHints}     &&= $pg->{flags}->{hintExists}
 ##                     &&= $pg->{flags}->{showHintLimit}<=$pg->{state}->{num_of_incorrect_ans};
 ##    $can{showSolutions} &&= $pg->{flags}->{solutionExists};
-	
+
 	$self->{want} = \%want;
 	$self->{must} = \%must;
 	$self->{can}  = \%can;
@@ -1175,9 +1164,9 @@ sub pre_header_initialize {
 							   $setVersionNumber);
 	}
 
-	# to speed up processing of long (multi-page) tests, we want to only 
-	#    translate those problems that are being submitted or are currently 
-	#    being displayed.  so work out here which problems are on the 
+	# to speed up processing of long (multi-page) tests, we want to only
+	#    translate those problems that are being submitted or are currently
+	#    being displayed.  so work out here which problems are on the
 	#    current page.
 	my ( $numPages, $pageNumber, $numProbPerPage ) = ( 1, 0, 0 );
 	my ( $startProb, $endProb ) = ( 0, $#problemNumbers );
@@ -1191,9 +1180,9 @@ sub pre_header_initialize {
 		$numPages = int($numPages) + 1 if (int($numPages) != $numPages);
 
 		$startProb = ($pageNumber - 1)*$numProbPerPage;
-		$startProb = 0 if ( $startProb < 0 || 
+		$startProb = 0 if ( $startProb < 0 ||
 				    $startProb > $#problemNumbers );
-		$endProb = ($startProb + $numProbPerPage > $#problemNumbers) ? 
+		$endProb = ($startProb + $numProbPerPage > $#problemNumbers) ?
 		    $#problemNumbers : $startProb + $numProbPerPage - 1;
 	}
 
@@ -1205,27 +1194,27 @@ sub pre_header_initialize {
 	if ( $set->problem_randorder ) {
 		my @newOrder = ();
 	# we need to keep the random order the same each time the set is loaded!
-	#    this requires either saving the order in the set definition, or 
-	#    being sure that the random seed that we use is the same each time 
-	#    the same set is called.  we'll do the latter by setting the seed 
-	#    to the psvn of the problem set.  we use a local PGrandom object 
+	#    this requires either saving the order in the set definition, or
+	#    being sure that the random seed that we use is the same each time
+	#    the same set is called.  we'll do the latter by setting the seed
+	#    to the psvn of the problem set.  we use a local PGrandom object
 	#    to avoid mucking with the system seed.
 		my $pgrand = PGrandom->new();
 		$pgrand->srand( $set->psvn );
-		while ( @probOrder ) { 
+		while ( @probOrder ) {
 			my $i = int($pgrand->rand(scalar(@probOrder)));
 			push( @newOrder, $probOrder[$i] );
 			splice(@probOrder, $i, 1);
 		}
 		@probOrder = @newOrder;
 	}
-	# now $probOrder[i] = the problem number, numbered from zero, that's 
+	# now $probOrder[i] = the problem number, numbered from zero, that's
 	#    displayed in the ith position on the test
 
 	# make a list of those problems we're displaying
 	my @probsToDisplay = ();
 	for ( my $i=0; $i<@probOrder; $i++ ) {
-		push(@probsToDisplay, $probOrder[$i]) 
+		push(@probsToDisplay, $probOrder[$i])
 		    if ( $i >= $startProb && $i <= $endProb );
 	}
 
@@ -1264,13 +1253,13 @@ sub pre_header_initialize {
 			my %oldAnswers = decodeAnswers( $ProblemN->last_answer);
 			$formFields->{$_} = $oldAnswers{$_} foreach ( keys %oldAnswers );
 		}
-		
+
 		push( @problems, $ProblemN );
 
-		# if we don't have to translate this problem, just save the 
+		# if we don't have to translate this problem, just save the
 		#    problem number
 		my $pg = $problemNumber;
-		# this is the actual translation of each problem.  errors are 
+		# this is the actual translation of each problem.  errors are
 		#    stored in @{$self->{errors}} in each case
 		if ( (grep /^$pIndex$/, @probsToDisplay) || $submitAnswers ) {
 			$pg = $self->getProblemHTML($self->{effectiveUser},
@@ -1304,15 +1293,15 @@ sub path {
 	my $ce = $self->{ce};
 	my $root = $ce->{webworkURLs}->{root};
 	my $courseName = $ce->{courseName};
- 
-	return $self->pathMacro( $args, "Home" => "$root", 
+
+	return $self->pathMacro( $args, "Home" => "$root",
 				 $courseName => "$root/$courseName",
 				 $setName => "" );
 }
 
 sub nav {
 	my ($self, $args) = @_;
-	
+
 	my $r = $self->{r};
 	my $setName = $r->urlpath->arg("setID");
 	my $ce = $self->{ce};
@@ -1320,7 +1309,7 @@ sub nav {
 	my $courseName = $ce->{courseName};
 	my @links = ("Problem Sets" , "$root/$courseName", "navUp");
 	my $tail = "";
-	
+
 	return $self->navMacro($args, $tail, @links);
 }
 
@@ -1376,7 +1365,7 @@ sub body {
 		}
 
 		return CGI::div({class=>"ResultsWithError"},
-				CGI::p("The selected problem set (" . 
+				CGI::p("The selected problem set (" .
 				       $urlpath->arg("setID") . ") is not " .
 				       "a valid set for $effectiveUser" .
 				       "$usernote:"),
@@ -1413,8 +1402,8 @@ sub body {
 	my $setVName = "$setName,v$versionNumber";
 	my $numProbPerPage = $set->problems_per_page;
 
-	# translation errors -- we use the same output routine as Problem.pm, 
-	#    but play around to allow for errors on multiple translations 
+	# translation errors -- we use the same output routine as Problem.pm,
+	#    but play around to allow for errors on multiple translations
 	#    because we have an array of problems to deal with.
 	if ( @pg_errors ) {
 		my $errorNum = 1;
@@ -1424,8 +1413,8 @@ sub body {
 			$message .= "$errorNum. " if ( @pg_errors > 1 );
 			$message .= $_->{message} . CGI::br() . "\n";
 
-			$context .= CGI::p((@pg_errors > 1? "$errorNum.": '') . 
-					   $_->{context} ) . "\n\n" . 
+			$context .= CGI::p((@pg_errors > 1? "$errorNum.": '') .
+					   $_->{context} ) . "\n\n" .
 					   CGI::hr() . "\n\n";
 		}
 		return $self->errorOutput( $message, $context );
@@ -1435,9 +1424,10 @@ sub body {
 	# answer processing
 	####################################
 
-	debug("begin answer processing"); 
+	debug("begin answer processing");
 
 	my @scoreRecordedMessage = ('') x scalar(@problems);
+	my $LTIGradeResult = -1;
 
 	####################################
 	# save results to database as appropriate
@@ -1448,29 +1438,29 @@ sub body {
 		# if we're submitting answers, we have to save the problems
 		#    to the database.
 		# if we're previewing or switching pages and can still
-		#    record answers, we save the last answer for future 
+		#    record answers, we save the last answer for future
 		#    reference
 
-		# first, if we're submitting answers for a proctored exam, 
-		#    we want to delete the proctor keys that authorized 
-		#    that grading, so that it isn't possible to just log 
-		#    in and take another proctored test without getting 
+		# first, if we're submitting answers for a proctored exam,
+		#    we want to delete the proctor keys that authorized
+		#    that grading, so that it isn't possible to just log
+		#    in and take another proctored test without getting
 		#    reauthorized
-		if ( $submitAnswers && 
+		if ( $submitAnswers &&
 		     $self->{'assignment_type'} eq 'proctored_gateway' ) {
 			my $proctorID = $r->param('proctor_user');
 
 			# if we don't have attempts left, delete all
 			#    proctor keys for this user
 			if ( $set->attempts_per_version - 1 -
-			     $Problem->num_correct - $Problem->num_incorrect 
-			     <= 0 ) {	
+			     $Problem->num_correct - $Problem->num_incorrect
+			     <= 0 ) {
 				eval{ $db->deleteAllProctorKeys( $effectiveUser ); };
 			} else {
 				# otherwise, delete only the grading key
 				eval{ $db->deleteKey("$effectiveUser,$proctorID,g"); };
-				# in this case we may have a past, login, 
-				#    proctor key that we can keep so that 
+				# in this case we may have a past, login,
+				#    proctor key that we can keep so that
 				#    we don't have to get another login to
 				#    continue working the test
 				if ( $r->param("past_proctor_user") &&
@@ -1479,7 +1469,7 @@ sub body {
 					$r->param("proctor_key", $r->param("past_proctor_key"));
 				}
 			}
-			# this is unsubtle, but we'd rather not have bogus 
+			# this is unsubtle, but we'd rather not have bogus
 			#    keys sitting around
 			if ( $@ ) {
 				die("ERROR RESETTING PROCTOR GRADING KEY(S): $@\n");
@@ -1499,23 +1489,23 @@ sub body {
 
 			# we have to be a little careful about getting the
 			#    answers that we're saving, because we don't have
-			#    a pg_results object for all problems if we're not 
+			#    a pg_results object for all problems if we're not
 			#    submitting
 			my %answerHash = ();
 			my @answer_order = ();
 			if ( ref( $pg_results[$i] ) ) {
 				%answerHash = %{$pg_results[$i]->{answers}};
-				$answersToStore{$_} = $self->{formFields}->{$_} 
+				$answersToStore{$_} = $self->{formFields}->{$_}
 					foreach (keys %answerHash);
-				# check for extra answers that slipped 
-				#    by---e.g. for matrices, and get them 
+				# check for extra answers that slipped
+				#    by---e.g. for matrices, and get them
 				#    from the original input form
-				my @extra_answer_names = 
+				my @extra_answer_names =
 				    @{ $pg_results[$i]->{flags}->{KEPT_EXTRA_ANSWERS} };
-				$answersToStore{$_} = 
+				$answersToStore{$_} =
 				    $self->{formFields}->{$_} foreach (@extra_answer_names);
-				@answer_order = 
-				    ( @{$pg_results[$i]->{flags}->{ANSWER_ENTRY_ORDER}}, 
+				@answer_order =
+				    ( @{$pg_results[$i]->{flags}->{ANSWER_ENTRY_ORDER}},
 				      @extra_answer_names );
 			} else {
 				my $prefix = sprintf('Q%04d_',$i+1);
@@ -1523,13 +1513,13 @@ sub body {
 				%answersToStore = map {$_ => $self->{formFields}->{$_}} @fields;
 				@answer_order = @fields;
 			}
-			my $answerString = encodeAnswers( %answersToStore, 
+			my $answerString = encodeAnswers( %answersToStore,
 							  @answer_order );
-			# and get the last answer 
+			# and get the last answer
 			$problems[$i]->last_answer( $answerString );
 			$pureProblem->last_answer( $answerString );
 
-			# next, store the state in the database if that makes 
+			# next, store the state in the database if that makes
 			#    sense
 			if ( $submitAnswers && $will{recordAnswers} ) {
   $problems[$i]->status(wwRound(2,$pg_results[$i]->{state}->{recorded_score}));
@@ -1542,15 +1532,9 @@ sub body {
   $pureProblem->num_incorrect($pg_results[$i]->{state}->{num_of_incorrect_ans});
 
 				if ( $db->putProblemVersion( $pureProblem ) ) {
-					$scoreRecordedMessage[$i] = "Your " .
-						"score on this problem was " .
-						"recorded.";
+					$scoreRecordedMessage[$i] = $r->maketext("Your score on this problem was recorded.");
 				} else {
-					$scoreRecordedMessage[$i] = "Your " .
-						"score was not recorded " .
-						"because there was a failure " .
-						"in storing the problem " .
-						"record to the database.";
+					$scoreRecordedMessage[$i] = $r->maketext("Your score was not recorded because there was a failure in storing the problem record to the database.");
 				}
 				# write the transaction log
 				writeLog( $self->{ce}, "transaction",
@@ -1569,42 +1553,29 @@ sub body {
 					  );
 			} elsif ( $submitAnswers ) {
 				# this is the case where we submitted answers
-				#    but can't save them; report an error 
+				#    but can't save them; report an error
 				#    message
 
 				if ($self->{isClosed}) {
-					$scoreRecordedMessage[$i] = "Your " .
-						"score was not recorded " .
-						"because this problem set " .
-						"version is not open.";
-				} elsif ( $problems[$i]->num_correct + 
-					  $problems[$i]->num_incorrect >= 
+					$scoreRecordedMessage[$i] = $r->maketext("Your score was not recorded because this problem set version is not open.");
+				} elsif ( $problems[$i]->num_correct +
+					  $problems[$i]->num_incorrect >=
 					  $set->attempts_per_version ) {
-					$scoreRecordedMessage[$i] = "Your " .
-						"score was not recorded " .
-						"because you have no " .
-						"attempts remaining on this " .
-						"set version.";
+					$scoreRecordedMessage[$i] = $r->maketext("Your score was not recorded because you have no attempts remaining on this set version.");
 				} elsif ( ! $self->{versionIsOpen} ) {
 					my $endTime = ( $set->version_last_attempt_time ) ? $set->version_last_attempt_time : $timeNow;
-					if ($endTime > $set->due_date && 
+					if ($endTime > $set->due_date &&
 					    $endTime < $set->due_date + $grace){
 						$endTime = $set->due_date;
 					}
-					my $elapsed = 
+					my $elapsed =
 					    int(($endTime - $set->open_date)/0.6 + 0.5)/100;
-					# we assume that allowed is an even 
+					# we assume that allowed is an even
 					#    number of minutes
 					my $allowed = ($set->due_date - $set->open_date)/60;
-					$scoreRecordedMessage[$i] = "Your " .
-						"score was not recorded " .
-						"because you have exceeded " .
-						"the time limit for this " .
-						"test. (Time taken: $elapsed " .
-						"min; allowed: $allowed min.)";
+					$scoreRecordedMessage[$i] = $r->maketext("Your score was not recorded because you have exceeded the time limit for this test. (Time taken: [_1] min; allowed: [_2] min.)", $elapsed, $allowed);
 				} else {
-					$scoreRecordedMessage[$i] = "Your " .
-						"score was not recorded.";
+					$scoreRecordedMessage[$i] = $r->maketext("Your score was not recorded.");
 				}
 			} else {
 				# finally, we must be previewing or switching
@@ -1614,13 +1585,27 @@ sub body {
 			}
 		} # end loop through problems
 
-		## finally, log student answers if we're submitting, 
-		##    previewing, or changing pages, provided that we can 
-		##    record answers.  note that this will log an overtime 
-		##    submission (or any case where someone submits the 
+
+		#Try to update the student score on the LMS
+		# if that option is enabled.
+		my $LTIGradeMode = $self->{ce}->{LTIGradeMode} // '';
+		if ($submitAnswers && $will{recordAnswers} && $LTIGradeMode
+		   && $self->{ce}->{LTIGradeOnSubmit}) {
+		  my $grader = WeBWorK::Authen::LTIAdvanced::SubmitGrade->new($r);
+		  if ($LTIGradeMode eq 'course') {
+		    $LTIGradeResult = $grader->submit_course_grade($effectiveUser);
+		  } elsif ($LTIGradeMode eq 'homework') {
+		    $LTIGradeResult = $grader->submit_set_grade($effectiveUser, $setName);
+		  }
+		}
+
+		## finally, log student answers if we're submitting,
+		##    previewing, or changing pages, provided that we can
+		##    record answers.  note that this will log an overtime
+		##    submission (or any case where someone submits the
 		##    test, or spoofs a request to submit a test)
 
-		my $answer_log = 
+		my $answer_log =
 			$self->{ce}->{courseFiles}->{logs}->{'answer_log'};
 
 		# this is carried over from Problem.pm
@@ -1628,8 +1613,8 @@ sub body {
 			foreach my $i ( 0 .. $#problems ) {
 				my $answerString = '';
 				my $scores = '';
-				# note that we store these answers in the 
-				#    order that they are presented, not the 
+				# note that we store these answers in the
+				#    order that they are presented, not the
 				#    actual problem order
 				if ( ref( $pg_results[$probOrder[$i]] ) ) {
 					my %answerHash = %{ $pg_results[$probOrder[$i]]->{answers} };
@@ -1649,17 +1634,17 @@ sub body {
 				$answerString =~ s/\t+$/\t/;
 
 				my $answerPrefix;
-				if ( $submitAnswers ) { 
-					$answerPrefix = "[submit] ";  
-				} elsif ( $previewAnswers ) { 
-					$answerPrefix = "[preview] "; 
-				} else { 
-					$answerPrefix = "[newPage] "; 
+				if ( $submitAnswers ) {
+					$answerPrefix = "[submit] ";
+				} elsif ( $previewAnswers ) {
+					$answerPrefix = "[preview] ";
+				} else {
+					$answerPrefix = "[newPage] ";
 				}
 
-				if ( ! $answerString || 
+				if ( ! $answerString ||
 				     $answerString =~ /^\t$/ ) {
-					$answerString = "$answerPrefix" . 
+					$answerString = "$answerPrefix" .
 						"No answer entered\t";
 				} else {
 					$answerString = "$answerPrefix" .
@@ -1667,12 +1652,12 @@ sub body {
 				}
 
 				writeCourseLog( $self->{ce}, "answer_log",
-						join("", '|', 
+						join("", '|',
 						     $problems[$i]->user_id,
 						     '|', $setVName,
-						     '|', ($i+1), '|', $scores, 
+						     '|', ($i+1), '|', $scores,
 						     "\t$timeNow\t",
-						     "$answerString"), 
+						     "$answerString"),
 						);
 				#add to PastAnswer db
 				my $pastAnswer = $db->newPastAnswer();
@@ -1684,7 +1669,7 @@ sub body {
 				$pastAnswer->scores($scores);
 				$pastAnswer->answer_string($answerString);
 				$pastAnswer->source_file($problems[$i]->source_file);
-				
+
 				$db->addPastAnswer($pastAnswer);
 
 			}
@@ -1692,29 +1677,29 @@ sub body {
 	}
 	debug("end answer processing");
 
-	# additional set-level database manipulation: we want to save the time 
-	#    that a set was submitted, and for proctored tests we want to reset 
-	#    the assignment type after a set is submitted for the last time so 
-	#    that it's possible to look at it later without getting proctor 
+	# additional set-level database manipulation: we want to save the time
+	#    that a set was submitted, and for proctored tests we want to reset
+	#    the assignment type after a set is submitted for the last time so
+	#    that it's possible to look at it later without getting proctor
 	#    authorization
-	if ( ( $submitAnswers && 
-	       ( $will{recordAnswers} || 
+	if ( ( $submitAnswers &&
+	       ( $will{recordAnswers} ||
 		 ( ! $set->version_last_attempt_time() &&
 		   $timeNow > $set->due_date + $grace ) ) ) ||
-	     ( ! $can{recordAnswersNextTime} && 
+	     ( ! $can{recordAnswersNextTime} &&
 	       $set->assignment_type() eq 'proctored_gateway' ) ) {
 
 		my $setName = $set->set_id();
 
-	# save the submission time if we're recording the answer, or if the 
+	# save the submission time if we're recording the answer, or if the
 	#     first submission occurs after the due_date
-		if ( $submitAnswers && 
-		     ( $will{recordAnswers} || 
+		if ( $submitAnswers &&
+		     ( $will{recordAnswers} ||
 		       ( ! $set->version_last_attempt_time() &&
 			 $timeNow > $set->due_date + $grace ) ) ) {
 			$set->version_last_attempt_time( $timeNow );
 		}
-		if ( ! $can{recordAnswersNextTime} && 
+		if ( ! $can{recordAnswersNextTime} &&
 		     $set->assignment_type() eq 'proctored_gateway' ) {
 			$set->assignment_type( 'gateway' );
 		}
@@ -1734,18 +1719,19 @@ sub body {
 	####################################
 
 	# some convenient output variables
-	my $canShowProblemScores = $can{showScore} && 
-	    ($set->hide_score eq 'N' || $set->hide_score_by_problem eq 'N' ||
+	my $canShowProblemScores = $can{showScore} &&
+	    ($set->hide_score_by_problem eq 'N' ||
 	     $authz->hasPermissions($user, "view_hidden_work"));
+
 	my $canShowWork = $authz->hasPermissions($user, "view_hidden_work") || ($set->hide_work eq 'N' || ($set->hide_work eq 'BeforeAnswerDate' && $timeNow>$tmplSet->answer_date));
 
-	# for nicer answer checking on multi-page tests, we want to keep 
-	#    track of any changes that someone made to a different page, 
-	#    and what their score was.  we use @probStatus to do this.  we 
-	#    initialize this to any known scores, and then update this when 
+	# for nicer answer checking on multi-page tests, we want to keep
+	#    track of any changes that someone made to a different page,
+	#    and what their score was.  we use @probStatus to do this.  we
+	#    initialize this to any known scores, and then update this when
 	#    calculating the score for checked or submitted tests
 	my @probStatus = ();
-	# we also figure out recorded score for the set, if any, and score 
+	# we also figure out recorded score for the set, if any, and score
 	#    on this attempt
 	my $recordedScore = 0;
 	my $totPossible = 0;
@@ -1757,10 +1743,10 @@ sub body {
 				    $_->status || 0) );
 	}
 
-	# to get the attempt score, we have to figure out what the score on 
-	#    each part of each problem is, and multiply the total for the 
-	#    problem by the weight (value) of the problem.  to make things 
-	#    even more interesting, we are avoiding translating all of the 
+	# to get the attempt score, we have to figure out what the score on
+	#    each part of each problem is, and multiply the total for the
+	#    problem by the weight (value) of the problem.  to make things
+	#    even more interesting, we are avoiding translating all of the
 	#    problems when checking answers
 	my $attemptScore = 0;
 	if ( $will{recordAnswers} || $will{checkAnswers} ) {
@@ -1771,18 +1757,13 @@ sub body {
 			my $numParts = 0;
 			if ( ref( $pg ) ) {  # then we have a pg object
 ###
-				#foreach (@{$pg->{flags}->{ANSWER_ENTRY_ORDER}}){
-				#	$pScore += $pg->{answers}->{$_}->{score};
-				#	$numParts++;
-				#}
-				#$probStatus[$i] = $pScore/($numParts>0 ? $numParts : 1);
 				$pScore = $pg->{state}->{recorded_score};
 				$probStatus[$i] = $pScore;
 				$numParts = 1;
 ###
 
 			} else {
-				# if we don't have a pg object, use any known 
+				# if we don't have a pg object, use any known
 				#    problem status (this defaults to zero)
 				$pScore = $probStatus[$i];
 			}
@@ -1793,12 +1774,12 @@ sub body {
 
 	# we want to print elapsed and allowed times; allowed is easy
 	my $allowed = sprintf( "%.0f", 10*($set->due_date - $set->open_date)/6 )/100;
-	# elapsed is a little harder; we're counting to the last submission 
-	#    time, or to the current time if the test hasn't been submitted, 
-	#    and if the submission fell in the grace period round it to the 
+	# elapsed is a little harder; we're counting to the last submission
+	#    time, or to the current time if the test hasn't been submitted,
+	#    and if the submission fell in the grace period round it to the
 	#    due_date
 	my $exceededAllowedTime = 0;
-	my $endTime = ( $set->version_last_attempt_time ) ? 
+	my $endTime = ( $set->version_last_attempt_time ) ?
 	    $set->version_last_attempt_time : $timeNow;
 	if ( $endTime > $set->due_date && $endTime < $set->due_date + $grace ) {
 		$endTime = $set->due_date;
@@ -1807,28 +1788,28 @@ sub body {
 	}
 	my $elapsedTime = int(($endTime - $set->open_date)/0.6 + 0.5)/100;
 
-	# also get number of remaining attempts (important for sets with 
+	# also get number of remaining attempts (important for sets with
 	#    multiple attempts per version)
-	my $numLeft = ($set->attempts_per_version ||0 )- $Problem->num_correct - 
-		$Problem->num_incorrect - 
+	my $numLeft = ($set->attempts_per_version ||0 )- $Problem->num_correct -
+		$Problem->num_incorrect -
 		($submitAnswers && $will{recordAnswers} ? 1 : 0);
 	my $attemptNumber = $Problem->num_correct + $Problem->num_incorrect;
 
 	# a handy noun for when referring to a test
-	my $testNoun = (( $set->attempts_per_version || 0 ) > 1) ? "submission" : "test";
-	my $testNounNum = ( ( $set->attempts_per_version ||0 ) > 1 ) ? 
-		"submission (test " : "test (";
+	my $testNoun = (( $set->attempts_per_version || 0 ) > 1) ? $r->maketext("submission") : $r->maketext("test");
+	my $testNounNum = ( ( $set->attempts_per_version ||0 ) > 1 ) ?
+		$r->maketext("submission (test ") : $r->maketext("test (");
 
-	##### start output of test headers: 
+	##### start output of test headers:
 	##### display information about recorded and checked scores
 	$attemptScore = wwRound(2,$attemptScore);
 	if ( $will{recordAnswers} ) {
-		# the distinction between $can{recordAnswers} and ! $can{} has 
+		# the distinction between $can{recordAnswers} and ! $can{} has
 		#    been dealt with above and recorded in @scoreRecordedMessage
 		my $divClass = 'ResultsWithoutError';
 		my $recdMsg = '';
 		foreach ( @scoreRecordedMessage ) {
-			if ($_ ne 'Your score on this problem was recorded.') {
+			if ($_ !~ $r->maketext('Your score on this problem was recorded.')) {
 				$recdMsg = $_;
 				$divClass = 'ResultsWithError';
 				last;
@@ -1838,63 +1819,61 @@ sub body {
 
 		if ( $recdMsg ) {
 			# then there was an error when saving the results
-			print CGI::strong("Your score on this $testNounNum ",
-					  "$versionNumber) was NOT recorded.  ",
+			print CGI::strong($r->maketext("Your score on this [_1][_2]) was NOT recorded.",$testNounNum,$versionNumber),
 					  $recdMsg), CGI::br();
 		} else {
 			# no error; print recorded message
-			print CGI::strong("Your score on this $testNounNum ",
-					  "$versionNumber) WAS recorded."), 
-			CGI::br();
+			print CGI::strong($r->maketext("Your score on this [_1][_2]) WAS recorded.",$testNounNum,$versionNumber)),
+			  CGI::br();
 
 			# and show the score if we're allowed to do that
 			if ( $can{showScore} ) {
-				#print CGI::strong("Your score on this " .
-				#		  "$testNoun is ", 
-				#		  "$attemptScore/$totPossible.");
-				print CGI::strong("Your score on this " .
-						  "$testNoun is ", 
-						  "$recordedScore/$totPossible.");
+			  print CGI::strong($r->maketext("Your score on this [_1] is [_2]/[_3].", $testNoun,$attemptScore,$totPossible));
 			} else {
-				my $when = 
+				my $when =
 					($set->hide_score eq 'BeforeAnswerDate')
 					? ' until ' . ($self->formatDateTime($set->answer_date) )
 					: '';
-				print CGI::br() . 
-					"(Your score on this $testNoun " .
-					"is not available$when.)";
+				print $r->maketext("(Your score on this [_1] is not available[_2].)",$testNoun,$when);
 			}
+
+
+			# Print a message if we are trying to send the score to
+			# an LMS
+			if ($LTIGradeResult != -1) {
+			  print CGI::br();
+			  print $LTIGradeResult ?
+			    $r->maketext("Your score was successfully sent to the LMS") :
+			    $r->maketext("Your score was not successfully sent to the LMS");
+			}
+
 		}
 
-		# finally, if there is another, recorded message, print that 
+		# finally, if there is another, recorded message, print that
 		#    too so that we know what's going on
 		print CGI::end_div();
 		if ( $set->attempts_per_version > 1 && $attemptNumber > 1 &&
 		     $recordedScore != $attemptScore && $can{showScore} ) {
 			print CGI::start_div({class=>'gwMessage'});
 			my $recScore = wwRound(2,$recordedScore);
-			print "The recorded score for this test is ",
-				"$recScore/$totPossible.";
+			print $r->maketext("The recorded score for this test is  [_1]/[_2].",$recScore,$totPossible);
 			print CGI::end_div();
 		}
 
 	} elsif ( $will{checkAnswers} ) {
 		if ( $can{showScore} ) {
 			print CGI::start_div({class=>'gwMessage'});
-			print CGI::strong("Your score on this (checked, not ",
-					  "recorded) submission is ",
-					  "$attemptScore/$totPossible."), 
+			print CGI::strong($r->maketext("Your score on this (checked, not recorded) submission is [_1]/[_2].",$attemptScore,$totPossible)),
 				CGI::br();
 			my $recScore = wwRound(2,$recordedScore);
-			print "The recorded score for this test is " .
-				"$recScore/$totPossible.  ";
+			print $r->maketext("The recorded score for this test is [_1]/[_2]. ",$recScore, $totPossible);
 			print CGI::end_div();
 		}
 	}
 
 	##### remaining output of test headers:
 	##### display timer or information about elapsed time, "printme" link,
-	##### and information about any recorded score if not submitAnswers or 
+	##### and information about any recorded score if not submitAnswers or
 	##### checkAnswers
 	if ( $can{recordAnswersNextTime} ) {
 
@@ -1905,41 +1884,37 @@ sub body {
 		    print CGI::div({-id=>"gwTimer"},"\n");
 		    print CGI::start_form({-name=>"gwTimeData", -method=>"POST",
 					  -action=>$r->uri});
-		    print CGI::hidden({-name=>"serverTime", -value=>$timeNow}), 
+		    print CGI::hidden({-name=>"serverTime", -value=>$timeNow}),
 		    "\n";
-		    print CGI::hidden({-name=>"serverDueTime", 
+		    print CGI::hidden({-name=>"serverDueTime",
 				       -value=>$set->due_date()}), "\n";
 		    print CGI::end_form();
 		}
 		if ( $timeLeft < 1 && $timeLeft > 0 &&
 		     ! $authz->hasPermissions($user, "record_answers_when_acting_as_student")) {
-			print CGI::span({-class=>"resultsWithError"}, 
-					CGI::b("You have less than 1 minute ",
-					       "to complete this test.\n"));
+			print CGI::span({-class=>"resultsWithError"},
+					CGI::b($r->maketext("You have less than 1 minute to complete this test.")."\n"));
 		} elsif ( $timeLeft <= 0 &&
 			  ! $authz->hasPermissions($user, "record_answers_when_acting_as_student") ) {
-			print CGI::span({-class=>"resultsWithError"}, 
-					CGI::b("You are out of time.  ",
-					       "Press grade now!\n"));
+			print CGI::span({-class=>"resultsWithError"},
+					CGI::b($r->maketext("You are out of time.  Press grade now!")."\n"));
 		}
-		# if there are multiple attempts per version, indicate the 
-		#    number remaining, and if we've submitted a multiple 
+		# if there are multiple attempts per version, indicate the
+		#    number remaining, and if we've submitted a multiple
 		#    attempt multi-page test, show the score on the previous
 		#    submission
 		if ( $set->attempts_per_version > 1 ) {
-			print CGI::em("You have $numLeft attempt(s) remaining ",
-				      "on this test.");
+			print CGI::em($r->maketext("You have [_1] attempt(s) remaining on this test.",$numLeft));
 			if ( $numLeft < $set->attempts_per_version &&
 			     $numPages > 1 &&
 			     $can{showScore} ) {
 				print CGI::start_div({-id=>"gwScoreSummary"}),
-					CGI::strong({},"Score summary for " .
-						    "last submit:");
+					CGI::strong({},$r->maketext("Score summary for last submit:"));
 				print CGI::start_table();
-				print CGI::Tr({},CGI::th({-align=>"left"},"Prob"), CGI::td(""), CGI::th("Status"), CGI::td(""), CGI::th("Result"));
+				print CGI::Tr({},CGI::th({-align=>"left"},$r->maketext("Prob")), CGI::td(""), CGI::th($r->maketext("Status")), CGI::td(""), CGI::th($r->maketext("Result")));
 				for ( my $i=0; $i<@probStatus; $i++ ) {
 					print CGI::Tr({},
-						CGI::td({},[($i+1),"",int(100*$probStatus[$probOrder[$i]]+0.5) . "%","", $probStatus[$probOrder[$i]] == 1 ? "Correct" : "Incorrect"]));
+						CGI::td({},[($i+1),"",int(100*$probStatus[$probOrder[$i]]+0.5) . "%","", $probStatus[$probOrder[$i]] == 1 ? $r->maketext("Correct") : $r->maketext("Incorrect")]));
 				}
 				print CGI::end_table(), CGI::end_div();
 			}
@@ -1948,14 +1923,11 @@ sub body {
 		if ( ! $checkAnswers && ! $submitAnswers ) {
 			if ( $can{showScore} ) {
 			    print CGI::start_div({class=>'gwMessage'});
-			    
-			    my $scMsg = "Your recorded score on this " .
-				"(test number $versionNumber) is " .
-				wwRound(2,$recordedScore)."/$totPossible";
-			    if ( $exceededAllowedTime && 
+
+			    my $scMsg = $r->maketext("Your recorded score on this test (number [_1]) is [_2]/[_3]", $versionNumber, wwRound(2,$recordedScore), $totPossible);
+			    if ( $exceededAllowedTime &&
 				 $recordedScore == 0 ) {
-				$scMsg .= ", because you exceeded " .
-				    "the allowed time.";
+				$scMsg .= $r->maketext(", because you exceeded the allowed time.");
 			    } else {
 				$scMsg .= ".  ";
 			    }
@@ -1966,44 +1938,40 @@ sub body {
 
 		if ( $set->version_last_attempt_time ) {
 			print CGI::start_div({class=>'gwMessage'});
-			print "Time taken on test: $elapsedTime min " .
-				"($allowed min allowed).";
+			print $r->maketext("Time taken on test: [_1] min ([_2] min allowed).",$elapsedTime,$allowed);
 			print CGI::end_div();
 		} elsif ( $exceededAllowedTime && $recordedScore != 0 ) {
 			print CGI::start_div({class=>'gwMessage'});
-			print "(This test is overtime because it was not " .
-				"submitted in the allowed time.)";
+			print $r->maketext("(This test is overtime because it was not submitted in the allowed time.)");
 			print CGI::end_div();
 		}
 
 		if ( $canShowWork && $set->set_id ne "Undefined_Set" ) {
-			print "The test (which is number $versionNumber) may " .
-				"no longer be submitted for a grade";
-			print "" . (($can{showScore}) ? ", but you may still " .
-				    "check your answers." : ".") ;
+			print $r->maketext("The test (which is number [_1]) may  no longer be submitted for a grade",$versionNumber);
+			print "" . (($can{showScore}) ? $r->maketext(", but you may still check your answers.") : ".") ;
 
-			# print a "printme" link if we're allowed to see our 
+			# print a "printme" link if we're allowed to see our
 			#    work
-			my $link = $ce->{webworkURLs}->{root} . '/' . 
-				$ce->{courseName} . '/hardcopy/' . 
-				$set->set_id . ',v' . $set->version_id . '/?' . 
+			my $link = $ce->{webworkURLs}->{root} . '/' .
+				$ce->{courseName} . '/hardcopy/' .
+				$set->set_id . ',v' . $set->version_id . '/?' .
 				$self->url_authen_args;
-			my $printmsg = CGI::div({-class=>'gwPrintMe'}, 
-						CGI::a({-href=>$link}, 
-						       "Print Test"));
+			my $printmsg = CGI::div({-class=>'gwPrintMe'},
+						CGI::a({-href=>$link},
+						       $r->maketext("Print Test")));
 			print $printmsg;
 		}
 	}
 
-	# this is a hack to get a URL that won't require a proctor login if 
-	#    we've submitted a proctored test for the last time.  above we've 
-	#    reset the assignment_type in this case, so we'll use that to 
+	# this is a hack to get a URL that won't require a proctor login if
+	#    we've submitted a proctored test for the last time.  above we've
+	#    reset the assignment_type in this case, so we'll use that to
 	#    decide if we should give a path to an unproctored test.
 	my $action = $r->uri();
-	$action =~ s/proctored_quiz_mode/quiz_mode/ 
+	$action =~ s/proctored_quiz_mode/quiz_mode/
 		if ( $set->assignment_type() eq 'gateway' );
-	# we also want to be sure that if we're in a set, the 'action' in the 
-	#    form points us to the same set.  
+	# we also want to be sure that if we're in a set, the 'action' in the
+	#    form points us to the same set.
 	my $setname = $set->set_id;
 	my $setvnum = $set->version_id;
 	$action =~ s/(quiz_mode\/$setname)\/?$/$1,v$setvnum\//;  #"
@@ -2011,33 +1979,32 @@ sub body {
 	# now, we print out the rest of the page if we're not hiding submitted
 	#    answers
 	if ( ! $can{recordAnswersNextTime} && ! $canShowWork ) {
-		my $when = ( $set->hide_work eq 'BeforeAnswerDate' ) 
-			? ' until ' . ($self->formatDateTime($set->answer_date))
+		my $when = ( $set->hide_work eq 'BeforeAnswerDate' )
+			? $r->maketext(' until ') . ($self->formatDateTime($set->answer_date))
 			: '';
 		print CGI::start_div({class=>"gwProblem"});
-		print CGI::strong("Completed results for this assignment are " .
-				  "not available$when.");
+		print CGI::strong($r->maketext("Completed results for this assignment are not available[_1].",$when));
 		print CGI::end_div();
 
 	# else: we're not hiding answers
 	} else {
 
-		print CGI::start_form({-name=>"gwquiz", -method=>"POST", 
-				      -action=>$action}), 
-			$self->hidden_authen_fields, 
+		print CGI::start_form({-name=>"gwquiz", -method=>"POST",
+				      -action=>$action}),
+			$self->hidden_authen_fields,
 			$self->hidden_proctor_authen_fields;
 
-	# hacks to use a javascript link to trigger previews and jump to 
+	# hacks to use a javascript link to trigger previews and jump to
 	#    subsequent pages of a multipage test
-		print CGI::hidden({-name=>'previewHack', -value=>''}), 
+		print CGI::hidden({-name=>'previewHack', -value=>''}),
 			CGI::br();
-		if ( $numProbPerPage && $numPages > 1 ) { 
+		if ( $numProbPerPage && $numPages > 1 ) {
 			print CGI::hidden({-name=>'newPage', -value=>''});
 			print CGI::hidden({-name=>'currentPage',
 					   -value=>$pageNumber});
 		}
 
-	# the link for a preview; for a multipage test, this also needs to 
+	# the link for a preview; for a multipage test, this also needs to
 	#    keep track of what page we're on
 		my $jsprevlink = 'javascript:document.gwquiz.previewHack.value="1";';
 		$jsprevlink .= "document.gwquiz.newPage.value=\"$pageNumber\";"
@@ -2048,17 +2015,17 @@ sub body {
 		my $jumpLinks = '';
 		my $probRow = [ ];
 		for my $i ( 0 .. $#pg_results ) {
-	    
+
 			my $pn = $i + 1;
 			if ( $i >= $startProb && $i <= $endProb ) {
 				push(@$probRow, CGI::b(" [ ")) if ($i == $startProb);
-				push( @$probRow, " &nbsp;" . 
-				      CGI::a({-href=>"#", 
+				push( @$probRow, " &nbsp;" .
+				      CGI::a({-href=>"#",
 					      -onclick=>"jumpTo($pn);return false;"},
 					     "$pn") . "&nbsp; " );
 				push(@$probRow, CGI::b(" ] ")) if ($i == $endProb);
 			} elsif ( ! ($i % $numProbPerPage) ) {
-				push(@$probRow, " &nbsp;&nbsp; ", 
+				push(@$probRow, " &nbsp;&nbsp; ",
 				     " &nbsp;&nbsp; ", " &nbsp;&nbsp; ");
 			}
 		}
@@ -2066,41 +2033,41 @@ sub body {
 			my $pageRow = [ CGI::th( {scope=>"row"}, CGI::b($r->maketext('Jump to Page: '))),
 					CGI::td(CGI::b(' [ ' )) ];
 			for my $i ( 1 .. $numPages ) {
-				my $pn = ( $i == $pageNumber ) ? $i : 
+				my $pn = ( $i == $pageNumber ) ? $i :
 				    CGI::a({-href=>'javascript:' .
 						"document.gwquiz.newPage.value=\"$i\";" .
-						'document.gwquiz.submit();'}, 
+						'document.gwquiz.submit();'},
 					   "&nbsp;$i&nbsp;");
 
 				my $colspan =  0;
 				if ( $i == $pageNumber ) {
-					$colspan = 
+					$colspan =
 					    ($#pg_results - ($i-1)*$numProbPerPage > $numProbPerPage) ?
-					    $numProbPerPage : 
+					    $numProbPerPage :
 					    $#pg_results - ($i-1)*$numProbPerPage + 1;
 				} else {
 					$colspan = 1;
 				}
-				push( @$pageRow, CGI::td({-colspan=>$colspan, 
-							  -align=>'center'}, 
+				push( @$pageRow, CGI::td({-colspan=>$colspan,
+							  -align=>'center'},
 							 $pn) );
-				push( @$pageRow, CGI::td( [CGI::b(' ] '), 
+				push( @$pageRow, CGI::td( [CGI::b(' ] '),
 							   CGI::b(' [ ')] ) )
 					if ( $i != $numPages );
 			}
 			push( @$pageRow, CGI::td(CGI::b(' ] ')) );
-			$jumpLinks = CGI::table( {class=>"gwNavigation", role=>"navigation", 'aria-label'=>"problem navigation"}, CGI::Tr(@$pageRow), 
+			$jumpLinks = CGI::table( {class=>"gwNavigation", role=>"navigation", 'aria-label'=>"problem navigation"}, CGI::Tr(@$pageRow),
 						 CGI::Tr( CGI::th(CGI::b($r->maketext("Jump to Problem:"))), CGI::td($probRow) ) );
 		} else {
 			$jumpLinks = CGI::table({class=>"gwNavigation", role=>"navigation", 'aria-label'=>"problem navigation"}, CGI::Tr(CGI::th(CGI::b($r->maketext("Jump to Problem:"))), CGI::td($probRow) ) );
 		}
-	
+
 		print $jumpLinks,"\n";
 
 	# print out problems and attempt results, as appropriate
 	# note: args to attemptResults are (self,) $pg, $showAttemptAnswers,
-	#    $showCorrectAnswers, $showAttemptResults (and-ed with 
-	#    $showAttemptAnswers), $showSummary, $showAttemptPreview (or-ed 
+	#    $showCorrectAnswers, $showAttemptResults (and-ed with
+	#    $showAttemptAnswers), $showSummary, $showAttemptPreview (or-ed
 	#    with zero)
 		my $problemNumber = 0;
 
@@ -2108,60 +2075,60 @@ sub body {
 			my $pg = $pg_results[$probOrder[$i]];
 			$problemNumber++;
 
-			if ( $i >= $startProb && $i <= $endProb ) { 
-				
+			if ( $i >= $startProb && $i <= $endProb ) {
+
 				my $recordMessage = '';
 				my $resultsTable = '';
 
 				if ($pg->{flags}->{showPartialCorrectAnswers}>=0 && $submitAnswers){
-					if ( $scoreRecordedMessage[$probOrder[$i]] ne 
-					     "Your score on this problem was recorded." ) {
+					if ( $scoreRecordedMessage[$probOrder[$i]] !~
+					     $r->maketext("Your score on this problem was recorded.") ) {
 						$recordMessage = CGI::span({class=>"resultsWithError"},
-									   "ANSWERS NOT RECORDED --", 
+									   $r->maketext("ANSWERS NOT RECORDED --"),
 									   $scoreRecordedMessage[$probOrder[$i]]);
 
 					}
-					$resultsTable = 
+					$resultsTable =
 					    $self->attemptResults($pg, 1, $will{showCorrectAnswers},
 								  $pg->{flags}->{showPartialCorrectAnswers} && $canShowProblemScores,
 								  $canShowProblemScores, 1);
-					
+
 				} elsif ( $will{checkAnswers} ) {
 					$recordMessage = CGI::span({class=>"resultsWithError"},
-								   "ANSWERS ONLY CHECKED -- ", 
-								   "ANSWERS NOT RECORDED");
-					
-					$resultsTable = 
+								   $r->maketext("ANSWERS ONLY CHECKED -- "),
+								   $r->maketext("ANSWERS NOT RECORDED"));
+
+					$resultsTable =
 					    $self->attemptResults($pg, 1, $will{showCorrectAnswers},
 								  $pg->{flags}->{showPartialCorrectAnswers} && $canShowProblemScores,
 								  $canShowProblemScores, 1);
 
 				} elsif ( $previewAnswers ) {
-					$recordMessage = 
+					$recordMessage =
 					    CGI::span({class=>"resultsWithError"},
-						      "PREVIEW ONLY -- ANSWERS NOT RECORDED");
+						      $r->maketext("PREVIEW ONLY -- ANSWERS NOT RECORDED"));
 					$resultsTable = $self->attemptResults($pg, 1, 0, 0, 0, 1);
- 
-				}	    
-				
+
+				}
+
 				print CGI::start_div({class=>"gwProblem"});
 				my $i1 = $i+1;
 				my $pv = $problems[$probOrder[$i]]->value() ? $problems[$probOrder[$i]]->value() : 1;
 				print CGI::div({-id=>"prob$i"},"");
-				print CGI::h2("Problem $problemNumber."), 
+				print CGI::h2($r->maketext("Problem [_1].",$problemNumber)),
 					$recordMessage;
 				print CGI::div({class=>"problem-content"}, $pg->{body_text}),
-				CGI::p($pg->{result}->{msg} ? 
-				       CGI::b("Note: ") : "", 
+				CGI::p($pg->{result}->{msg} ?
+				       CGI::b($r->maketext("Note: ")) : "",
 				       CGI::i($pg->{result}->{msg}));
-				print CGI::p({class=>"gwPreview"}, 
-					     CGI::a({-href=>"$jsprevlink"}, 
-						    "preview answers"));
+				print CGI::p({class=>"gwPreview"},
+					     CGI::a({-href=>"$jsprevlink"},
+						    $r->maketext("preview answers")));
 
-				print $resultsTable if $resultsTable; 
+				print $resultsTable if $resultsTable;
 
 				print CGI::end_div();
-				# finally, store the problem status for 
+				# finally, store the problem status for
 				#    continued attempts recording
 				my $pNum = $probOrder[$i] + 1;
 				print CGI::hidden({-name=>"probstatus$pNum",
@@ -2170,19 +2137,21 @@ sub body {
 				print "\n", CGI::hr(), "\n";
 			} else {
 				my $i1 = $i+1;
-				# keep the jump to anchors so that jumping to 
-				#    problem number 6 still works, even if 
+				# keep the jump to anchors so that jumping to
+				#    problem number 6 still works, even if
 				#    we're viewing only problems 5-7, etc.
 				print CGI::div({-id=>"prob$i"},""), "\n";
-				# and print out hidden fields with the current 
+				# and print out hidden fields with the current
 				#    last answers
 				my $curr_prefix = 'Q' . sprintf("%04d", $probOrder[$i]+1) . '_';
 				my @curr_fields = grep /^$curr_prefix/, keys %{$self->{formFields}};
 				foreach my $curr_field ( @curr_fields ) {
-					print CGI::hidden({-name=>$curr_field, 
-							   -value=>$self->{formFields}->{$curr_field}});
+ 					foreach ( split(/\0/, $self->{formFields}->{$curr_field} // '') ) {
+ 						print CGI::hidden({-name=>$curr_field,
+ 							   	   -value=>$_});
+ 					}
 				}
-				# finally, store the problem status for 
+				# finally, store the problem status for
 				#    continued attempts recording
 				my $pNum = $probOrder[$i] + 1;
 				print CGI::hidden({-name=>"probstatus$pNum",
@@ -2202,44 +2171,28 @@ sub body {
 			print CGI::checkbox(-name   =>"showCorrectAnswers",
 #				-checked => $will{showCorrectAnswers},
 					    -checked=>$want{showCorrectAnswers},
-					    -label  =>"Show correct answers",
+					    -label  =>$r->maketext("Show correct answers"),
 					    );
 		}
-#     if ($can{showHints}) {
-# 	print CGI::div({style=>"color:red"},
-# 		       CGI::checkbox(-name    => "showHints",
-# 				     -checked => $will{showHints},
-# 				     -label   => "Show Hints",
-# 				     )
-# 		       );
-#     }
 		if ($can{showSolutions}) {
 			print CGI::checkbox(-name    => "showSolutions",
 					    -checked => $will{showSolutions},
-					    -label   => "Show Solutions",
+					    -label   => $r->maketext("Show Solutions"),
 					    );
 		}
 
-		print CGI::p( CGI::submit( -name=>"previewAnswers", 
-					   -label=>"Preview Test" ),
-			      ($can{recordAnswersNextTime} ? 
+		print CGI::p( CGI::submit( -name=>"previewAnswers",
+					   -label=>$r->maketext("Preview Test") ),
+			      ($can{recordAnswersNextTime} ?
 			       CGI::submit( -name=>"submitAnswers",
-					    -label=>"Grade Test" ) : " "),
+					    -label=>$r->maketext("Grade Test") ) : " "),
 			      ($can{checkAnswersNextTime} && ! $can{recordAnswersNextTime} ?
 			       CGI::submit( -name=>"checkAnswers",
-					    -label=>"Check Test" ) : " "),
-			      ($numProbPerPage && $numPages > 1 && 
-			       $can{recordAnswersNextTime} ? CGI::br() . 
-			       CGI::em("Note: grading the test grades " . 
-				       CGI::b("all") . " problems, not just those " . 
-				       "on this page.") : " ") );
+					    -label=>$r->maketext("Check Test") ) : " "),
+			      ($numProbPerPage && $numPages > 1 &&
+			       $can{recordAnswersNextTime} ? CGI::br() .
+			       CGI::em($r->maketext("Note: grading the test grades all problems, not just those on this page.")) : " ") );
 
-		## save the source file, etc., if we're trying an undefined
-		##    set
-		# print( CGI::hidden(
-		# 		   -name   => 'sourceFilePath',
-		# 		   -value  =>  $self->{problem}->{source_file}
-		# 		  ))  if defined($self->{problem}->{source_file});
 		print( CGI::hidden(
 				   -name   => 'sourceFilePath',
 				   -value  =>  $r->param("sourceFilePath")
@@ -2264,42 +2217,18 @@ sub body {
 		print "\n", CGI::start_form(-method=>"POST",-action=>$showPastAnswersURL,-target=>"WW_Info"),"\n",
 			$hiddenFields,"\n",
 			CGI::hidden(-name => 'courseID',  -value=>$ce->{courseName}), "\n",
-			CGI::hidden(-name => 'problemID', -value=>"$firstProb - $lastProb"), "\n",
-			CGI::hidden(-name => 'setID',  -value=>$setVName), "\n",
-			CGI::hidden(-name => 'studentUser',    -value=>$effectiveUser), "\n",
-			CGI::p(
+			CGI::hidden(-name => 'selected_sets',  -value=>$setVName), "\n",
+			  CGI::hidden(-name => 'selected_users',    -value=>$effectiveUser), "\n";
+	    for (my $prob=$firstProb; $prob <= $lastProb; $prob++) {
+	      print CGI::hidden(-name => 'selected_problems', -value=>"$prob"), "\n";
+	    }
+
+	    print CGI::p(
 				CGI::submit(-name => 'action',  -value=>'Show Past Answers')
 				), "\n",
 			CGI::end_form();
 	}
 
-# debugging verbiage
-#     if ( $can{checkAnswersNextTime} ) {
-# 	print "Can check answers next time\n";
-#     } else {
-# 	print "Can NOT check answers next time\n";
-#     }
-#     if ( $can{recordAnswersNextTime} ) {
-# 	print "Can record answers next time\n";
-#     } else {
-# 	print "Can NOT record answers next time\n";
-#     }
-
-  # we exclude the feedback form from gateway tests.  they can use the feedback
-  #   button on the preceding or following pages
-#     my $ce = $r->ce;
-#     my $root = $ce->{webworkURLs}->{root};
-#     my $courseName = $ce->{courseName};
-#     my $feedbackURL = "$root/$courseName/feedback/";
-#     print CGI::start_form("POST", $feedbackURL),
-#           $self->hidden_authen_fields,
-#           CGI::hidden("module", __PACKAGE__),
-#           CGI::hidden("set",    $self->{set}->set_id),
-#           CGI::p({-align=>"right"},
-# 		 CGI::submit(-name=>"feedbackForm", -label=>"Send Feedback")
-# 		 ),
-# 	  CGI::end_form();
-	
 	return "";
 
 }
@@ -2332,7 +2261,7 @@ sub getProblemHTML {
 # nothing needs to be done
 
 	} elsif ($pgFile) {
-		$mergedProblem = 
+		$mergedProblem =
 		    WeBWorK::DB::Record::ProblemVersion->new(
 					set_id => $setName,
 					version_id => $setVersionNumber,
@@ -2351,7 +2280,7 @@ sub getProblemHTML {
 # FIXME  I'm not sure that problem_id is what we want here  FIXME
 	my $problemNumber = $mergedProblem->problem_id;
 
-	my $pg = 
+	my $pg =
 	    WeBWorK::PG->new(
 			 $ce,
 			 $EffectiveUser,
@@ -2359,18 +2288,18 @@ sub getProblemHTML {
 			 $set,
 			 $mergedProblem,
 			 $psvn,
-			 $formFields, 
+			 $formFields,
 			 { # translation options
 			     displayMode     => $self->{displayMode},
 			     showHints       => $showHints,
 			     showSolutions   => $showSolutions,
 			     refreshMath2img => $showHints || $showSolutions,
 			     processAnswers  => 1,
-			     QUIZ_PREFIX     => 'Q' . 
+			     QUIZ_PREFIX     => 'Q' .
 				 sprintf("%04d",$problemNumber) . '_',
 			     },
 			     );
-	
+
 # FIXME  is problem_id the correct thing in the following two stanzas?
 # FIXME  the original version had "problem number", which is what we want.
 # FIXME  I think problem_id will work, too
@@ -2397,35 +2326,6 @@ sub getProblemHTML {
 	return    $pg;
 }
 
-##### output utilities #####
-sub problemListRow($$$) {
-	my $self = shift;
-	my $set = shift;
-	my $Problem = shift;
-	
-	my $name = $Problem->problem_id;
-	my $interactiveURL = "$name/?" . $self->url_authen_args;
-	my $interactive = CGI::a({-href=>$interactiveURL}, "Problem $name");
-	my $attempts = $Problem->num_correct + $Problem->num_incorrect;
-	my $remaining = $Problem->max_attempts < 0
-		? "unlimited"
-		: $Problem->max_attempts - $attempts;
-	my $status = sprintf("%.0f%%", $Problem->status * 100); # round to whole number
-	
-	return CGI::Tr(CGI::td({-nowrap=>1}, [
-		$interactive,
-		$attempts,
-		$remaining,
-		$status,
-	]));
-}
-# sub nbsp {
-# 	my $str = shift;
-# 	($str) ? $str : '&nbsp;';  # returns non-breaking space for empty strings
-# }
-
-##### logging subroutine ####
-
 sub output_JS{
 	my $self = shift;
 	my $r = $self->r;
@@ -2436,11 +2336,11 @@ sub output_JS{
 	# The Base64.js file, which handles base64 encoding and decoding
 	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/Base64/Base64.js"}), CGI::end_script();
 
-		# This is for MathView.  
+		# This is for MathView.
 	if ($self->{will}->{useMathView}) {
 	    if ((grep(/MathJax/,@{$ce->{pg}->{displayModes}}))) {
 		print CGI::start_script({type=>"text/javascript", src=>"$ce->{webworkURLs}->{MathJax}"}), CGI::end_script();
-		
+
 		print "<link href=\"$site_url/js/apps/MathView/mathview.css\" rel=\"stylesheet\" />";
 		print CGI::start_script({type=>"text/javascript"});
 		print "mathView_basepath = \"$site_url/images/mathview/\";";
@@ -2455,7 +2355,7 @@ sub output_JS{
 	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/vendor/other/knowl.js"}),CGI::end_script();
 	#This is for page specfific js
 	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/GatewayQuiz/gateway.js"}), CGI::end_script();
-	
+
 	return "";
 }
 
