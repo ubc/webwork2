@@ -418,7 +418,7 @@ $authen{user_module} = {
 
 $statuses{Teaching} = {
     abbrevs => [qw/ P p professor /],
-    behaviors => [qw/ allow_course_access /],
+    behaviors => [qw/ allow_course_access include_in_assignment /],
 };
 $statuses{EnrolledNoDrop} = {
     abbrevs => [qw/ E e enrollednodrop /],
@@ -428,6 +428,8 @@ $statuses{TeachingNoDrop} = {
     abbrevs => [qw/ T t teachingnodrop /],
     behaviors => [qw/ allow_course_access /],
 };
+
+delete $statuses{Proctor};
 
 # URL of WeBWorK Bugzilla database.
 $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";

@@ -94,9 +94,9 @@ sub run
 		if (-e $tmpce->{courseDirs}->{root})
 		{ # course exists
 			debug("We're trying to authenticate to an existing course.");
-			if ($ce->{"courseName"})
+			if ($ce->{"courseName"} && $ce->{"courseName"} ne '___')
 			{
-				debug("CourseID found.");
+				debug("CourseID " . $ce->{"courseName"} . " found.");
 
 				# check if we're allowed to create a new student entry
 				# if a student tries to access the course before
