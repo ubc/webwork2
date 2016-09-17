@@ -15,7 +15,7 @@
 <p>If above methods did not help, please send an email to webwork.support@ubc.ca with the following information:</p>
 <ul>
     <li>Your full name</li>
-    <li>Your emai</li>
+    <li>Your email</li>
     <li>Your student ID</li>
     <li>Your CWL username</li>
     <li>Course and section you registered</li>
