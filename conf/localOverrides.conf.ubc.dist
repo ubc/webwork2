@@ -123,8 +123,8 @@ $webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/
 #$problemLibrary{root}        = "/opt/webwork/libraries/NationalProblemLibrary";
 #$problemLibrary{version}     = "2";
 # uncomment these lines below and comment out the line above if using OPL instead of NPL
-$problemLibrary{root}       = "/www_data/libraries/opl/OpenProblemLibrary";
-$contribLibrary{root}       = "/www_data/libraries/opl/Contrib";
+$problemLibrary{root}       = "/www_data/webwork/libraries/opl/OpenProblemLibrary";
+$contribLibrary{root}       = "/www_data/webwork/libraries/opl/Contrib";
 $problemLibrary{version}    = "2.5";  
 
 # These flags control if statistics on opl problems are shown in the library
@@ -151,7 +151,7 @@ $problemLibrary{showLibraryGlobalStats} = 1;
 # Problem Library.
  
 $courseFiles{problibs}    = {
-	Library          => "OPL Directory",
+#	Library          => "OPL Directory",
 	ubcLibrary       => "UBC Library",
 # 	rochesterLibrary => "Rochester",
 # 	unionLibrary     => "Union",
@@ -426,7 +426,7 @@ $statuses{EnrolledNoDrop} = {
 };
 $statuses{TeachingNoDrop} = {
     abbrevs => [qw/ T t teachingnodrop /],
-    behaviors => [qw/ allow_course_access /],
+    behaviors => [qw/ allow_course_access include_in_assignment /],
 };
 
 delete $statuses{Proctor};
@@ -482,6 +482,10 @@ $bridge{update_class_on_login} = 1;
 $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
 $bridge{update_class_on_login} = 1;
 
+# If a student does not have an email address, we check this file to see if
+# we can manually enter a student id for them. Note that if the LMS provides
+# an email address, we ignore this file and uses the LMS provided one.
+$bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emaillist";
 # List of Vista ids that are blacklisted from import. Note that id matching
 # is done using m//, so any occurance of the string below in an id will mark
 # that id as blacklisted.
@@ -500,7 +504,7 @@ $bridge{vista_blacklist} = (
 #    it will use the match and the rules after that will not get evaluated.
 # 3. Using regex grouping for substituion
 $bridge{course_mapping_rules} = [
-	# Custom course mapping
+	# Custom mapping rules
 	{ 'WS.UBC.MATH.104.101.2012W1.12422' => 'MATH104_2012W1' },
 	# Connect course naming convention
 	{ '(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*' => '"$2_$3_$4_$5"' }, # SIS/workshop course section

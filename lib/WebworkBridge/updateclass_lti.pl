@@ -24,7 +24,7 @@ BEGIN {
 	eval "use WeBWorK::CourseEnvironment"; die $@ if $@;
 }
 
-if (scalar(@ARGV) < 5) 
+if (scalar(@ARGV) < 5)
 {
 	print "Parameter count incorrect, please enter all parameters:";
 	print "\nupdateclass UserID CourseName CourseID CourseURL Key\n";
@@ -104,7 +104,7 @@ my $ua = LWP::UserAgent->new;
 push @{ $ua->requests_redirectable }, 'POST';
 
 my $res = $ua->post($request_url . $courseName . "/", $request->to_hash);
-if ($res->is_success) 
+if ($res->is_success)
 {
 	if ($res->content =~ /Invalid user ID or password/)
 	{
@@ -113,6 +113,6 @@ if ($res->is_success)
 }
 else
 {
-	die "Course update failed, POST request failed.";
+    die "Course update failed, POST request failed." . $res->status_line;
 }
 

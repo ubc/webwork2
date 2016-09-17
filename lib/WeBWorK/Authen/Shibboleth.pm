@@ -1,12 +1,12 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
 # Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
 # Free Software Foundation; either version 2, or (at your option) any later
 # version, or (b) the "Artistic License" which comes with this package.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
@@ -18,7 +18,7 @@ use base qw/WeBWorK::Authen/;
 
 =head1 NAME
 
-WeBWorK::Authen::Shibboleth - Authentication plug in for Shibboleth. 
+WeBWorK::Authen::Shibboleth - Authentication plug in for Shibboleth.
 This is basd on Cosign.pm
 
 to use: include in localOverrides.conf or course.conf
@@ -30,19 +30,19 @@ if $r->ce->{shiboff} is set for a course, authentication reverts
 to standard WeBWorK authentication.
 
 add the following to localOverrides.conf to setup the Shibboleth
-  
+
 $shibboleth{login_script} = "/Shibboleth.sso/Login"; # login handler
 $shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url; # return URL after logout
 $shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if there is an existing shibboleth session
 $shibboleth{manage_session_timeout} = 1; # allow shib to manage session time instead of webwork
-$shibboleth{hash_user_id_method} = "MD5"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url. 
+$shibboleth{hash_user_id_method} = "MD5"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url.
 $shibboleth{hash_user_id_salt} = ""; # salt for hash function
 #define the attributes that we should look for user_id from
 $shibboleth{attributes} = [
 	'username',
 	'studentNumber',
 	'loginName',
-]; 
+];
 
 =cut
 
@@ -62,7 +62,7 @@ sub get_credentials {
 	my $r = $self->{r};
 	my $ce = $r->ce;
 	my $db = $r->db;
-	
+
 	if ( $ce->{shiboff} || $r->param('bypassShib')) {
 		return $self->SUPER::get_credentials( @_ );
 	} else {
@@ -79,14 +79,14 @@ sub get_credentials {
 
 		if ( defined ($ENV{$ce->{shibboleth}{session_header}})) {
 			debug('Got shib header and looking for user_id');
-			# loop through all attributes to find the one mapped to user_id 
+			# loop through all attributes to find the one mapped to user_id
 			foreach (@{$ce->{shibboleth}{attributes}}) {
 				my $key = $_;
 				if (defined( $ENV{$key} ) ) {
 					my $user_id;
 					# if we need hash the user_id
-					if ( defined ($ce->{shibboleth}{hash_user_id_method}) && 
-							$ce->{shibboleth}{hash_user_id_method} ne "none" && 
+					if ( defined ($ce->{shibboleth}{hash_user_id_method}) &&
+							$ce->{shibboleth}{hash_user_id_method} ne "none" &&
 							$ce->{shibboleth}{hash_user_id_method} ne "" ) {
 						use Digest;
 						my $digest  = Digest->new($ce->{shibboleth}{hash_user_id_method});
@@ -95,7 +95,7 @@ sub get_credentials {
 					} else {
 						$user_id = $ENV{$key};
 					}
-					
+
 					# got one match, login user
 					if ($db->getUser($user_id)) {
 						debug("Got user_id $user_id from shib attribute $key");
@@ -112,7 +112,7 @@ sub get_credentials {
 						last;
 					}
 				}
-			} 
+			}
 
 			# no match, login failed
 			if (!defined($self->{'user_id'})) {
@@ -123,14 +123,15 @@ sub get_credentials {
 		} else {
 			debug("Couldn't shib header or user_id");
 			my $q = new CGI;
-			my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url(-path=>1);
+            #my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url(-path=>1);
+            my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url();
 			$self->{redirect} = $go_to;
 			print $q->redirect($go_to);
 			return 0;
 		}
 
-		# the session key isn't used (Shibboleth is managing this 
-		#    for us), and we want to force checking against the 
+		# the session key isn't used (Shibboleth is managing this
+		#    for us), and we want to force checking against the
 		#    site_checkPassword
 		$self->{'session_key'} = undef;
 		$self->{'password'} = 1;
@@ -140,7 +141,7 @@ sub get_credentials {
 	}
 }
 
-sub site_checkPassword { 
+sub site_checkPassword {
 	my ( $self, $userID, $clearTextPassword ) = @_;
 
 	if ( $self->{r}->ce->{shiboff}  || $self->{r}->param('bypassShib') ) {
@@ -188,7 +189,7 @@ sub killCookie {
 
 # this is a bit of a cheat, because it does the redirect away from the
 #   logout script or what have you, but I don't see a way around that.
-sub forget_verification { 
+sub forget_verification {
 	my ($self, @args) = @_;
 	my $r = $self->{r};
 
@@ -207,7 +208,7 @@ sub check_session {
 	my ($self, $userID, $possibleKey, $updateTimestamp) = @_;
 	my $ce = $self->{r}->ce;
 	my $db = $self->{r}->db;
-	
+
 	if ( $ce->{shiboff} ) {
 		return $self->SUPER::check_session( @_ );
 	} else {
