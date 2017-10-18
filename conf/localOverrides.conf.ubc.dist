@@ -465,22 +465,18 @@ $bridge{vista_login_options} = {
 };
 $bridge{vista_importer} = $webworkDirs{root} . "/lib/WebworkBridge/Bridges/vistawebworksimporter.jar";
 $bridge{vista_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist";
-$bridge{lti_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist_lti";
 
 # If a student does not have an email address, we check this file to see if
 # we can manually enter a student id for them. Note that if the LMS provides
 # an email address, we ignore this file and uses the LMS provided one.
 $bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emaillist";
 
-# the switch for launching LTI membership request on login
-# if the switch is off, the LTI requset has to have ubc_auto_update parameter to launch
-# membership the request
-$bridge{update_class_on_login} = 1;
-
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
 $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
-$bridge{update_class_on_login} = 1;
+$bridge{launch_auto_manage_user_roles} = 'Instructor ContentDeveloper TeachingAssistant Learner';
+$bridge{hide_new_courses} = 1;
+$bridge{user_identifier_field} = 'custom_ubc_puid';
 
 # If a student does not have an email address, we check this file to see if
 # we can manually enter a student id for them. Note that if the LMS provides

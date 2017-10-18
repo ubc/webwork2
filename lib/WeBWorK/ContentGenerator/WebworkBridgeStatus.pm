@@ -41,12 +41,18 @@ sub body {
 
 	# check for error messages to display
 	my $import_error = MP2 ? $r->notes->get("import_error") : $r->notes("import_error");
+	my $no_memebership = MP2 ? $r->notes->get("no_memebership") : $r->notes("no_memebership");
 
 	if ($import_error)
 	{
 		print CGI::h2("Course Import Failed");
 		print CGI::p("Unfortunately, import failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:");
 		print CGI::div({class=>"ResultsWithError"}, CGI::pre("$import_error") );
+	}
+	elsif ($no_memebership)
+	{
+		print CGI::h2("Course Import Successful");
+		print CGI::p("The course was successfully imported into Webwork.");
 	}
 	else
 	{

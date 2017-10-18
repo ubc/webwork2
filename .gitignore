@@ -37,3 +37,4 @@ httpd2.pid
 httpd.pid
 lib/WebworkBridge/classlists/
 .dump_past_answers_salt
+.data

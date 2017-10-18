@@ -312,6 +312,9 @@ sub dispatch($) {
 		{
 			MP2 ? $r->notes->set(import_error => $retstatus) : $r->notes('import_error' => $retstatus);
 		}
+		elsif (!$r->param('ext_ims_lis_memberships_url')) {
+			MP2 ? $r->notes->set(no_memebership => 1) : $r->notes('no_memebership' => 1);
+		}
 		$displayModule = $bridge->getDisplayModule();
 	}
 

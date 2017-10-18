@@ -189,6 +189,13 @@ sub updateUser
 		$oldInfo->last_name($newInfo->{'lastname'});
 		$update = 1;
 	}
+	# lis_source_did (only if $newInfo set it)
+	if (defined($newInfo->{'lis_source_did'}) &&
+		$newInfo->{'lis_source_did'} ne $oldInfo->lis_source_did())
+	{
+		$oldInfo->lis_source_did($newInfo->{'lis_source_did'});
+		$update = 1;
+	}
 	# Batch update info
 	if ($update)
 	{
@@ -217,6 +224,12 @@ sub updateUser
 			$db->putUser($oldInfo);
 			$self->addlog("Teaching staff $id rejoined $courseid");
 		}
+	}
+
+	# assign all visible homeworks to students
+	if ($permission->permission() <= $ce->{userRoles}{student})
+	{
+		$self->assignAllVisibleSetsToUser($id, $db);
 	}
 }
 
@@ -248,7 +261,8 @@ sub addUser
 	$new_user->email_address($new_user_info->{'email'});
 	$new_user->status($status);
 	$new_user->student_id($new_user_info->{'studentid'});
-	
+	$new_user->lis_source_did($new_user_info->{'lis_source_did'});
+
 	# password record
 	my $cryptedpassword;
 	if ($new_user_info->{'password'})

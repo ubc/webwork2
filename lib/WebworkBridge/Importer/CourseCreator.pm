@@ -74,6 +74,20 @@ sub runAddCourse
 	{ # script failed for some reason
 		return error("Add course failed, script failure: $msg", "e018");
 	}
+
+	if ($ce->{bridge}{hide_new_courses}) {
+		my $message = 'Place a file named "hide_directory" in a course or other directory '.
+			'and it will not show up in the courses list on the WeBWorK home page. '.
+			'It will still appear in the Course Administration listing.';
+		my $coursesDir = $ce->{webworkDirs}->{courses};
+		local *HIDEFILE;
+		if (open (HIDEFILE, ">","$coursesDir/$course/hide_directory")) {
+			print HIDEFILE "$message";
+			close HIDEFILE;
+		} else {
+			return error("Add course failed, hide directory failure", "e022");
+		}
+	}
 	return 0;
 }
 
