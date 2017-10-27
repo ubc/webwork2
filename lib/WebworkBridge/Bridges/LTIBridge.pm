@@ -101,10 +101,22 @@ sub run
 				# check if we're allowed to create a new student entry
 				# if a student tries to access the course before
 				# they've been synced in Webwork
-				my $createStudent = $r->param("custom_create_student");
-				if ($createStudent && $createStudent eq 'true')
+				my $autoManageUser = 0;
+
+				my @roles = split(/\s+/, $ce->{bridge}{launch_auto_manage_user_roles});
+				foreach my $role (@roles)
 				{
-					$self->_createStudent();
+					if ($r->param('roles') =~ /$role/i)
+					{
+						debug("Role $role auto account creation/update enabled.");
+						$autoManageUser = 1;
+						last;
+					}
+				}
+
+				if ($autoManageUser)
+				{
+					$self->_manageLaunchUser();
 				}
 
 				debug("Trying authentication\n");
@@ -186,6 +198,7 @@ sub createCourse
 {
 	my $self = shift;
 	my $r = $self->{r};
+	my $ce = $r->ce;
 
 	my %course = ();
 	my @students = ();
@@ -201,6 +214,16 @@ sub createCourse
 		return error("Get roster failed: $ret", "#e009");
 	}
 
+	# set profid if not set (membership skipped)
+	if (!defined($course{'profid'}))
+	{
+		$course{'profid'} = "";
+		if (($r->param('roles') =~ /instructor/i || $r->param('roles') =~ /contentdeveloper/i) &&
+				$r->param($ce->{bridge}{user_identifier_field})) {
+			$course{'profid'} = $r->param($ce->{bridge}{user_identifier_field});
+		}
+	}
+
 	$ret = $self->SUPER::createCourse(\%course, \@students);
 	if ($ret)
 	{
@@ -208,16 +231,11 @@ sub createCourse
 	}
 
 	# store LTI credentials for auto-update
-	my $file = $r->ce->{bridge}{lti_loginlist};
-	my @fields = (
-		$r->param('lis_person_sourcedid'),
-		$course{name},
-		$r->param('ext_ims_lis_memberships_id'),
-		$r->param('ext_ims_lis_memberships_url'),
-		$r->param('oauth_consumer_key'),
-		$r->param('context_title')
-	);
-	$self->updateLoginList($file, \@fields);
+	$r->{ce} = new WeBWorK::CourseEnvironment({
+		%WeBWorK::SeedCE,
+		courseName => $course{'name'}
+	});
+	$self->updateCourseSettings();
 
 	return 0;
 }
@@ -247,8 +265,12 @@ sub updateCourse
 	}
 	if (!$allowedUpdate)
 	{
-		return error("User not allowed to update course.", "#e022");
+		debug("User not allowed to update course.");
+		return 1;
 	}
+
+	# store LTI credentials for auto-update
+	$self->updateCourseSettings();
 
 	my %course = ();
 	my @students = ();
@@ -262,9 +284,31 @@ sub updateCourse
 	}
 
 	# try to push out grades back to the LMS
-	$ret = $self->_pushGrades(\@students);
+	$ret = $self->_pushGrades();
 
 	return $ret;
+}
+
+sub updateCourseSettings()
+{
+	my $self = shift;
+	my $r = $self->{r};
+	my $ce = $r->ce;
+	my $db = new WeBWorK::DB($ce->{dbLayout});
+
+	$db->setSettingValue('lti_automatic_updates', '1');
+	$db->setSettingValue('oauth_consumer_key', $r->param('oauth_consumer_key'));
+	$db->setSettingValue('user_identifier', $r->param($ce->{bridge}{user_identifier_field}));
+
+	if ($r->param('ext_ims_lis_memberships_id')) {
+		$db->setSettingValue('ext_ims_lis_memberships_id', $r->param('ext_ims_lis_memberships_id'));
+	}
+	if ($r->param('ext_ims_lis_memberships_url')) {
+		$db->setSettingValue('ext_ims_lis_memberships_url', $r->param('ext_ims_lis_memberships_url'));
+	}
+	if ($r->param('ext_ims_lis_basic_outcome_url')) {
+		$db->setSettingValue('ext_ims_lis_basic_outcome_url', $r->param('ext_ims_lis_basic_outcome_url'));
+	}
 }
 
 # Sync course enrolment from the lms with Webwork
@@ -300,7 +344,7 @@ sub _updateCourseEnrolment()
 # Push grades from Webwork to the lms
 sub _pushGrades()
 {
-	my ($self, $studentsList) = @_;
+	my $self = shift;
 	my $r = $self->{r};
 	unless ($r->param("ext_ims_lis_basic_outcome_url"))
 	{
@@ -308,13 +352,17 @@ sub _pushGrades()
 		return 0;
 	}
 
-	unless (defined($r->param('ext_ims_lis_resultvalue_sourcedids')) &&
-		$r->param('ext_ims_lis_resultvalue_sourcedids') =~ /ratio/i)
+	# ensure that ratio is enabled if ext_ims_lis_resultvalue_sourcedids is sent
+	# if ext_ims_lis_resultvalue_sourcedids is not sent, we must assume it is enabled
+	if (defined($r->param('ext_ims_lis_resultvalue_sourcedids')))
 	{
-		return error("Grade update failed: no ratio result support.", "#e021");
+		unless ($r->param('ext_ims_lis_resultvalue_sourcedids') =~ /decimal/i)
+		{
+			return error("Grade update failed: no decimal result support.", "#e021");
+		}
 	}
 
-	unless (defined($r->param('custom_gradesync'))) 
+	unless (defined($r->param('custom_gradesync')))
 	{
 		debug("Normal LTI grade sync, don't do anything.");
 		return 0;
@@ -322,16 +370,14 @@ sub _pushGrades()
 
 	debug("Allowed to do mass grade syncing.");
 
-	my %students = map {($_->{'loginid'} => $_)} @$studentsList;
-
 	my $grades = WebworkBridge::Exporter::GradesExport->new($r);
 	my $scores = $grades->getGrades();
 	while (my ($studentID, $records) = each(%$scores))
 	{
-		while (my ($setName, $setRecords) = each(%$records))
+		foreach my $record (@$records)
 		{
-			my $ret = $self->_pushGrade(
-				$setName, $setRecords, $studentID, \%students);
+			# send all scores, even if it's 0 or the user hasn't attempted it
+			my $ret = $self->_ltiUpdateGrade($record);
 			if ($ret)
 			{
 				return error("Grade update failed: $ret", "#e020");
@@ -342,53 +388,25 @@ sub _pushGrades()
 	return 0;
 }
 
-# There are two kinds of grades, gateway quizzes and regular
-# assignments. Gateway quizzes can have multiple attempts,
-# so we have to send more requests to deal with that.
-# Right now, gateway quiz attempts are marked with a _vN
-# in the name, where N is a number, e.g.: quiz1_v1 would be
-# a student's first attempt at quiz1
-sub _pushGrade()
-{
-	my ($self, $name,  $record, $userid, $students) = @_;
-	my $ret = "";
-	if (ref($record) eq 'ARRAY')
-	{
-		my $i = 1;
-		foreach my $attempt (@$record)
-		{
-			my $score = $attempt->{totalRight}. "/" .$attempt->{total};
-			$ret .= $self->_ltiUpdateGrade(
-				$name."_v$i", $score, $students->{$userid});
-			$i++;
-		}
-		return $ret;
-	}
-
-	# send all scores, even if it's 0 or the user hasn't attempted it
-	my $score = $record->{totalRight}. "/" .$record->{total};
-	$ret = $self->_ltiUpdateGrade($name, $score, $students->{$userid});
-
-	return $ret;
-}
-
 # Perform the actual LTI request to send a grade to the LMS
 sub _ltiUpdateGrade()
 {
-	my ($self, $name, $score, $student) = @_;
+	my ($self, $record) = @_;
 	my $r = $self->{r};
 	my $ce = $r->ce;
 
-	my $user = $student->{'sourcedid'} . ":$name";
-	my $courseURL = $r->param("ext_ims_lis_basic_outcome_url");
 	my $key = $r->param("oauth_consumer_key");
-	my $secret = $ce->{bridge}{$key};
+	my $lis_source_did = $record->{lis_source_did};
+	my $score = $record->{score};
+	debug("record");
+	debug(Dumper($record));
+	debug(Dumper($score));
 
 	my $request = Net::OAuth->request("request token")->new(
 		consumer_key => $key,
-		consumer_secret => $secret,
+		consumer_secret => $ce->{bridge}{$key},
 		protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
-		request_url => $courseURL,
+		request_url => $r->param("ext_ims_lis_basic_outcome_url"),
 		request_method => 'POST',
 		signature_method => 'HMAC-SHA1',
 		timestamp => time(),
@@ -397,9 +415,9 @@ sub _ltiUpdateGrade()
 		extra_params => {
 			lti_version => 'LTI-1p0',
 			lti_message_type => 'basic-lis-updateresult',
-			sourcedid => $user,
+			sourcedid => $lis_source_did,
 			result_resultscore_textstring => $score,
-			result_resultvaluesourcedid => 'ratio',
+			result_resultvaluesourcedid => 'decimal',
 			# Optional parameters, may not be supported
 			#result_resultscore_language => 'en_US',
 			#result_statusofresult => 'final',
@@ -412,25 +430,24 @@ sub _ltiUpdateGrade()
 	my $ua = LWP::UserAgent->new;
 	push @{ $ua->requests_redirectable }, 'POST';
 
-	my $res = $ua->post($courseURL, $request->to_hash);
-	if ($res->is_success) 
+	my $res = $ua->post($r->param("ext_ims_lis_basic_outcome_url"), $request->to_hash);
+	if ($res->is_success)
 	{
 		debug($res->content);
 		if ($res->content =~ /codemajor>Failure/i)
 		{
-			return "Grade update failed for $user, unable to authenticate.";
+			return "Grade update failed for $lis_source_did, unable to authenticate.";
 		}
 		elsif ($res->content =~ /codeminor>User not found/i)
 		{
-			return "Grade update failed for $user, can't find user.";
+			return "Grade update failed for $lis_source_did, can't find user.";
 		}
-		debug("Grade update successful for $user.");
+		debug("Grade update successful for $lis_source_did.");
 		return "";
 	}
 	else
 	{
 		return "Grade update failed, POST request failed.";
-
 	}
 }
 
@@ -451,20 +468,25 @@ sub _getAndParseRoster
 {
 	my ($self, $course_ref, $students_ref) = @_;
 	my $r = $self->{r};
-	
-	my $xml;
-	my $ret = $self->_getRoster(\$xml);
-	if ($ret)
+	my $parser = WebworkBridge::Bridges::LTIParser->new($r, $course_ref, $students_ref);
+
+
+	if (defined($r->param("ext_ims_lis_memberships_url")))
 	{
-		return error("Unable to connect to roster server: $ret", "#e003");
+		my $xml;
+		my $ret = $self->_getRoster(\$xml);
+		if ($ret)
+		{
+			return error("Unable to connect to roster server: $ret", "#e003");
+		}
+
+		$ret = $parser->parse($xml);
+		if ($ret)
+		{
+			return error("XML response received, but access denied.", "#e005");
+		}
 	}
 
-	my $parser = WebworkBridge::Bridges::LTIParser->new($r, $course_ref, $students_ref);
-	$ret = $parser->parse($xml);
-	if ($ret)
-	{
-		return error("XML response received, but access denied.", "#e005");
-	}
 	$course_ref->{name} = $parser->getCourseName($r->param("context_title"));
 	$course_ref->{title} = $r->param("resource_link_title");
 	$course_ref->{id} = $r->param("resource_link_id");
@@ -545,40 +567,51 @@ sub _verifyMessage()
 	return 0;
 }
 
-# If the student currently trying to login does not exist, create the student
-# and assign them all the available assignments.
-sub _createStudent()
+# Automatically add new users to course or update existing user information on launch.
+# assign users to all the available assignments.
+sub _manageLaunchUser()
 {
-	debug("Create student on demand enabled.");
+	debug("Manage LTI Launch user account.");
+
 	my $self = shift;
 	my $r = $self->{r};
 	my $ce = $r->ce;
 	my $db = new WeBWorK::DB($ce->{dbLayout});
 
-	# restrict this to students only
-	if (!($r->param('roles') =~ /Learner/)) 
-	{
-		debug("User not a student.");
-		return;
-	}
-	debug("Student does not exist. Parsing student information.");
+	debug("Parsing user information.");
 
 	# parse user from launch request
 	my $parser = WebworkBridge::Bridges::LTIParser->new($r);
-	my %student = $parser->parseLaunchUser();
-	debug(Dumper(\%student));
+	my %user = $parser->parseLaunchUser();
+
+	debug(Dumper(\%user));
+
+	my $course = ();
+	$course->{name} = $ce->{"courseName"};
+	my $updater = WebworkBridge::Importer::CourseUpdater->new($r, $course, "");
 
 	# check if user exists
-	if ($db->existsUser($student{'loginid'})) 
-	{ # user already exists, no need to do anything
-		debug("Student already exists. No need to do anything.");
-		return;
+	if ($db->existsUser($user{'loginid'})) {
+		debug("Attempt to update user & assign assignments.");
+		my $oldUser = $db->getUser($user{'loginid'});
+		my $oldPermission = $db->getPermissionLevel($user{'loginid'});
+		$updater->updateUser($oldUser, \%user, $oldPermission, $db);
+	}
+	else {
+		debug("Attempt to create user & assign assignments.");
+		$updater->addUser(\%user, $db, "");
 	}
 
-	# user doesn't exist, so we have to create them
-	debug("Attempt to create student & assign assignments.");
-	my $updater = WebworkBridge::Importer::CourseUpdater->new($r, "", "");
-	$updater->addUser(\%student, $db, "");
+	# update user homework set lis_source_did if quiz or homework set
+	if ($self->getHomeworkSet() || $self->getQuizSet())
+	{
+		debug("Setting lis_source_did for user homeworkset context");
+		my $setId = $self->getHomeworkSet() ? $self->getHomeworkSet() : $self->getQuizSet();
+		my $userSet = $db->getUserSet($user{'loginid'}, $setId);
+		$userSet->lis_source_did($r->param('lis_result_sourcedid'));
+		$db->putUserSet($userSet);
+	}
+
 	debug("Done.");
 }
 

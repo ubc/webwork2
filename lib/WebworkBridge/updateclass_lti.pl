@@ -22,34 +22,27 @@ BEGIN {
 	# link to WeBWorK code libraries
 	eval "use lib '$webwork_dir/lib'"; die $@ if $@;
 	eval "use WeBWorK::CourseEnvironment"; die $@ if $@;
+	eval "use WeBWorK::DB"; die $@ if $@;
 }
 
-if (scalar(@ARGV) < 5)
+if (scalar(@ARGV) < 1)
 {
 	print "Parameter count incorrect, please enter all parameters:";
 	print "\nupdateclass UserID CourseName CourseID CourseURL Key\n";
-	print "\nUserID - The instructor's user id in Webwork.";
-	print "\nCourseName - The name of the course in Webwork.";
-	print "\nCourseID - The course's ID in the site we're updating from.";
-	print "\nCourseURL - The url we submit LTI membership requests to.";
-	print "\nKey - The consumer key to use for calculation LTI OAuth hash.\n";
 	print "\nGrades (Optional) - If given, will try to send grades to LMS.\n";
-	print "\ne.g.: updateclass A1B2C3D4 Math100-100 _100_1 https://lms.ubc.ca/lti/membership LTISecret\n";
+	print "\ne.g.: updateclass Math100-100\n";
 	exit();
 }
 
-my $user = shift;
 my $courseName = shift;
-my $courseID = shift;
-my $courseURL = shift;
-my $key = shift;
 my $grade = shift;
 
-# bring up a minimal course environment
+# bring up a course environment
 my $ce = WeBWorK::CourseEnvironment->new({
 	webwork_dir => $ENV{WEBWORK_ROOT},
 	courseName => $courseName
 });
+my $db = new WeBWorK::DB($ce->{dbLayout});
 
 unless (-e $ce->{courseDirs}->{root})
 { # required to prevent updater from creating new courses
@@ -63,16 +56,22 @@ if (substr($request_url, -1, 1) ne "/")
 	$request_url .= "/";
 }
 
+my $user_identifier = $db->getSettingValue('user_identifier');
+my $ext_ims_lis_memberships_id = $db->getSettingValue('ext_ims_lis_memberships_id');
+my $ext_ims_lis_memberships_url = $db->getSettingValue('ext_ims_lis_memberships_url');
+my $oauth_consumer_key = $db->getSettingValue('oauth_consumer_key');
+my $ext_ims_lis_basic_outcome_url = $db->getSettingValue('ext_ims_lis_basic_outcome_url');
+
 my %gradeParams;
 if (defined($grade))
 {
-	$gradeParams{'ext_ims_lis_basic_outcome_url'} = $courseURL;
-	$gradeParams{'ext_ims_lis_resultvalue_sourcedids'} = "ratio";
+	$gradeParams{'ext_ims_lis_resultvalue_sourcedids'} = 'decimal';
+	$gradeParams{'custom_gradesync'} = '1';
 }
 
 my $request = Net::OAuth->request("request token")->new(
-	consumer_key => $key,
-	consumer_secret => $ce->{bridge}{$key},
+	consumer_key => $oauth_consumer_key,
+	consumer_secret => $ce->{bridge}{$oauth_consumer_key},
 	protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
 	request_url => $request_url,
 	request_method => 'POST',
@@ -89,12 +88,13 @@ my $request = Net::OAuth->request("request token")->new(
 		context_title => $courseName,# same as resource_link_id
 		roles => 'instructor', # need, but can hard code
 		# lis stuff
-		lis_person_sourcedid => $user, # store
+		$ce->{bridge}{user_identifier_field} => $user_identifier , # store
 		# extension params
-		ext_ims_lis_memberships_id => $courseID,# store
-		ext_ims_lis_memberships_url => $courseURL, # store
-        ubc_auto_update => 'true',
-        roles => 'AutoUpdater',
+		ext_ims_lis_basic_outcome_url => $ext_ims_lis_basic_outcome_url,
+		ext_ims_lis_memberships_id => $ext_ims_lis_memberships_id,# store
+		ext_ims_lis_memberships_url => $ext_ims_lis_memberships_url, # store
+		ubc_auto_update => 'true',
+		roles => 'AutoUpdater',
 		%gradeParams
 	}
 );
@@ -113,6 +113,6 @@ if ($res->is_success)
 }
 else
 {
-    die "Course update failed, POST request failed." . $res->status_line;
+	die "Course update failed, POST request failed." . $res->status_line;
 }
 

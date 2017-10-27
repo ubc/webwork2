@@ -55,7 +55,7 @@ sub getGrades
 		my $studentID = $users{$userid}->student_id;
 		if ($perms{$userid}->permission() != $ce->{userRoles}{student} ||
 			$studentID eq "")
-		{ 
+		{
 			next;
 		}
 
@@ -63,11 +63,32 @@ sub getGrades
 		my @setids = $db->listUserSets($userid);
 		my @sets = $db->getMergedSets( map {[$userid, $_]} @setids );
 
-		foreach my $set ( @sets ) 
+		my $courseTotalRight = 0;
+		my $courseTotal = 0;
+
+		foreach my $set ( @sets )
 		{ # go through each assigned set
 			my $setName = $set->set_id();
-			$scores{$userid}{$setName} = 
-				$self->getGradeRecords($set, $db, $userid);
+
+			my $record = $self->getGradeRecords($set, $db, $userid);
+			$courseTotalRight += $record->{totalRight};
+			$courseTotal += $record->{total};
+
+			if ($record->{lis_source_did}) {
+				push(@{$scores{userid}}, $record);
+			}
+		}
+
+		# pass back course grade if student's lis_source_did is set
+		if ($users{$userid}->lis_source_did()) {
+			my $courseRecord = {
+				totalRight => $courseTotalRight,
+				total => $courseTotal,
+				score => $self->getScore($courseTotalRight, $courseTotal),
+				lis_source_did => $users{$userid}->lis_source_did()
+			};
+
+			push(@{$scores{userid}}, $courseRecord);
 		}
 	}
 
@@ -88,20 +109,25 @@ sub getGradeRecords
 	my ($self, $set, $db, $userid) = @_;
 	my $setName = $set->set_id();
 
-	if (defined($set->assignment_type) && 
-		$set->assignment_type =~ /gateway/) 
-	{ # this set allows multiple attempts and can record many scores 
+	if (defined($set->assignment_type) &&
+		$set->assignment_type =~ /gateway/)
+	{ # this set allows multiple attempts and can record many scores
 		# get all attempts
 		my @vList = $db->listSetVersions($userid,$setName);
-		my @setVersions = $db->getMergedSetVersions( 
+		my @setVersions = $db->getMergedSetVersions(
 			map {[$userid, $setName, $_]} @vList );
 
 		# calculate and store score for each attempt
-		my @scores =
-			map {$self->getGradeRecord($db,$_,$userid,1)} @setVersions;
-		return \@scores;
+		my @scores = map {$self->getGradeRecord($db,$_,$userid,1)} @setVersions;
+		my $bestScore = $scores[0];
+		foreach my $score (@scores) {
+			if ($score->{score} > $bestScore->{score}) {
+				$bestScore = $score;
+			}
+		}
+		return $bestScore;
 	}
-	else 
+	else
 	{ # only one score will be recorded for this set
 		return $self->getGradeRecord($db, $set, $userid, 0);
 	}
@@ -115,21 +141,34 @@ sub getGradeRecords
 sub getGradeRecord
 {
 	my ($self, $db, $set, $userid, $isVersioned) = @_;
-	my ($status, $totalRight, $total) = 
+	my ($status, $totalRight, $total) =
 		$self->grade_set($db, $set, $userid, $isVersioned);
 	my $score = {
 		status => $status,
 		totalRight => $totalRight,
-		total => $total
+		total => $total,
+		score => $self->getScore($totalRight, $total),
+		lis_source_did => $set->lis_source_did()
 	};
 	return $score;
+}
+
+sub getScore
+{
+	my ($self, $totalRight, $total) = @_;
+	if ($total <= 0 || $totalRight < 0) {
+		return 0;
+	} elsif ($totalRight > $total) {
+		return 1;
+	}
+	return $totalRight/$total;
 }
 
 # Get the grades for a set.
 # Taken and modified from ContentGenerator/Grades.pm
 # Since we only want the final grade, it's a lot simpler than
 # the Grades.pm version.
-sub grade_set 
+sub grade_set
 {
 	my ($self, $db, $set, $studentName, $setIsVersioned) = @_;
 

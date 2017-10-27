@@ -90,11 +90,10 @@ sub parse
 		if ($roles =~ /instructor/i ||
 			$roles =~ /contentdeveloper/i)
 		{ # make note of the instructor for later
-			$course->{'profid'} = $_->{'person_sourcedid'} . ',' . 
-				$course->{'profid'};
+			$course->{'profid'} = $tmp{'loginid'} . ',' . $course->{'profid'};
 			$tmp{'permission'} = $ce->{userRoles}{professor};
 		}
-		elsif ($roles =~ /teachingassistant/i) 
+		elsif ($roles =~ /teachingassistant/i)
 		{
 			$tmp{'permission'} = $ce->{userRoles}{ta};
 		}
@@ -115,41 +114,61 @@ sub parse
 sub parseUser
 {
 	my ($self, $tmp) = @_;
+	my $ce = $self->{r}->ce;
 	my %param = %{$tmp};
-	my %student;
-	$student{'firstname'} = $param{'person_name_given'};
-	$student{'lastname'} = $param{'person_name_family'};
+	my %user;
+	$user{'firstname'} = $param{'person_name_given'};
+	$user{'lastname'} = $param{'person_name_family'};
 	# convert from internal perl UTF8 to binary UTF8, note that this means
 	# I'm expecting these to go straight into the database, not be used in
 	# any more perl ops
-	utf8::encode($student{'firstname'});
-	utf8::encode($student{'lastname'});
-	$student{'studentid'} = $param{'user_id'};
-	$student{'loginid'} = $param{'person_sourcedid'};
-	$student{'sourcedid'} = $param{'lis_result_sourcedid'};
-	$student{'email'} = $param{'person_contact_email_primary'};
-	$student{'password'} = "";
-	return %student;
+	utf8::encode($user{'firstname'});
+	utf8::encode($user{'lastname'});
+	$user{'studentid'} = $param{'user_id'};
+	$user{'loginid'} = $param{$ce->{bridge}{user_identifier_field}};
+	$user{'lis_source_did'} = $param{'lis_result_sourcedid'};
+	$user{'email'} = $param{'person_contact_email_primary'};
+	$user{'password'} = "";
+	return %user;
 }
 
 sub parseLaunchUser
 {
 	my $self = shift;
 	my $r = $self->{r};
+	my $ce = $r->ce;
 
-	my %student;
-	$student{'firstname'} = $r->param('lis_person_name_given');
-	$student{'lastname'} = $r->param('lis_person_name_family');
+	my %user;
+	$user{'firstname'} = $r->param('lis_person_name_given');
+	$user{'lastname'} = $r->param('lis_person_name_family');
 	# convert from internal perl UTF8 to binary UTF8, note that this means
 	# I'm expecting these to go straight into the database, not be used in
 	# any more perl ops
-	utf8::encode($student{'firstname'});
-	utf8::encode($student{'lastname'});
-	$student{'studentid'} = $r->param('user_id');
-	$student{'loginid'} = $r->param('lis_person_sourcedid');
-	$student{'email'} = $r->param('lis_person_contact_email_primary');
-	$student{'password'} = "";
-	return %student;
+	utf8::encode($user{'firstname'});
+	utf8::encode($user{'lastname'});
+	$user{'studentid'} = $r->param('user_id');
+	$user{'loginid'} = $r->param($ce->{bridge}{user_identifier_field});
+	$user{'email'} = $r->param('lis_person_contact_email_primary');
+	$user{'password'} = "";
+
+	# set lis_source_did if not a quiz or homework set launch request
+	if (!$r->param("custom_homework_set") && !$r->param("custom_quiz_set"))
+	{
+		$user{'lis_source_did'} = $r->param('lis_result_sourcedid');
+	}
+
+	# set user permissions
+	if ($r->param('roles') =~ /instructor/i || $r->param('roles') =~ /contentdeveloper/i) {
+		$user{'permission'} = $ce->{userRoles}{professor};
+	}
+	elsif ($r->param('roles') =~ /teachingassistant/i) {
+		$user{'permission'} = $ce->{userRoles}{ta};
+	}
+	else {
+		$user{'permission'} = $ce->{userRoles}{student};
+	}
+
+	return %user;
 }
 
 # test code
