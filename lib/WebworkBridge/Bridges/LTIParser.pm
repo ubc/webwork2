@@ -24,7 +24,7 @@ sub parse
 	my $ce = $self->{r}->ce;
 	my $course = $self->{course};
 	# named students, but is actually the list of all users in the course
-	my $students = $self->{students}; 
+	my $students = $self->{students};
 	%{$course} = ();
 	@{$students} = ();
 
@@ -63,48 +63,28 @@ sub parse
 
 	$course->{'profid'} = ""; # Initialize profid to empty string
 
-	# we want to make sure that the student we received are actually
-	# in the course that we sent the request for, we can do this
-	# by checking their lis_result_sourcedid if they have LTI grade sync
-	# enabled. The raw string looks like :_101_1::webworkdev:0004
-	# we only want the _101_1 part.
-	my $ltiIdRegex = qr/:(.+?):.+/;
-	my $expectedLTIId = $self->{r}->param('ext_ims_lis_memberships_id');
-	($expectedLTIId) = $expectedLTIId =~ $ltiIdRegex;
-
 	foreach(@members)
 	{ # process members
-		my %tmp = $self->parseUser($_);
+		my %user = $self->parseUser($_);
 		# assign appropriate permissions based on roles
 		my $roles = $_->{'roles'};
-		if (exists $_->{'lis_result_sourcedid'} && $expectedLTIId ne "")
-		{
-			my $sourcedid = $_->{'lis_result_sourcedid'};
-			$sourcedid =~ $ltiIdRegex;
-			if ($1 ne $expectedLTIId)
-			{ # student does not match course
-				$extralog->logXML("Update aborted, got student in wrong course: $1");
-				return error("Student does not match course.");
-			}
-		}
-		if ($roles =~ /instructor/i ||
-			$roles =~ /contentdeveloper/i)
+		if ($roles =~ /instructor/i || $roles =~ /contentdeveloper/i)
 		{ # make note of the instructor for later
-			$course->{'profid'} = $tmp{'loginid'} . ',' . $course->{'profid'};
-			$tmp{'permission'} = $ce->{userRoles}{professor};
+			$course->{'profid'} = $user{'loginid'} . ',' . $course->{'profid'};
+			$user{'permission'} = $ce->{userRoles}{professor};
 		}
 		elsif ($roles =~ /teachingassistant/i)
 		{
-			$tmp{'permission'} = $ce->{userRoles}{ta};
+			$user{'permission'} = $ce->{userRoles}{ta};
 		}
 		else
 		{
-			$tmp{'permission'} = $ce->{userRoles}{student};
+			$user{'permission'} = $ce->{userRoles}{student};
 		}
 		# store user info
-		push(@{$students}, \%tmp);
+		push(@{$students}, \%user);
 	}
-	$course->{'profid'} = substr($course->{'profid'}, 0, -1); # rm extra comma 
+	$course->{'profid'} = substr($course->{'profid'}, 0, -1); # rm extra comma
 
 	return 0;
 }
@@ -117,6 +97,21 @@ sub parseUser
 	my $ce = $self->{r}->ce;
 	my %param = %{$tmp};
 	my %user;
+	# fetch user_id
+	foreach my $field_name (@{$ce->{bridge}{user_identifier_fields}})
+	{
+		# fix user_identifier_fields for membership extension
+		if ($field_name eq 'lis_person_sourcedid') {
+			$field_name = 'person_sourcedid';
+		} elsif ($field_name eq 'lis_person_contact_email_primary') {
+			$field_name = 'person_contact_email_primary';
+		}
+
+		if (defined($param{$field_name}) && $param{$field_name} ne '') {
+			$user{'loginid'} = $param{$field_name};
+			last;
+		}
+	}
 	$user{'firstname'} = $param{'person_name_given'};
 	$user{'lastname'} = $param{'person_name_family'};
 	# convert from internal perl UTF8 to binary UTF8, note that this means
@@ -125,8 +120,7 @@ sub parseUser
 	utf8::encode($user{'firstname'});
 	utf8::encode($user{'lastname'});
 	$user{'studentid'} = $param{'user_id'};
-	$user{'loginid'} = $param{$ce->{bridge}{user_identifier_field}};
-	$user{'lis_source_did'} = $param{'lis_result_sourcedid'};
+	#$user{'lis_source_did'} = $param{'lis_result_sourcedid'};
 	$user{'email'} = $param{'person_contact_email_primary'};
 	$user{'password'} = "";
 	return %user;
@@ -139,6 +133,14 @@ sub parseLaunchUser
 	my $ce = $r->ce;
 
 	my %user;
+	# fetch user_id
+	foreach my $field_name (@{$ce->{bridge}{user_identifier_fields}})
+	{
+		if (defined($r->param($field_name)) && $r->param($field_name) ne '') {
+			$user{'loginid'} = $r->param($field_name);
+			last;
+		}
+	}
 	$user{'firstname'} = $r->param('lis_person_name_given');
 	$user{'lastname'} = $r->param('lis_person_name_family');
 	# convert from internal perl UTF8 to binary UTF8, note that this means
@@ -147,7 +149,6 @@ sub parseLaunchUser
 	utf8::encode($user{'firstname'});
 	utf8::encode($user{'lastname'});
 	$user{'studentid'} = $r->param('user_id');
-	$user{'loginid'} = $r->param($ce->{bridge}{user_identifier_field});
 	$user{'email'} = $r->param('lis_person_contact_email_primary');
 	$user{'password'} = "";
 
@@ -170,23 +171,6 @@ sub parseLaunchUser
 
 	return %user;
 }
-
-# test code
-#open FILE, "test.xml" or die "Cannot open XML file. $!";
-#
-#my $input = join("",<FILE>);
-#
-#my %course = ();
-#my @students = ();
-#
-#parse($input, \%course, \@students);
-#
-#$Data::Dumper::Indent = 3;
-#print "Course Info: \n";
-#print Dumper(\%course);
-#
-#print "\n\nStudents List: \n";
-#print Dumper(\@students);
 
 1;
 

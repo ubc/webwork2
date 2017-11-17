@@ -1,7 +1,7 @@
 #!perl
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright Â© 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/conf/database.conf.dist,v 1.38 2007/08/13 22:59:51 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -84,34 +84,44 @@ my %sqlParams = (
 );
 
 $dbLayouts{sql_single} = {
-        locations => {
-                record => "WeBWorK::DB::Record::Locations",
-                schema => "WeBWorK::DB::Schema::NewSQL::Std",
-                driver => "WeBWorK::DB::Driver::SQL",
-                source => $database_dsn,
-                engine => $database_storage_engine,
-                params => { %sqlParams,
-                        non_native => 1,
-                },
-        },
-        location_addresses => {
-                record => "WeBWorK::DB::Record::LocationAddresses",
-                schema => "WeBWorK::DB::Schema::NewSQL::Std",
-                driver => "WeBWorK::DB::Driver::SQL",
-                source => $database_dsn,
-                engine => $database_storage_engine,
-                params => { %sqlParams,
-                        non_native => 1,
-                },
-        },
-        depths => {
-				record => "WeBWorK::DB::Record::Depths",
-				schema => "WeBWorK::DB::Schema::NewSQL::Std",
-				driver => "WeBWorK::DB::Driver::SQL",
-				source => $database_dsn,
-        engine => $database_storage_engine,
-				params => { %sqlParams,
-					non_native => 1,
+	locations => {
+		record => "WeBWorK::DB::Record::Locations",
+		schema => "WeBWorK::DB::Schema::NewSQL::Std",
+		driver => "WeBWorK::DB::Driver::SQL",
+		source => $database_dsn,
+		engine => $database_storage_engine,
+		params => { %sqlParams,
+			non_native => 1,
+		},
+	},
+	location_addresses => {
+		record => "WeBWorK::DB::Record::LocationAddresses",
+		schema => "WeBWorK::DB::Schema::NewSQL::Std",
+		driver => "WeBWorK::DB::Driver::SQL",
+		source => $database_dsn,
+		engine => $database_storage_engine,
+		params => { %sqlParams,
+			non_native => 1,
+		},
+	},
+	depths => {
+		record => "WeBWorK::DB::Record::Depths",
+		schema => "WeBWorK::DB::Schema::NewSQL::Std",
+		driver => "WeBWorK::DB::Driver::SQL",
+		source => $database_dsn,
+		engine => $database_storage_engine,
+		params => { %sqlParams,
+			non_native => 1,
+		},
+	},
+	lti_contexts => {
+		record => "WeBWorK::DB::Record::LTIContexts",
+		schema => "WeBWorK::DB::Schema::NewSQL::Std",
+		driver => "WeBWorK::DB::Driver::SQL",
+		source => $database_dsn,
+		engine => $database_storage_engine,
+		params => { %sqlParams,
+			non_native => 1,
 		},
 	},
 	password => {

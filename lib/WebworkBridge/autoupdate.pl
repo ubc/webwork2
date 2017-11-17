@@ -47,7 +47,6 @@ use lib "$ENV{WEBWORK_ROOT}/lib";
 use WeBWorK::CourseEnvironment;
 use Getopt::Long;
 use Pod::Usage;
-use WeBWorK::Utils qw(readDirectory);
 use WeBWorK::DB;
 
 # check params
@@ -72,49 +71,40 @@ pod2usage(1) if $help;
 my $ce = WeBWorK::CourseEnvironment->new({
 	webwork_dir => $ENV{WEBWORK_ROOT},
 });
+my $db = new WeBWorK::DB($ce->{dbLayout});
 
 # LTI Update
 
-# get course list
-my $coursesDir = $ce->{webworkDirs}->{courses};
-my @courses = grep { not (m/^\./ or m/^CVS$/) and -d "$coursesDir/$_" } readDirectory($coursesDir);
+my @ltiContexts = $db->getAllLTIContextsByAutomaticUpdates(1);
 
-foreach my $courseName (@courses) {
-	# bring up the full course environment
-	my $ce2 = new WeBWorK::CourseEnvironment({
-		webwork_dir => $ENV{WEBWORK_ROOT},
-		courseName => $courseName,
-	});
-	my $db = new WeBWorK::DB($ce2->{dbLayout});
+foreach my $ltiContext (@ltiContexts) {
+	my $cmd;
 
-	my $lti_automatic_updates = $db->getSettingValue('lti_automatic_updates');
-	if ($lti_automatic_updates) {
-		my $cmd;
+	my $oauth_consumer_key = $ltiContext->oauth_consumer_key();
+	my $context_id = $ltiContext->context_id();
+	my $courseName = $ltiContext->course_id();
 
-		if ($grade)
-		{
-			$grade = "true";
-		}
+	if ($grade)
+	{
+		$grade = "true";
+	}
 
-		if ($check)
-		{
-			$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/checkclass_lti.pl $courseName";
-		}
-		else
-		{
-			$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl $courseName $grade";
-		}
+	if ($check)
+	{
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/checkclass_lti.pl $courseName $oauth_consumer_key $context_id";
+	}
+	else
+	{
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl $courseName $oauth_consumer_key $context_id $grade";
+	}
 
-		my $ret = `$cmd\n`;
-		if ($?)
-		{
-			print "Autoupdate failed for $courseName.\n";
-		}
-		else
-		{
-			print "Autoupdate for $courseName successful!\n";
-		}
-	} else {
-		print "Autoupdate for $courseName disabled. Skipping!\n";
+	my $ret = `$cmd\n`;
+	if ($?)
+	{
+		print "Autoupdate failed for $courseName.\n";
+	}
+	else
+	{
+		print "Autoupdate for $courseName successful!\n";
 	}
 }

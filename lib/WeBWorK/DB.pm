@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System>
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright Â© 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/DB.pm,v 1.112 2012/06/08 22:40:00 wheeler Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -2274,6 +2274,68 @@ sub getAllMergedProblemVersions {
 	my $where = [user_id_eq_set_id_eq_version_id_eq => $userID,$setID,$versionID];
 	my $order = ["problem_id"];
 	return $self->{problem_version_merged}->get_records_where($where,$order);
+}
+
+################################################################################
+# lti_contexts functions
+################################################################################
+# this database table is for linking lti contexts to course ids
+
+BEGIN {
+	*LTIContext = gen_schema_accessor("lti_contexts");
+	*newLTIContext = gen_new("lti_contexts");
+	*existsLTIContextWhere = gen_exists_where("lti_contexts");
+	*getLTIContextWhere = gen_get_records_where("lti_contexts");
+}
+
+sub existsLTIContext {
+	my ($self, $consumerKey, $contextID) = shift->checkArgs(\@_, qw/oauth_consumer_key context_id/);
+	return $self->{lti_contexts}->exists($consumerKey, $contextID);
+}
+
+sub getLTIContext {
+	my ( $self, $consumerKey, $contextID) = shift->checkArgs(\@_, qw/oauth_consumer_key context_id/);
+	return ( $self->getLTIContexts([$consumerKey, $contextID]) )[0];
+}
+
+sub addLTIContext {
+	my ( $self, $LTIContext ) = shift->checkArgs(\@_, qw/REC:lti_contexts/);
+
+	eval {
+		return $self->{lti_contexts}->add($LTIContext);
+	};
+	if ( my $ex = caught WeBWorK::DB::Ex::RecordExists ) {
+		croak "addLTIContext: lti_context exists (perhaps you meant to use putLTIContext?)";
+	} elsif ($@) {
+		die $@;
+	}
+}
+
+sub putLTIContext {
+	my ($self, $LTIContext) = shift->checkArgs(\@_, qw/REC:lti_contexts/);
+	my $rows = $self->{lti_contexts}->put($LTIContext); # DBI returns 0E0 for 0.
+	if ($rows == 0) {
+		croak "putLTIContext: lti_context not found (perhaps you meant to use addLTIContext?)";
+	} else {
+		return $rows;
+	}
+}
+
+sub getLTIContexts {
+	my ($self, @toolContextIDs) = shift->checkArgsRefList(\@_, qw/oauth_consumer_key context_id/);
+	return $self->{lti_contexts}->gets(@toolContextIDs);
+}
+
+sub getLTIContextsByCourseID {
+	my ($self, $courseID) = shift->checkArgs(\@_, qw/course_id/);
+	my $where = [course_id_eq => $courseID];
+	return $self->{lti_contexts}->get_records_where($where);
+}
+
+sub getAllLTIContextsByAutomaticUpdates {
+	my ($self, $automaticUpdates) = shift->checkArgs(\@_, qw/automaticUpdates/);
+	my $where = [automatic_updates_eq => $automaticUpdates];
+	return $self->{lti_contexts}->get_records_where($where);
 }
 
 ################################################################################
