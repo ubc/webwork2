@@ -502,6 +502,11 @@ sub renameCourse {
 			if (exists( $options{courseInstitution}) and $options{courseInstitution}) {
 				$newDB->setSettingValue('courseInstitution',$options{courseInstitution});
 			}
+			my @ltiContexts = $newDB->getLTIContextsByCourseID($oldCourseID);
+			foreach my $ltiContext (@ltiContexts) {
+				$ltiContext->course_id($newCourseID);
+				$newDB->putLTIContext($ltiContext);
+			}
 		};  warn "Problems from resetting course title and institution = $@" if $@;
 	}
 }

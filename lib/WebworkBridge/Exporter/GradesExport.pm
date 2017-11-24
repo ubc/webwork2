@@ -26,7 +26,7 @@ sub getGrades
 {
 	my $self = shift;
 	my $ce = $self->{r}->ce;
-	my $db = new WeBWorK::DB($ce->{dbLayout});
+	my $db = $self->{r}->db;
 
 	debug(("-" x 80) . "\n");
 	debug("Attempting to get grades.");
@@ -53,8 +53,7 @@ sub getGrades
 	{ # go through each user in the course
 		# skip users who are not students or who has no student numbers
 		my $studentID = $users{$userid}->student_id;
-		if ($perms{$userid}->permission() != $ce->{userRoles}{student} ||
-			$studentID eq "")
+		if ($perms{$userid}->permission() != $ce->{userRoles}{student} || $studentID eq "")
 		{
 			next;
 		}
@@ -71,11 +70,13 @@ sub getGrades
 			my $setName = $set->set_id();
 
 			my $record = $self->getGradeRecords($set, $db, $userid);
-			$courseTotalRight += $record->{totalRight};
-			$courseTotal += $record->{total};
+			if (defined($record)) {
+				$courseTotalRight += $record->{totalRight};
+				$courseTotal += $record->{total};
 
-			if ($record->{lis_source_did}) {
-				push(@{$scores{userid}}, $record);
+				if ($record->{lis_source_did}) {
+					push(@{$scores{$userid}}, $record);
+				}
 			}
 		}
 
@@ -88,7 +89,7 @@ sub getGrades
 				lis_source_did => $users{$userid}->lis_source_did()
 			};
 
-			push(@{$scores{userid}}, $courseRecord);
+			push(@{$scores{$userid}}, $courseRecord);
 		}
 	}
 

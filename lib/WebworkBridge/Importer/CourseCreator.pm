@@ -88,6 +88,16 @@ sub runAddCourse
 			return error("Add course failed, hide directory failure", "e022");
 		}
 	}
+
+	my $tmpce = WeBWorK::CourseEnvironment->new({
+		%WeBWorK::SeedCE,
+		courseName => $course
+	});
+	my $db = new WeBWorK::DB($tmpce->{dbLayout});
+	if ($self->{course}->{title}) {
+		$db->setSettingValue('courseTitle',$self->{course}->{title});
+	}
+
 	return 0;
 }
 

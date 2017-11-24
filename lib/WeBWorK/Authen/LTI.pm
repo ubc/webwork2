@@ -26,6 +26,7 @@ use Encode qw(decode);
 sub get_credentials {
 	my $self = shift;
 	my $r = $self->{r};
+	my $ce = $r->ce;
 
 	# don't allow guest login using LTI
 	if ($r->param("login_practice_user")) {
@@ -58,10 +59,20 @@ sub get_credentials {
 		$self->{error} = "$msgheader Undefined resource_link_id";
 		return 0;
 	}
-	if (!defined $r->param($r->ce->{bridge}{user_identifier_field}))
+
+	# verify user_id
+	my $user_id;
+	foreach my $field_name (@{$ce->{bridge}{user_identifier_fields}})
 	{
-		$self->{log_error} = "$msgheader Undefined user identifier ".$r->ce->{bridge}{user_identifier_field};
-		$self->{error} = "$msgheader Undefined user identifier ".$r->ce->{bridge}{user_identifier_field};
+		if (defined($r->param($field_name)) && $r->param($field_name) ne '') {
+			$user_id = $r->param($field_name);
+			last;
+		}
+	}
+	if (!defined($user_id))
+	{
+		$self->{log_error} = "$msgheader Undefined user identifiers ".$r->ce->{bridge}{user_identifier_fields};
+		$self->{error} = "$msgheader Undefined user identifiers ".$r->ce->{bridge}{user_identifier_fields};
 		return 0;
 	}
 	# set user id for the Authen module (inherited methods in particular)
@@ -69,9 +80,9 @@ sub get_credentials {
 	{ # Keep auto-update from logging real users out
 		$self->{user_id} = "admin";
 	}
-	else 
+	else
 	{
-		$self->{user_id} = $r->param($r->ce->{bridge}{user_identifier_field});
+		$self->{user_id} = $user_id;
 	}
 
 	debug("Checking for required OAuth parameters\n");
@@ -145,7 +156,7 @@ sub authenticate {
 		$hash_params{$key} = $vals;
 	}
 	my $key = $r->param('oauth_consumer_key');
-	if (!defined($r->ce->{bridge}{$key}))
+	if (!defined($r->ce->{bridge}{lti_secrets}{$key}))
 	{
 		$self->{log_error} = "Unable to find a secret key that matches '$key'.";
 		$self->{error} = "Unable to find a secret key that matches '$key'.";
@@ -162,7 +173,7 @@ sub authenticate {
 		\%hash_params,
 		request_url => $request_url,
 		request_method => 'POST',
-		consumer_secret => $ce->{bridge}{$key},
+		consumer_secret => $ce->{bridge}{lti_secrets}{$key},
 		protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
 	);
 	if (!$request->verify())

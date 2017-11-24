@@ -7,6 +7,7 @@ use warnings;
 use Time::HiRes qw/gettimeofday/;
 use Date::Format;
 use App::Genpass;
+use Data::Dumper;
 
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
@@ -36,7 +37,7 @@ sub updateCourse
 	my $self = shift;
 	my $r = $self->{r};
 	my $ce = $r->ce;
-	my $db = new WeBWorK::DB($ce->{dbLayout});
+	my $db = $r->db;
 
 	debug(("-" x 80) . "\n");
 	debug("Starting Student Update");
@@ -45,23 +46,13 @@ sub updateCourse
 	my $courseprofs = $self->{course}->{profid}; # the profs of this course, csv
 	my @students = @{$self->{students}}; # deref pointer
 
-	if (!$ce->{"courseName"})
-	{ # CE does not have the course loaded, need to remake
-		$ce = WeBWorK::CourseEnvironment->new({
-				%WeBWorK::SeedCE,
-				courseName => $courseid
-			});
-	}
-
-	$db = new WeBWorK::DB($ce->{dbLayout});
-	
 	# Get already existing users in the database
 	my @userIDs;
 	my @usersList;
 	my @permsList;
-	eval 
-	{ 
-		@userIDs = $db->listUsers(); 
+	eval
+	{
+		@userIDs = $db->listUsers();
 		@usersList = $db->getUsers(@userIDs);
 		@permsList = $db->getPermissionLevels(@userIDs);
 	};
@@ -93,13 +84,13 @@ sub updateCourse
 		"$numCurDrop people dropped, we received $numLTI people from LTI.";
 	$self->addlog($sum);
 
-	# Update has 3 components 
+	# Update has 3 components
 	#	1. Check existing users to see if we have anyone who dropped the course
 	#		but decided to re-register or if their info needs updating.
 	#	2. Add newly enrolled users
 	#	3. Mark dropped students as "dropped"
 
-	# Update components 1,2: Check existing users 
+	# Update components 1,2: Check existing users
 	debug("Checking for new students...\n");
 	foreach (@students)
 	{
@@ -126,9 +117,9 @@ sub updateCourse
 	{ # any students left in %users has been dropped
 		my $person = $val;
 		# only users with status C or P should be tracked by enrolment sync
-		if (($person->status() eq "C" || $person->status() eq "P") && 
+		if (($person->status() eq "C" || $person->status() eq "P") &&
 			$key ne "admin")
-		{ 
+		{
 			$person->status("D");
 			$db->putUser($person);
 			if ($perms{$key}->permission() == $ce->{userRoles}{student})
@@ -167,7 +158,7 @@ sub updateUser
 		$oldInfo->student_id($newInfo->{'studentid'});
 		$update = 1;
 	}
-	# Update email, only students get updated, and the new email address 
+	# Update email, only students get updated, and the new email address
 	# has to be non-empty
 	if (defined($newInfo->{'email'}) &&
 		$newInfo->{'permission'} == $ce->{userRoles}{student} &&
@@ -243,7 +234,7 @@ sub addUser
 	my $role = $ce->{userRoles}{student}; # defaults to student
 
 	# modify status and role if user is a teaching staff
-	if ($new_user_info->{'permission'}) 
+	if ($new_user_info->{'permission'})
 	{ # override default permission if necessary
 		$role = $new_user_info->{'permission'};
 	}
@@ -252,9 +243,9 @@ sub addUser
 	{
 		$status = "P"; # teaching staff status, doesn't get homework or graded
 	}
-	
+
 	# student record
-	my $new_user = $db->{user}->{record}->new();
+	my $new_user = $db->newUser();
 	$new_user->user_id($id);
 	$new_user->first_name($new_user_info->{'firstname'});
 	$new_user->last_name($new_user_info->{'lastname'});
@@ -276,9 +267,9 @@ sub addUser
 	}
 	my $password = $db->newPassword(user_id => $id);
 	$password->password($cryptedpassword);
-	
+
 	# permission record
-	my $permission = $db->newPermissionLevel(user_id => $id, 
+	my $permission = $db->newPermissionLevel(user_id => $id,
 		permission => $role);
 
 	# commit changes to db
@@ -338,24 +329,24 @@ sub addlog
 # Taken from assignAllSetsToUser() in WeBWorK::ContentGenerator::Instructor
 sub assignAllVisibleSetsToUser {
 	my ($self, $userID, $db) = @_;
-	
+
 	my @globalSetIDs = $db->listGlobalSets;
 	my @GlobalSets = $db->getGlobalSets(@globalSetIDs);
-	
+
 	my @results;
-	
+
 	my $i = 0;
 	foreach my $GlobalSet (@GlobalSets) {
 		if (not defined $GlobalSet) {
 			warn "record not found for global set $globalSetIDs[$i]";
-		} 
+		}
 		elsif ($GlobalSet->visible) {
 			my @result = $self->assignSetToUser($userID, $GlobalSet, $db);
 			push @results, @result if @result;
 		}
 		$i++;
 	}
-	
+
 	return @results;
 }
 
@@ -363,14 +354,14 @@ sub assignAllVisibleSetsToUser {
 sub assignSetToUser {
 	my ($self, $userID, $GlobalSet, $db) = @_;
 	my $setID = $GlobalSet->set_id;
-	
+
 	my $UserSet = $db->newUserSet;
 	$UserSet->user_id($userID);
 	$UserSet->set_id($setID);
-	
+
 	my @results;
 	my $set_assigned = 0;
-	
+
 	eval { $db->addUserSet($UserSet) };
 	if ($@) {
 		if ($@ =~ m/user set exists/) {
@@ -380,27 +371,27 @@ sub assignSetToUser {
 			die $@;
 		}
 	}
-	
+
 	my @GlobalProblems = grep { defined $_ } $db->getAllGlobalProblems($setID);
 	foreach my $GlobalProblem (@GlobalProblems) {
 		my @result = $self->assignProblemToUser($userID, $GlobalProblem, $db);
 		push @results, @result if @result and not $set_assigned;
 	}
-	
+
 	return @results;
 }
 
 # Taken and modified from WeBWorK::ContentGenerator::Instructor
 sub assignProblemToUser {
 	my ($self, $userID, $GlobalProblem, $db) = @_;
-	
+
 	my $UserProblem = $db->newUserProblem;
 	$UserProblem->user_id($userID);
 	$UserProblem->set_id($GlobalProblem->set_id);
 	$UserProblem->problem_id($GlobalProblem->problem_id);
-	my $seed; # yes, I know it's empty, just needed a null value for this 
+	my $seed; # yes, I know it's empty, just needed a null value for this
 	initializeUserProblem($UserProblem, $seed);
-	
+
 	eval { $db->addUserProblem($UserProblem) };
 	if ($@) {
 		if ($@ =~ m/user problem exists/) {
@@ -411,7 +402,7 @@ sub assignProblemToUser {
 			die $@;
 		}
 	}
-	
+
 	return ();
 }
 

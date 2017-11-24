@@ -25,15 +25,17 @@ BEGIN {
 	eval "use WeBWorK::DB"; die $@ if $@;
 }
 
-if (scalar(@ARGV) < 1)
+if (scalar(@ARGV) < 3)
 {
 	print "Parameter count incorrect, please enter all parameters:";
-	print "\nupdateclass UserID CourseName CourseID CourseURL Key\n";
-	print "\ne.g.: updateclass Math100-100\n";
+	print "\checkclass_lti CourseName oauthConsumerKey contextId\n";
+	print "\ne.g.: checkclass_lti Math100-100 consumerKey 123abc123abc\n";
 	exit();
 }
 
 my $courseName = shift;
+my $oauth_consumer_key = shift;
+my $context_id = shift;
 
 # bring up a course environment
 my $ce = WeBWorK::CourseEnvironment->new({
@@ -42,9 +44,10 @@ my $ce = WeBWorK::CourseEnvironment->new({
 });
 my $db = new WeBWorK::DB($ce->{dbLayout});
 
-my $ext_ims_lis_memberships_id = $db->getSettingValue('ext_ims_lis_memberships_id');
-my $ext_ims_lis_memberships_url = $db->getSettingValue('ext_ims_lis_memberships_url');
-my $oauth_consumer_key = $db->getSettingValue('oauth_consumer_key');
+my $ltiContext = $db->getLTIContext($oauth_consumer_key, $context_id);
+
+my $ext_ims_lis_memberships_id = $ltiContext->ext_ims_lis_memberships_id();
+my $ext_ims_lis_memberships_url = $ltiContext->ext_ims_lis_memberships_url();
 
 unless (-e $ce->{courseDirs}->{root})
 { # required to prevent updater from creating new courses
@@ -61,7 +64,7 @@ if (!$ext_ims_lis_memberships_id)
 
 my $request = Net::OAuth->request("request token")->new(
 	consumer_key => $oauth_consumer_key,
-	consumer_secret => $ce->{bridge}{$oauth_consumer_key},
+	consumer_secret => $ce->{bridge}{lti_secrets}{$oauth_consumer_key},
 	protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
 	request_url => $ext_ims_lis_memberships_url,
 	request_method => 'POST',

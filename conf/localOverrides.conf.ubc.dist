@@ -450,8 +450,10 @@ $bridge{classlistdir} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/";
 $bridge{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
 # Set password for the admin user created for all imported courses.
 $bridge{adminuserpw} = "admin";
-$bridge{bbprod} = "";
-$bridge{lti_secret} = "secret";
+$bridge{lti_secrets} = {
+	'bbprod' => "",
+	'lti_secret' => "secret"
+};
 # Options for particular authentication modules
 $bridge{vista_login_options} = {
     enable_param => "vistalogin",
@@ -474,9 +476,13 @@ $bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emailli
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
 $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
-$bridge{launch_auto_manage_user_roles} = 'Instructor ContentDeveloper TeachingAssistant Learner';
 $bridge{hide_new_courses} = 1;
-$bridge{user_identifier_field} = 'custom_ubc_puid';
+# populate webwork user id by field
+# will check for field values in order and fallback if field is not present/empty in launch request
+$bridge{user_identifier_fields} = [
+	'custom_ubc_puid',
+	'user_id'
+];
 
 # If a student does not have an email address, we check this file to see if
 # we can manually enter a student id for them. Note that if the LMS provides
@@ -493,20 +499,45 @@ $bridge{vista_blacklist} = (
 # - Allowed characters in regex form: [a-zA-Z0-9_-]
 # - Max length 40 characters
 # See WebworkBridge's Parser::sanitizeCourseName() for implementation
-#
-# Maping Rules:
-# 1. Rule can be either extact match or regex
-# 2. Rules has priority, first come first match. If webwork got a match,
-#    it will use the match and the rules after that will not get evaluated.
-# 3. Using regex grouping for substituion
-$bridge{course_mapping_rules} = [
-	# Custom mapping rules
-	{ 'WS.UBC.MATH.104.101.2012W1.12422' => 'MATH104_2012W1' },
-	# Connect course naming convention
-	{ '(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*' => '"$2_$3_$4_$5"' }, # SIS/workshop course section
-	{ 'CL\.[^.]*\.(.*)' => '"$1"' }, # cross listed course
-	{ 'WS\.[^.]*\.(.*)' => '"$1"' }, # non-credit/workshop without SIS link
-];
+$bridge{custom_course_title_parser} = sub {
+	my $r = shift;
+
+	# check if blackboard (legacy support)
+	my $blackboardTitle = $bridge{blackboard_course_title_parser}($r);
+	if ($blackboardTitle) {
+		return $blackboardTitle;
+	}
+
+	# else use term name (if available) and context_label
+	my $course_title = $r->param("context_label");
+	if (defined($r->param("custom_term_name")) && $r->param("custom_term_name") ne '') {
+		# do term then context title in order to reduce change of collision if context title is very long
+		$course_title = $r->param("custom_term_name") . "_" . $r->param("context_label");
+	}
+
+	return $course_title;
+};
+
+$bridge{blackboard_course_title_parser} = sub {
+	my $r = shift;
+
+	$value = $r->param("context_label");
+	if ($value =~ m/WS.UBC.MATH.104.101.2012W1.12422/) {
+		$value =~ s/WS.UBC.MATH.104.101.2012W1.12422/MATH104_2012W1/;
+		return $value;
+	} elsif ($value =~ m/(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*/) {
+		$value =~ s/(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*/$2_$3_$4_$5/;
+		return $value;
+	} elsif ($value =~ m/CL\.[^.]*\.(.*)/) {
+		$value =~ s/CL\.[^.]*\.(.*)/$1/;
+		return $value;
+	} elsif ($value =~ m/WS\.[^.]*\.(.*)/) {
+		$value =~ s/WS\.[^.]*\.(.*)/$1/;
+		return $value;
+	}
+
+	return 0;
+};
 
 $bridge{course_template} = "modelCourse";
 

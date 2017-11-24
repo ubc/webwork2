@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright Â© 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/DB/Schema/NewSQL.pm,v 1.25 2008/06/21 16:38:49 gage Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -153,6 +153,18 @@ sub where_set_id_eq_problem_id_eq {
 sub where_user_id_eq_set_id_eq {
 	my ($self, $flags, $user_id, $set_id) = @_;
 	return {user_id=>$user_id,set_id=>$set_id};
+}
+
+# can be used for lti_contexts
+sub where_course_id_eq {
+    my ($self, $flags, $course_id) = @_;
+    return {course_id=>$course_id};
+}
+
+# can be used for lti_contexts
+sub where_automatic_updates_eq {
+    my ($self, $flags, $automatic_update) = @_;
+    return {automatic_updates=>$automatic_update};
 }
 
 # added where clauses for locations and set_locations
