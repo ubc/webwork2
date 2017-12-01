@@ -20,11 +20,11 @@ use WebworkBridge::Importer::Error;
 # Constructor
 sub new
 {
-	my ($class, $r, $course_ref, $students_ref) = @_;
+	my ($class, $r, $course_ref, $users_ref) = @_;
 	my $self = {
 		r => $r,
 		course => $course_ref,
-		students => $students_ref
+		users => $users_ref
 	};
 	bless $self, $class;
 	return $self;
@@ -40,11 +40,10 @@ sub updateCourse
 	my $db = $r->db;
 
 	debug(("-" x 80) . "\n");
-	debug("Starting Student Update");
+	debug("Starting User Update");
 	# Perform Setup
 	my $courseid = $self->{course}->{name}; # the course we're updating
-	my $courseprofs = $self->{course}->{profid}; # the profs of this course, csv
-	my @students = @{$self->{students}}; # deref pointer
+	my @users = @{$self->{users}}; # deref pointer
 
 	# Get already existing users in the database
 	my @userIDs;
@@ -61,13 +60,13 @@ sub updateCourse
 		return "Unable to list existing users for course: $courseid\n"
 	}
 	my %perms = map {($_->user_id => $_ )} @permsList;
-	my %users = map {($_->user_id => $_ )} @usersList;
+	my %userList = map {($_->user_id => $_ )} @usersList;
 
 	# we received _ people from LTI, there was _ people in the course before update
 	# Summary log entry
 	my $numCurAct = 0;
 	my $numCurDrop = 0;
-	while (my ($key, $person) = each(%users))
+	while (my ($key, $person) = each(%userList))
 	{
 		if ($person->status() ne "D")
 		{
@@ -79,7 +78,7 @@ sub updateCourse
 		}
 	}
 
-	my $numLTI = @students;
+	my $numLTI = @users;
 	my $sum = " -- Course $courseid currently has $numCurAct people active, " .
 		"$numCurDrop people dropped, we received $numLTI people from LTI.";
 	$self->addlog($sum);
@@ -88,22 +87,22 @@ sub updateCourse
 	#	1. Check existing users to see if we have anyone who dropped the course
 	#		but decided to re-register or if their info needs updating.
 	#	2. Add newly enrolled users
-	#	3. Mark dropped students as "dropped"
+	#	3. Mark dropped user as "dropped"
 
 	# Update components 1,2: Check existing users
-	debug("Checking for new students...\n");
-	foreach (@students)
+	debug("Checking for new users...\n");
+	foreach (@users)
 	{
 		my $id = $_->{'loginid'};
-		if (exists($users{$id}))
+		if (exists($userList{$id}))
 		{ # Update component 1: Update existing users
-			$self->updateUser($users{$id}, $_, $perms{$id}, $db);
-			delete($users{$id}); # this student is now safe from being dropped
+			$self->updateUser($userList{$id}, $_, $perms{$id}, $db);
+			delete($userList{$id}); # this user is now safe from being dropped
 		}
 		else
-		{ # Update component 2: newly enrolled student, have to add
-			my $ret = $self->addUser($_, $db, $courseprofs);
-			$self->addlog("Student $id joined $courseid");
+		{ # Update component 2: newly enrolled user, have to add
+			my $ret = $self->addUser($_, $db);
+			$self->addlog("User $id joined $courseid");
 			if ($ret)
 			{
 				return $ret;
@@ -111,10 +110,10 @@ sub updateCourse
 		}
 	}
 
-	debug("Checking for dropped students...\n");
-	# Update component 3: Mark dropped students as dropped
-	while (my ($key, $val) = each(%users))
-	{ # any students left in %users has been dropped
+	debug("Checking for dropped users...\n");
+	# Update component 3: Mark dropped users as dropped
+	while (my ($key, $val) = each(%userList))
+	{ # any users left in %userList has been dropped
 		my $person = $val;
 		# only users with status C or P should be tracked by enrolment sync
 		if (($person->status() eq "C" || $person->status() eq "P") &&
@@ -135,7 +134,7 @@ sub updateCourse
 	}
 
 
-	debug("Student Update Finished!\n");
+	debug("User Update Finished!\n");
 	debug(("-" x 80) . "\n");
 	return 0;
 }
@@ -226,9 +225,8 @@ sub updateUser
 
 sub addUser
 {
-	my ($self, $new_user_info, $db, $profs) = @_;
+	my ($self, $new_user_info, $db) = @_;
 	my $ce = $self->{r}->ce;
-	my @profid = split(/,/, $profs); # array of profs in the course
 	my $id = $new_user_info->{'loginid'};
 	my $status = "C"; # defaults to enroled
 	my $role = $ce->{userRoles}{student}; # defaults to student
@@ -255,18 +253,9 @@ sub addUser
 	$new_user->lis_source_did($new_user_info->{'lis_source_did'});
 
 	# password record
-	my $cryptedpassword;
-	if ($new_user_info->{'password'})
-	{
-		$cryptedpassword = cryptPassword($new_user_info->{'password'});
-	}
-	else
-	{ # no password given, so default to random password
-		my $genpass = App::Genpass->new(length=>16);
-		$cryptedpassword = cryptPassword($genpass->generate);
-	}
+	my $genpass = App::Genpass->new(length=>16);
 	my $password = $db->newPassword(user_id => $id);
-	$password->password($cryptedpassword);
+	$password->password(cryptPassword($genpass->generate));
 
 	# permission record
 	my $permission = $db->newPermissionLevel(user_id => $id,

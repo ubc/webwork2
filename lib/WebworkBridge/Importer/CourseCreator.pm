@@ -8,7 +8,8 @@ use warnings;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
+use WeBWorK::Utils qw(cryptPassword);
+use WeBWorK::Utils::CourseManagement qw(addCourse);
 
 use WebworkBridge::Importer::Error;
 
@@ -18,11 +19,11 @@ use Text::CSV;
 # Constructor
 sub new
 {
-	my ($class, $r, $course_ref, $students_ref) = @_;
+	my ($class, $r, $course_ref, $users_ref) = @_;
 	my $self = {
 		r => $r,
 		course => $course_ref,
-		students => $students_ref
+		users => $users_ref
 	};
 	bless $self, $class;
 	return $self;
@@ -32,10 +33,7 @@ sub createCourse
 {
 	my $self = shift;
 
-	my $error = $self->createClassList();
-	if ($error) { return $error; }
-
-	$error = $self->runAddCourse();
+	my $error = $self->runAddCourse();
 	if ($error) { return $error; }
 
 	return 0;
@@ -45,34 +43,92 @@ sub runAddCourse
 {
 	my $self = shift;
 	my $ce = $self->{r}->ce;
+	my $db = $self->{r}->db;
 
-	my $classlistfile = $self->getClasslistdir();
-	my $profid = $self->{course}->{profid};
-	my $course = $self->{course}->{name};
+	my $courseID = $self->{course}->{name};
+	my $courseTitle = $self->{course}->{title};
 
-	# notice admin id
-	my $cmd = "addcourse --users='$classlistfile' --professors=$profid,admin $course";
+	my $ce2 = new WeBWorK::CourseEnvironment({
+		%WeBWorK::SeedCE,
+		courseName => $courseID,
+	});
+
+	my %courseOptions = ( dbLayoutName => $ce2->{dbLayoutName} );
+	my %dbOptions;
+	my %optional_arguments;
 	if ($ce->{bridge}{course_template})
 	{
-		$cmd .= " --templates-from=" . $ce->{bridge}{course_template};
+		$optional_arguments{templatesFrom} = $ce->{bridge}{course_template};
 	}
-	if (!defined $ENV{WEBWORK_ROOT})
+	if ($courseTitle ne "") {
+		$optional_arguments{courseTitle} = $courseTitle;
+	}
+
+	my $genpass = App::Genpass->new(length=>16);
+	my @classlist;
+	my @users = @{$self->{users}};
+	foreach my $user (@users)
 	{
-		if (%WeBWorK::SeedCE)
-		{
-			$ENV{WEBWORK_ROOT} = $WeBWorK::SeedCE{webwork_dir};
-		}
-		else
-		{
-			return error("Add course failed, WEBWORK_ROOT not defined in environment.","#e017");
-		}
+		my $User = $db->newUser(
+			user_id       => $user->{'loginid'},
+			first_name    => $user->{'firstname'},
+			last_name     => $user->{'lastname'},
+			student_id    => $user->{'studentid'},
+			email_address => $user->{email} ? $user->{email} : "",
+			status        => ($user->{'permission'} > $ce->{userRoles}{student}) ? "P" : "C",
+		);
+		my $Password = $db->newPassword(
+			user_id  => $user->{'loginid'},
+			password => cryptPassword($genpass->generate),
+		);
+		my $PermissionLevel = $db->newPermissionLevel(
+			user_id    => $user->{'loginid'},
+			permission => $user->{'permission'},
+		);
+		push @classlist, [ $User, $Password, $PermissionLevel];
 	}
-	$cmd = $ENV{WEBWORK_ROOT}."/bin/$cmd";
-	my $msg;
-	my $ret = customExec($cmd, \$msg);
-	if ($ret != 0)
-	{ # script failed for some reason
-		return error("Add course failed, script failure: $msg", "e018");
+	# add admin
+	my $AdminUser = $db->newUser(
+		user_id       => "admin",
+		first_name    => "admin",
+		last_name     => "admin",
+		student_id    => "admin",
+		email_address => "",
+		status        => "P",
+	);
+	my $AdminPassword = $db->newPassword(
+		user_id  => "admin",
+		password => cryptPassword($ce->{bridge}{adminuserpw}),
+	);
+	my $AdminPermissionLevel = $db->newPermissionLevel(
+		user_id    => "admin",
+		permission => $ce->{userRoles}{professor},
+	);
+	push @classlist, [ $AdminUser, $AdminPassword, $AdminPermissionLevel];
+
+	eval {
+		addCourse(
+			courseID      => $courseID,
+			ce            => $ce2,
+			courseOptions => \%courseOptions,
+			dbOptions     => \%dbOptions,
+			users         => \@classlist,
+			%optional_arguments,
+		);
+	};
+	if ($@) {
+		my $error = $@;
+		# get rid of any partially built courses
+		unless ($error =~ /course exists/) {
+			eval {
+				deleteCourse(
+					courseID   => $courseID,
+					ce         => $ce2,
+					dbOptions  => \%dbOptions,
+				);
+			}
+		}
+		return error("Add course failed, failure: $error","#e018");
 	}
 
 	if ($ce->{bridge}{hide_new_courses}) {
@@ -81,120 +137,15 @@ sub runAddCourse
 			'It will still appear in the Course Administration listing.';
 		my $coursesDir = $ce->{webworkDirs}->{courses};
 		local *HIDEFILE;
-		if (open (HIDEFILE, ">","$coursesDir/$course/hide_directory")) {
+		if (open (HIDEFILE, ">","$coursesDir/$courseID/hide_directory")) {
 			print HIDEFILE "$message";
 			close HIDEFILE;
 		} else {
-			return error("Add course failed, hide directory failure", "e022");
+			return error("Add course failed, hide directory failure", "#e022");
 		}
-	}
-
-	my $tmpce = WeBWorK::CourseEnvironment->new({
-		%WeBWorK::SeedCE,
-		courseName => $course
-	});
-	my $db = new WeBWorK::DB($tmpce->{dbLayout});
-	if ($self->{course}->{title}) {
-		$db->setSettingValue('courseTitle',$self->{course}->{title});
 	}
 
 	return 0;
-}
-
-sub createClassList
-{
-	my $self = shift;
-	my $r = $self->{r};	
-	my $ce = $self->{r}->{ce};
-
-	my %course = %{$self->{course}};
-	my @students = @{$self->{students}};
-
-	my $classlistfile = $self->getClasslistdir();
-
-	my $ret = open FILE, ">$classlistfile";
-	if (!$ret)
-	{
-		return error("Course Creation Failed: Unable to create a classlist file.","#e010");
-	}
-	print FILE "# studentid, lastname, firstname, status, comment, section, recitation, email, loginid, password, permission\n";
-
-	# write students
-	# profid may be a comma separated list of ids, to support multiple profs
-	my @profid = split(/,/, $course{profid});
-	my $genpass = App::Genpass->new(length=>16);
-	foreach my $i (@students)
-	{
-		my $id = $i->{'loginid'};
-		print FILE "$i->{'studentid'},"; # student id
-		print FILE "\"$i->{'lastname'}\","; # last name
-		print FILE "\"$i->{'firstname'}\","; # first name
-		($i->{'permission'} > $ce->{userRoles}{student}) ? 
-			print FILE "P," : 
-			print FILE "C,"; # status
-		print FILE ","; # comment
-		print FILE ","; # section
-		print FILE ","; # recitation
-		$i->{email} ? 
-			print FILE $i->{email} ."," : 
-			print FILE $self->getEmaillistEntry($i->{'studentid'}) .",";
-		print FILE "$id,"; # login id
-		$i->{password} ? 
-			print FILE cryptPassword($i->{password})."," : 
-			print FILE $genpass->generate,","; # password
-		print FILE "$i->{'permission'}\n"; # permission
-	}
-
-	# add admin user
-	my $adminstring = "admin,admin,admin,P,,,,,admin," .
-		cryptPassword($r->ce->{bridge}{adminuserpw}) . ",10\n";
-	print FILE $adminstring;
-
-	close FILE;
-
-	return 0;
-}
-
-sub getClasslistdir
-{
-	my $self = shift;
-	my $course = $self->{course}->{name};
-	return $self->{r}->ce->{bridge}{classlistdir} . $course;
-}
-
-sub getEmaillistEntry
-{
-	my ($self, $id) = @_;
-
-	my $file = $self->{r}->ce->{bridge}{emaillist};
-	if (-e $file)
-	{
-		my $ret = open EMAILLISTFILE, "+<$file";
-		if (!$ret)
-		{
-			error("Unable to open the emaillist file.","#e019");
-			return "";
-		}
-
-		my $csv = Text::CSV->new();
-
-		my @lines = <EMAILLISTFILE>;
-		foreach (@lines)
-		{
-			if ($csv->parse($_))
-			{
-				my @line = $csv->fields();
-				if ($line[2] eq $id)
-				{
-					debug("Email match found for $id on line $_");
-					return $line[3];
-				}
-			}
-		}
-		close EMAILLISTFILE;
-	}
-
-	return "";
 }
 
 # Perl 5.8.8 doesn't let you override `` for testing. This sub gets
@@ -207,7 +158,7 @@ sub customExec
 	$$msg = `$cmd 2>&1`;
 	if ($?)
 	{
-		return 1;	
+		return 1;
 	}
 	return 0;
 }

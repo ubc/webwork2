@@ -12,8 +12,8 @@ use Data::Dumper;
 ##### Exported Functions #####
 sub new
 {
-	my ($class, $r, $course_ref, $students_ref) = @_;
-	my $self = $class->SUPER::new($r, $course_ref, $students_ref);
+	my ($class, $r, $course_ref, $users_ref) = @_;
+	my $self = $class->SUPER::new($r, $course_ref, $users_ref);
 	bless $self, $class;
 	return $self;
 }
@@ -23,10 +23,9 @@ sub parse
 	my ($self, $param) = @_;
 	my $ce = $self->{r}->ce;
 	my $course = $self->{course};
-	# named students, but is actually the list of all users in the course
-	my $students = $self->{students};
+	my $users = $self->{users};
 	%{$course} = ();
-	@{$students} = ();
+	@{$users} = ();
 
 	my $xml = new XML::Simple;
 
@@ -61,16 +60,13 @@ sub parse
 		@members = @{$data->{'memberships'}{'member'}};
 	}
 
-	$course->{'profid'} = ""; # Initialize profid to empty string
-
 	foreach(@members)
 	{ # process members
 		my %user = $self->parseUser($_);
 		# assign appropriate permissions based on roles
 		my $roles = $_->{'roles'};
 		if ($roles =~ /instructor/i || $roles =~ /contentdeveloper/i)
-		{ # make note of the instructor for later
-			$course->{'profid'} = $user{'loginid'} . ',' . $course->{'profid'};
+		{
 			$user{'permission'} = $ce->{userRoles}{professor};
 		}
 		elsif ($roles =~ /teachingassistant/i)
@@ -82,9 +78,8 @@ sub parse
 			$user{'permission'} = $ce->{userRoles}{student};
 		}
 		# store user info
-		push(@{$students}, \%user);
+		push(@{$users}, \%user);
 	}
-	$course->{'profid'} = substr($course->{'profid'}, 0, -1); # rm extra comma
 
 	return 0;
 }
@@ -122,7 +117,6 @@ sub parseUser
 	$user{'studentid'} = $param{'user_id'};
 	#$user{'lis_source_did'} = $param{'lis_result_sourcedid'};
 	$user{'email'} = $param{'person_contact_email_primary'};
-	$user{'password'} = "";
 	return %user;
 }
 
@@ -150,7 +144,6 @@ sub parseLaunchUser
 	utf8::encode($user{'lastname'});
 	$user{'studentid'} = $r->param('user_id');
 	$user{'email'} = $r->param('lis_person_contact_email_primary');
-	$user{'password'} = "";
 
 	# set lis_source_did if not a quiz or homework set launch request
 	if (!$r->param("custom_homework_set") && !$r->param("custom_quiz_set"))

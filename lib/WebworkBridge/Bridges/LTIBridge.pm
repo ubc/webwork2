@@ -13,7 +13,6 @@ use Data::Dumper;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
 
 use WebworkBridge::Exporter::GradesExport;
 use WebworkBridge::Importer::Error;
@@ -190,28 +189,15 @@ sub createCourse
 	}
 
 	my %course = ();
-	my @students = ();
+	my @users = ();
 
-	my $ret = $self->_getAndParseRoster(\%course, \@students);
+	my $ret = $self->_getAndParseRoster(\%course, \@users);
 	if ($ret)
 	{
 		return error("Get roster failed: $ret", "#e009");
 	}
-	# set profid if not set (membership skipped)
-	if (!defined($course{'profid'}))
-	{
-		$course{'profid'} = "";
-		if ($r->param('roles') =~ /instructor/i || $r->param('roles') =~ /contentdeveloper/i) {
-			foreach my $field_name (@{$ce->{bridge}{user_identifier_fields}}) {
-				if (defined($r->param($field_name)) && $r->param($field_name) ne '') {
-					$course{'profid'} = $r->param($field_name);
-					last;
-				}
-			}
-		}
-	}
 
-	$ret = $self->SUPER::createCourse(\%course, \@students);
+	$ret = $self->SUPER::createCourse(\%course, \@users);
 	if ($ret)
 	{
 		return error("Create course failed: $ret", "#e010");
@@ -257,10 +243,10 @@ sub updateCourse
 	$self->updateLTISettings();
 
 	my %course = ();
-	my @students = ();
+	my @users = ();
 
 	# try to update course enrolment
-	my $ret = $self->_updateCourseEnrolment(\%course, \@students);
+	my $ret = $self->_updateCourseEnrolment(\%course, \@users);
 	if ($ret)
 	{ # failed to update course enrolment, stop here
 		debug("Course enrolment update failed, bailing.");
@@ -317,7 +303,7 @@ sub updateLTISettings()
 # Sync course enrolment from the lms with Webwork
 sub _updateCourseEnrolment()
 {
-	my ($self, $course, $students) = @_;
+	my ($self, $course, $users) = @_;
 
 	debug("Trying to update course enrolment.");
 	my $r = $self->{r};
@@ -327,15 +313,15 @@ sub _updateCourseEnrolment()
 		return 0;
 	}
 
-	my $ret = $self->_getAndParseRoster($course, $students);
+	my $ret = $self->_getAndParseRoster($course, $users);
 	if ($ret)
 	{
 		return error("Get roster failed: $ret", "#e009");
 	}
 
-	if (@$students)
+	if (@$users)
 	{
-		$ret = $self->SUPER::updateCourse($course, $students);
+		$ret = $self->SUPER::updateCourse($course, $users);
 		if ($ret)
 		{
 			return error("Update course failed: $ret", "#e010");
@@ -463,9 +449,9 @@ sub _isInstructor
 
 sub _getAndParseRoster
 {
-	my ($self, $course_ref, $students_ref) = @_;
+	my ($self, $course_ref, $users_ref) = @_;
 	my $r = $self->{r};
-	my $parser = WebworkBridge::Bridges::LTIParser->new($r, $course_ref, $students_ref);
+	my $parser = WebworkBridge::Bridges::LTIParser->new($r, $course_ref, $users_ref);
 
 
 	if (defined($r->param("ext_ims_lis_memberships_url")))

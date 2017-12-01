@@ -6,7 +6,7 @@ use warnings;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
+use WeBWorK::Utils qw(runtime_use);
 
 use WebworkBridge::Importer::Error;
 

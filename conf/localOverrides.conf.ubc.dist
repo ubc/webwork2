@@ -446,7 +446,6 @@ $authen{'xmlrpc'} = "WeBWorK::Authen";
 ################################################################################
 # Webwork Bridge
 ################################################################################
-$bridge{classlistdir} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/";
 $bridge{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
 # Set password for the admin user created for all imported courses.
 $bridge{adminuserpw} = "admin";
@@ -468,11 +467,6 @@ $bridge{vista_login_options} = {
 $bridge{vista_importer} = $webworkDirs{root} . "/lib/WebworkBridge/Bridges/vistawebworksimporter.jar";
 $bridge{vista_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist";
 
-# If a student does not have an email address, we check this file to see if
-# we can manually enter a student id for them. Note that if the LMS provides
-# an email address, we ignore this file and uses the LMS provided one.
-$bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emaillist";
-
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
 $bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
@@ -483,11 +477,6 @@ $bridge{user_identifier_fields} = [
 	'custom_ubc_puid',
 	'user_id'
 ];
-
-# If a student does not have an email address, we check this file to see if
-# we can manually enter a student id for them. Note that if the LMS provides
-# an email address, we ignore this file and uses the LMS provided one.
-$bridge{emaillist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/emaillist";
 # List of Vista ids that are blacklisted from import. Note that id matching
 # is done using m//, so any occurance of the string below in an id will mark
 # that id as blacklisted.

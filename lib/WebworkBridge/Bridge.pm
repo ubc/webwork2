@@ -6,14 +6,13 @@ use warnings;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
 
 use WebworkBridge::Importer::Error;
 use WebworkBridge::Importer::CourseCreator;
 use WebworkBridge::Importer::CourseUpdater;
 
 # Constructor
-sub new 
+sub new
 {
 	my ($class, $r) = @_;
 	my $self = {
@@ -79,9 +78,9 @@ sub getQuizSet
 
 sub createCourse
 {
-	my ($self, $course, $students) = @_;
+	my ($self, $course, $users) = @_;
 
-	my $creator = WebworkBridge::Importer::CourseCreator->new($self->{r}, $course, $students);
+	my $creator = WebworkBridge::Importer::CourseCreator->new($self->{r}, $course, $users);
 	my $ret = $creator->createCourse();
 	if ($ret)
 	{
@@ -93,9 +92,9 @@ sub createCourse
 
 sub updateCourse
 {
-	my ($self, $course, $students) = @_;
+	my ($self, $course, $users) = @_;
 
-	my $creator = WebworkBridge::Importer::CourseUpdater->new($self->{r}, $course, $students);
+	my $creator = WebworkBridge::Importer::CourseUpdater->new($self->{r}, $course, $users);
 	my $ret = $creator->updateCourse();
 	if ($ret)
 	{
