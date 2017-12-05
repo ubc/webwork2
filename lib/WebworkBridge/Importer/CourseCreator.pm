@@ -58,7 +58,7 @@ sub runAddCourse
 	}
 	if (!defined $ENV{WEBWORK_ROOT})
 	{
-		if (defined %WeBWorK::SeedCE)
+		if (%WeBWorK::SeedCE)
 		{
 			$ENV{WEBWORK_ROOT} = $WeBWorK::SeedCE{webwork_dir};
 		}

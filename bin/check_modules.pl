@@ -117,6 +117,8 @@ my @modulesList = qw(
 	XML::Writer
 	XMLRPC::Lite
 	YAML
+    XML::Simple
+    App::Genpass
 );
 
 my %moduleVersion = (

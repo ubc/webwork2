@@ -73,18 +73,18 @@ RUN apt-get update \
        git \
        mysql-client \
     && curl -Lk https://cpanmin.us | perl - App::cpanminus \
-    && cpanm install XML::Parser::EasyTree Iterator Iterator::Util Pod::WSDL Array::Utils HTML::Template XMLRPC::Lite Mail::Sender Email::Sender::Simple Data::Dump Statistics::R::IO \
+    && cpanm install XML::Parser::EasyTree Iterator Iterator::Util Pod::WSDL Array::Utils HTML::Template XMLRPC::Lite Mail::Sender Email::Sender::Simple Data::Dump Statistics::R::IO App::Genpass XML::Simple Moose \
     && rm -fr /var/lib/apt/lists/* ./cpanm /root/.cpanm /tmp/*
 
 RUN mkdir -p $APP_ROOT/courses $APP_ROOT/libraries $APP_ROOT/webwork2
 
 COPY VERSION /tmp
 
-RUN WEBWORK_VERSION=`cat /tmp/VERSION|sed -n 's/.*\(develop\)'\'';/\1/p' && cat /tmp/VERSION|sed -n 's/.*\([0-9]\.[0-9]*\)'\'';/PG\-\1/p'` \
-    && curl -fSL https://github.com/openwebwork/pg/archive/${WEBWORK_VERSION}.tar.gz -o /tmp/${WEBWORK_VERSION}.tar.gz \
-    && tar xzf /tmp/${WEBWORK_VERSION}.tar.gz \
-    && mv pg-${WEBWORK_VERSION} $APP_ROOT/pg \
-    && rm /tmp/${WEBWORK_VERSION}.tar.gz \
+RUN WEBWORK_VERSION=`cat /tmp/VERSION|sed -n 's/.*\([0-9]\.[0-9]*\)'\'';/\1/p'` \
+    && curl -fSL https://github.com/openwebwork/pg/archive/PG-${WEBWORK_VERSION}.tar.gz -o /tmp/PG-${WEBWORK_VERSION}.tar.gz \
+    && tar xzf /tmp/PG-${WEBWORK_VERSION}.tar.gz \
+    && mv pg-PG-${WEBWORK_VERSION} $APP_ROOT/pg \
+    && rm /tmp/PG-${WEBWORK_VERSION}.tar.gz \
     && curl -fSL https://github.com/openwebwork/webwork-open-problem-library/archive/master.tar.gz -o /tmp/opl.tar.gz \
     && tar xzf /tmp/opl.tar.gz \
     && mv webwork-open-problem-library-master $APP_ROOT/libraries/webwork-open-problem-library \
