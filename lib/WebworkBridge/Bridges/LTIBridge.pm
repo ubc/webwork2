@@ -5,7 +5,6 @@ use base qw(WebworkBridge::Bridge);
 use strict;
 use warnings;
 
-use UNIVERSAL 'isa';
 use Net::OAuth;
 use HTTP::Request::Common;
 use LWP::UserAgent;
