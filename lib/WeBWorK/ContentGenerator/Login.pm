@@ -203,7 +203,7 @@ sub body {
 					CGI::p($authen_error)
 				      );
 		}
-		print CGI::p($r->maketext("Please enter your username and password for [_1] below:", CGI::b($r->maketext($course))));
+		print CGI::p($r->maketext("Please enter your username and password for [_1] below:", CGI::b($course)));
 		if ($ce -> {session_management_via} ne "session_cookie") {
 			print CGI::p($r->maketext("_LOGIN_MESSAGE", CGI::b($r->maketext("Remember Me"))));
 		}
