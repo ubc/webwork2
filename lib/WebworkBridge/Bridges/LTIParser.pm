@@ -93,8 +93,10 @@ sub parseUser
 	my %param = %{$tmp};
 	my %user;
 	# fetch user_id
-	foreach my $field_name (@{$ce->{bridge}{user_identifier_fields}})
+	foreach my $field (@{$ce->{bridge}{user_identifier_fields}})
 	{
+		# create copy of user_identifier_field element
+		my $field_name = $field;
 		# fix user_identifier_fields for membership extension
 		if ($field_name eq 'lis_person_sourcedid') {
 			$field_name = 'person_sourcedid';
