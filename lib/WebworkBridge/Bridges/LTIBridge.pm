@@ -561,6 +561,12 @@ sub _updateLaunchUser()
 	my $ce = $r->ce;
 	my $db = $r->db;
 
+	if (defined($r->param('ubc_auto_update'))) {
+		# skip _updateLaunchUser if automatic update
+		debug("Skip updating Launch user for automatic update.");
+		return;
+	}
+
 	debug("Parsing user information.");
 
 	# parse user from launch request
