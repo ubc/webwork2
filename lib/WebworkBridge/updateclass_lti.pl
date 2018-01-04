@@ -90,7 +90,7 @@ my $request = Net::OAuth->request("request token")->new(
 		# other params
 		context_id => $context_id,
 		context_title => $courseName,# same as resource_link_id
-		roles => 'instructor', # need, but can hard code
+		context_label => $courseName,
 		# lis stuff
 		$ce->{bridge}{user_identifier_fields}[0] => 'admin', # store
 		# extension params
@@ -108,7 +108,7 @@ $request->sign;
 my $ua = LWP::UserAgent->new;
 push @{ $ua->requests_redirectable }, 'POST';
 
-my $res = $ua->post($request_url . $courseName . "/", $request->to_hash);
+my $res = $ua->post($request_url, $request->to_hash);
 if ($res->is_success)
 {
 	if ($res->content =~ /Invalid user ID or password/)

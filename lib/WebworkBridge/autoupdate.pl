@@ -37,8 +37,6 @@ use warnings;
 
 BEGIN
 {
-	$ENV{WEBWORK_ROOT} = "/home/john/webwork/ubc_dev/webwork2"
-		unless exists $ENV{WEBWORK_ROOT};
 	die "WEBWORK_ROOT not found in environment.\n"
 		unless exists $ENV{WEBWORK_ROOT};
 }
