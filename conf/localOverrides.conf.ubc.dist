@@ -499,7 +499,8 @@ $bridge{custom_course_title_parser} = sub {
 
 	# else use term name (if available) and context_label
 	my $course_title = $r->param("context_label");
-	if (defined($r->param("custom_term_name")) && $r->param("custom_term_name") ne '') {
+	if (defined($r->param("custom_term_name")) && $r->param("custom_term_name") ne "" &&
+			$r->param("custom_term_name") ne "Canvas.term.name" && $r->param("custom_term_name") ne "Default Term") {
 		# do term then context title in order to reduce change of collision if context title is very long
 		$course_title = $r->param("custom_term_name") . "_" . $r->param("context_label");
 	}
