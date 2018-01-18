@@ -385,6 +385,11 @@ sub _ltiUpdateGrade()
 	my $lis_source_did = $record->{lis_source_did};
 	my $score = $record->{score};
 
+	my $extralog = WebworkBridge::ExtraLog->new($r);
+	$extralog->logXML("--- Grade Sync " . $r->param('context_title') . " ---");
+	$extralog->logXML("lis_source_did is: " . $lis_source_did);
+	$extralog->logXML("score is: " . $score);
+
 	my $request = Net::OAuth->request("request token")->new(
 		consumer_key => $key,
 		consumer_secret => $ce->{bridge}{lti_secrets}{$key},
@@ -419,17 +424,21 @@ sub _ltiUpdateGrade()
 		debug($res->content);
 		if ($res->content =~ /codemajor>Failure/i)
 		{
+			$extralog->logXML("Grade update failed for $lis_source_did, unable to authenticate.");
 			return "Grade update failed for $lis_source_did, unable to authenticate.";
 		}
 		elsif ($res->content =~ /codeminor>User not found/i)
 		{
+			$extralog->logXML("Grade update failed for $lis_source_did, can't find user.");
 			return "Grade update failed for $lis_source_did, can't find user.";
 		}
+		$extralog->logXML("Grade update successful for $lis_source_did.");
 		debug("Grade update successful for $lis_source_did.");
 		return "";
 	}
 	else
 	{
+		$extralog->logXML("Grade update failed, POST request failed.");
 		return "Grade update failed, POST request failed.";
 	}
 }
@@ -585,6 +594,10 @@ sub _updateLaunchUser()
 		my $oldUser = $db->getUser($user{'loginid'});
 		my $oldPermission = $db->getPermissionLevel($user{'loginid'});
 		$updater->updateUser($oldUser, \%user, $oldPermission, $db);
+		# assign all visible homeworks to students
+		if ($oldPermission->permission() <= $ce->{userRoles}{student}) {
+			$updater->assignAllVisibleSetsToUser($user{'loginid'}, $db);
+		}
 	}
 	else {
 		debug("Attempt to create user & assign assignments.");
