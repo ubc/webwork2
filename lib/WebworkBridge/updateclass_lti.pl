@@ -60,10 +60,10 @@ if (substr($request_url, -1, 1) ne "/")
 
 my $ltiContext = $db->getLTIContext($oauth_consumer_key, $context_id);
 
-my $ext_ims_lis_memberships_id = $ltiContext->ext_ims_lis_memberships_id();
-my $ext_ims_lis_memberships_url = $ltiContext->ext_ims_lis_memberships_url();
-my $ext_ims_lis_basic_outcome_url = $ltiContext->ext_ims_lis_basic_outcome_url();
-my $custom_context_memberships_url = $ltiContext->custom_context_memberships_url();
+my $ext_ims_lis_memberships_id = $ltiContext->ext_ims_lis_memberships_id;
+my $ext_ims_lis_memberships_url = $ltiContext->ext_ims_lis_memberships_url;
+my $ext_ims_lis_basic_outcome_url = $ltiContext->ext_ims_lis_basic_outcome_url;
+my $custom_context_memberships_url = $ltiContext->custom_context_memberships_url;
 
 my %gradeParams;
 if (defined($grade))
@@ -108,7 +108,7 @@ $request->sign;
 my $ua = LWP::UserAgent->new;
 push @{ $ua->requests_redirectable }, 'POST';
 
-my $res = $ua->post($request_url, $request->to_hash);
+my $res = $ua->post($request_url . $courseName . "/", $request->to_hash);
 if ($res->is_success)
 {
 	if ($res->content =~ /Invalid user ID or password/)

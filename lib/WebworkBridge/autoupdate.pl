@@ -89,11 +89,11 @@ foreach my $ltiContext (@ltiContexts) {
 
 	if ($check)
 	{
-		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/checkclass_lti.pl $courseName $oauth_consumer_key $context_id";
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/checkclass_lti.pl '$courseName' '$oauth_consumer_key' '$context_id'";
 	}
 	else
 	{
-		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl $courseName $oauth_consumer_key $context_id $grade";
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl '$courseName' '$oauth_consumer_key' '$context_id' $grade";
 	}
 
 	my $ret = `$cmd\n`;

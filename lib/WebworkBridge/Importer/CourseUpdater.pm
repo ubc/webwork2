@@ -215,12 +215,6 @@ sub updateUser
 			$self->addlog("Teaching staff $id rejoined $courseid");
 		}
 	}
-
-	# assign all visible homeworks to students
-	if ($permission->permission() <= $ce->{userRoles}{student})
-	{
-		$self->assignAllVisibleSetsToUser($id, $db);
-	}
 }
 
 sub addUser
