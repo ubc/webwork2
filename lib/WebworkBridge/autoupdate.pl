@@ -9,8 +9,9 @@ autoupdate - Will try to update all courses with lti_automatic_updates flag in c
 autoupdate [options]
 
  Options:
-   -check	Only check to see if LTI roster requests are successful.
-   -grade	Try to send grades to the LMS.
+   -check        Only check to see if LTI roster requests are successful.
+   -grade        Try to send grades to the LMS.
+   -protocol     Force using provided protocol when sending request to server
 
 =head1 OPTIONS
 
@@ -27,6 +28,11 @@ if the LTI roster requests are actually successful.
 
 Enables additional parameters in the LTI launch request that tells
 Webwork to try sending grades to the LMS.
+
+=item B<-protocol=s>
+
+Force using protocol when sending request to server for class membership and grade updates.
+Overrides protocol used by server_root_url
 
 =back
 
@@ -53,12 +59,16 @@ my $check = '';
 # if set to true, will try to send grades to the LMS
 my $grade = '';
 
+# force request url to use protocol (overrides server_root_url)
+my $protocol = '';
+
 my $man = 0;
 my $help = 0;
 
 GetOptions (
 	"check" => \$check,
 	"grade" => \$grade,
+	"protocol=s" => \$protocol,
 	'help|?' => \$help,
 	man => \$man
 );
@@ -93,7 +103,7 @@ foreach my $ltiContext (@ltiContexts) {
 	}
 	else
 	{
-		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl '$courseName' '$oauth_consumer_key' '$context_id' $grade";
+		$cmd = $ENV{WEBWORK_ROOT} . "/lib/WebworkBridge/updateclass_lti.pl '$courseName' '$oauth_consumer_key' '$context_id' '$grade' '$protocol'";
 	}
 
 	my $ret = `$cmd\n`;
