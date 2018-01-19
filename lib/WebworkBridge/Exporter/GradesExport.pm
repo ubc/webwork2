@@ -67,8 +67,6 @@ sub getGrades
 
 		foreach my $set ( @sets )
 		{ # go through each assigned set
-			my $setName = $set->set_id();
-
 			my $record = $self->getGradeRecords($set, $db, $userid);
 			if (defined($record)) {
 				$courseTotalRight += $record->{totalRight};
@@ -162,7 +160,7 @@ sub getScore
 	} elsif ($totalRight > $total) {
 		return 1;
 	}
-	return $totalRight/$total;
+	return sprintf("%.5f", $totalRight/$total);
 }
 
 # Get the grades for a set.

@@ -417,6 +417,7 @@ sub _ltiUpdateGrade()
 	if ($read_res->is_success)
 	{
 		debug($read_res->content);
+		$extralog->logXML($read_res->content);
 		if ($read_res->content =~ /codemajor>Failure/i)
 		{
 			$extralog->logXML("Grade read failed for $lis_source_did, unable to authenticate.");
@@ -428,15 +429,16 @@ sub _ltiUpdateGrade()
 			return "Grade read failed for $lis_source_did, can't find user.";
 		}
 		elsif ($read_res->content =~ /textString>(.*)<\/textString/i) {
-			if ("$score" eq $1) {
-				$extralog->logXML("Current Grade ($score) matches Tool Consumer ($1). Update not neccissary.");
+			my $existing_score = sprintf("%.5f", $1);
+			if ("$score" eq $existing_score) {
+				$extralog->logXML("Current Grade ($score) matches Tool Consumer ($existing_score). Update not neccissary.");
 				debug("Grade read successful for $lis_source_did. Update not neccissary.");
 				return "";
 			}
 			else
 			{
-				$extralog->logXML("Current Grade ($score) does not match Tool Consumer ($1). Update neccissary.");
-				debug("Grade read successful for $lis_source_did. Update nessicary. ($1)->($score)");
+				$extralog->logXML("Current Grade ($score) does not match Tool Consumer ($existing_score). Update neccissary.");
+				debug("Grade read successful for $lis_source_did. Update nessicary. ($existing_score)->($score)");
 				#no return, only way to continue
 			}
 		}
@@ -483,6 +485,7 @@ sub _ltiUpdateGrade()
 	if ($res->is_success)
 	{
 		debug($res->content);
+		$extralog->logXML($res->content);
 		if ($res->content =~ /codemajor>Failure/i)
 		{
 			$extralog->logXML("Grade update failed for $lis_source_did, unable to authenticate.");
