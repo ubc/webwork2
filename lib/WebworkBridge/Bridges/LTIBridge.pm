@@ -353,12 +353,15 @@ sub _pushGrades()
 
 	if (defined($r->param('custom_gradesync')))
 	{
+		my $extralog = WebworkBridge::ExtraLog->new($r);
+		$extralog->logXML("--- " . $r->param('context_title') . " ---");
 		debug("Allowed to do mass grade syncing.");
 
 		my $grades = WebworkBridge::Exporter::GradesExport->new($r);
 		my $scores = $grades->getGrades();
 		while (my ($studentID, $records) = each(%$scores))
 		{
+			$extralog->logXML("Grade Sync for user $studentID");
 			foreach my $record (@$records)
 			{
 				# send all scores, even if it's 0 or the user hasn't attempted it
@@ -386,9 +389,70 @@ sub _ltiUpdateGrade()
 	my $score = $record->{score};
 
 	my $extralog = WebworkBridge::ExtraLog->new($r);
-	$extralog->logXML("--- Grade Sync " . $r->param('context_title') . " ---");
-	$extralog->logXML("lis_source_did is: " . $lis_source_did);
-	$extralog->logXML("score is: " . $score);
+	$extralog->logXML("fetching score for lis_source_did $lis_source_did");
+
+	# read current score from tool consumer
+	my $read_request = Net::OAuth->request("request token")->new(
+		consumer_key => $key,
+		consumer_secret => $ce->{bridge}{lti_secrets}{$key},
+		protocol_version => Net::OAuth::PROTOCOL_VERSION_1_0A,
+		request_url => $r->param("ext_ims_lis_basic_outcome_url"),
+		request_method => 'POST',
+		signature_method => 'HMAC-SHA1',
+		timestamp => time(),
+		nonce => rand(),
+		callback => 'about:blank',
+		extra_params => {
+			lti_version => 'LTI-1p0',
+			lti_message_type => 'basic-lis-readresult',
+			sourcedid => $lis_source_did,
+		}
+	);
+	$read_request->sign;
+
+	my $ua = LWP::UserAgent->new;
+	push @{ $ua->requests_redirectable }, 'POST';
+
+	my $read_res = $ua->post($r->param("ext_ims_lis_basic_outcome_url"), $read_request->to_hash);
+	if ($read_res->is_success)
+	{
+		debug($read_res->content);
+		if ($read_res->content =~ /codemajor>Failure/i)
+		{
+			$extralog->logXML("Grade read failed for $lis_source_did, unable to authenticate.");
+			return "Grade read failed for $lis_source_did, unable to authenticate.";
+		}
+		elsif ($read_res->content =~ /codeminor>User not found/i)
+		{
+			$extralog->logXML("Grade read failed for $lis_source_did, can't find user.");
+			return "Grade read failed for $lis_source_did, can't find user.";
+		}
+		elsif ($read_res->content =~ /textString>(.*)<\/textString/i) {
+			if ("$score" eq $1) {
+				$extralog->logXML("Current Grade ($score) matches Tool Consumer ($1). Update not neccissary.");
+				debug("Grade read successful for $lis_source_did. Update not neccissary.");
+				return "";
+			}
+			else
+			{
+				$extralog->logXML("Current Grade ($score) does not match Tool Consumer ($1). Update neccissary.");
+				debug("Grade read successful for $lis_source_did. Update nessicary. ($1)->($score)");
+				#no return, only way to continue
+			}
+		}
+		else
+		{
+			$extralog->logXML("Grade read error for $lis_source_did. no grade textString returned");
+			return "Grade read error for $lis_source_did. no grade textString returned";
+		}
+	}
+	else
+	{
+		$extralog->logXML("Grade read failed, POST request failed. ". $read_res->message);
+		return "Grade read failed, POST request failed.";
+	}
+
+	$extralog->logXML("Updating score for lis_source_did $lis_source_did to score $score");
 
 	my $request = Net::OAuth->request("request token")->new(
 		consumer_key => $key,
@@ -415,9 +479,6 @@ sub _ltiUpdateGrade()
 	);
 	$request->sign;
 
-	my $ua = LWP::UserAgent->new;
-	push @{ $ua->requests_redirectable }, 'POST';
-
 	my $res = $ua->post($r->param("ext_ims_lis_basic_outcome_url"), $request->to_hash);
 	if ($res->is_success)
 	{
@@ -432,13 +493,16 @@ sub _ltiUpdateGrade()
 			$extralog->logXML("Grade update failed for $lis_source_did, can't find user.");
 			return "Grade update failed for $lis_source_did, can't find user.";
 		}
-		$extralog->logXML("Grade update successful for $lis_source_did.");
-		debug("Grade update successful for $lis_source_did.");
-		return "";
+		else
+		{
+			$extralog->logXML("Grade update successful for $lis_source_did.");
+			debug("Grade update successful for $lis_source_did.");
+			return "";
+		}
 	}
 	else
 	{
-		$extralog->logXML("Grade update failed, POST request failed.");
+		$extralog->logXML("Grade update failed, POST request failed. ". $res->message);
 		return "Grade update failed, POST request failed.";
 	}
 }
