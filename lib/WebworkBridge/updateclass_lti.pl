@@ -114,6 +114,8 @@ push @{ $ua->requests_redirectable }, 'POST';
 if ($protocol) {
 	$request_url =~ s/^\w+:\/\//$protocol:\/\//g;
 }
+# increase ua read timeout as the outcome service may take long time to finish.
+$ua->timeout(1800);
 my $res = $ua->post($request_url . $courseName . "/", $request->to_hash);
 if ($res->is_success)
 {

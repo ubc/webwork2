@@ -368,7 +368,7 @@ sub _pushGrades()
 				my $ret = $self->_ltiUpdateGrade($record);
 				if ($ret)
 				{
-					return error("Grade update failed: $ret", "#e020");
+					error("Grade update failed: $ret", "#e020");
 				}
 			}
 		}
@@ -439,13 +439,14 @@ sub _ltiUpdateGrade()
 			{
 				$extralog->logXML("Current Grade ($score) does not match Tool Consumer ($existing_score). Update neccissary.");
 				debug("Grade read successful for $lis_source_did. Update nessicary. ($existing_score)->($score)");
-				#no return, only way to continue
+				#no return, continue to update grade
 			}
 		}
 		else
 		{
-			$extralog->logXML("Grade read error for $lis_source_did. no grade textString returned");
-			return "Grade read error for $lis_source_did. no grade textString returned";
+			# accodring to the spec, textString field is expected even there is no grade. It seems Canvas'
+			# implementation doesn't strictly follow the spec. So we update grade anyway in this case.
+			$extralog->logXML("Grade read error for $lis_source_did. no grade textString returned. Update anyway");
 		}
 	}
 	else
