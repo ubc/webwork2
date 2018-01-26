@@ -30,7 +30,7 @@ if (scalar(@ARGV) < 3)
 	print "Parameter count incorrect, please enter all parameters:";
 	print "\updateclass_lti CourseName oauthConsumerKey contextId\n";
 	print "\nGrades (Optional) - If given, will try to send grades to LMS.\n";
-	print "\nProtocol (Optional) - If given, will override request_url's protocol.\n";
+	print "\nRequest Url (Optional) - If given, will override request_url's url.\n";
 	print "\ne.g.: updateclass_lti Math100-100 consumerKey 123abc123abc\n";
 	exit();
 }
@@ -39,7 +39,7 @@ my $courseName = shift;
 my $oauth_consumer_key = shift;
 my $context_id = shift;
 my $grade = shift;
-my $protocol = shift;
+my $request_url_override = shift;
 
 # bring up a course environment
 my $ce = WeBWorK::CourseEnvironment->new({
@@ -111,8 +111,11 @@ my $ua = LWP::UserAgent->new;
 push @{ $ua->requests_redirectable }, 'POST';
 
 # force replace request_url protocol for internal request
-if ($protocol) {
-	$request_url =~ s/^\w+:\/\//$protocol:\/\//g;
+if ($request_url_override) {
+	if (substr($request_url_override, -1, 1) ne "/") {
+		$request_url_override .= "/";
+	}
+	$request_url = $request_url_override;
 }
 # increase ua read timeout as the outcome service may take long time to finish.
 $ua->timeout(1800);

@@ -185,6 +185,12 @@ sub updateUser
 	{
 		$oldInfo->lis_source_did($newInfo->{'lis_source_did'});
 		$update = 1;
+	} elsif (defined($newInfo->{'homework_set_lis_source_did'}) &&
+		$newInfo->{'homework_set_lis_source_did'} eq $oldInfo->lis_source_did())
+	{
+		# lis_source_did is now used for a homework set, set user's lis_source_did to NULL
+		$oldInfo->lis_source_did("");
+		$update = 1;
 	}
 	# Batch update info
 	if ($update)

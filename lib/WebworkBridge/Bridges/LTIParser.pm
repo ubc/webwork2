@@ -116,8 +116,22 @@ sub parseUser
 	# any more perl ops
 	utf8::encode($user{'firstname'});
 	utf8::encode($user{'lastname'});
-	$user{'studentid'} = $param{'user_id'};
-	#$user{'lis_source_did'} = $param{'lis_result_sourcedid'};
+	# fetch student number
+	foreach my $field (@{$ce->{bridge}{user_student_number_fields}})
+	{
+		# create copy of user_identifier_field element
+		my $field_name = $field;
+		# fix user_identifier_fields for membership extension
+		if ($field_name eq 'lis_person_sourcedid') {
+			$field_name = 'person_sourcedid';
+		}
+
+		if (defined($param{$field_name}) && $param{$field_name} ne '') {
+			$user{'studentid'} = $param{$field_name};
+			last;
+		}
+	}
+	$user{'lis_source_did'} = $param{'lis_result_sourcedid'};
 	$user{'email'} = $param{'person_contact_email_primary'};
 	return %user;
 }
@@ -144,13 +158,24 @@ sub parseLaunchUser
 	# any more perl ops
 	utf8::encode($user{'firstname'});
 	utf8::encode($user{'lastname'});
-	$user{'studentid'} = $r->param('user_id');
+	# fetch student number
+	foreach my $field_name (@{$ce->{bridge}{user_student_number_fields}})
+	{
+		if (defined($r->param($field_name)) && $r->param($field_name) ne '') {
+			$user{'studentid'} = $r->param($field_name);
+			last;
+		}
+	}
 	$user{'email'} = $r->param('lis_person_contact_email_primary');
 
 	# set lis_source_did if not a quiz or homework set launch request
 	if (!$r->param("custom_homework_set") && !$r->param("custom_quiz_set"))
 	{
 		$user{'lis_source_did'} = $r->param('lis_result_sourcedid');
+	}
+	else {
+		# used to overwrite existing lis_source_did attached to user if needed
+		$user{'homework_set_lis_source_did'} = $r->param('lis_result_sourcedid');
 	}
 
 	# set user permissions

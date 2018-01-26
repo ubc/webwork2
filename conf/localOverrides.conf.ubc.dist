@@ -3,12 +3,12 @@
 # WeBWorK Online Homework Delivery System
 # Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/conf/localOverrides.conf.dist,v 1.225 2010/05/18 18:03:31 apizer Exp $
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
 # Free Software Foundation; either version 2, or (at your option) any later
 # version, or (b) the "Artistic License" which comes with this package.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
@@ -29,8 +29,8 @@
 # when installing WeBWorK on a new site. The configurations in defaults.config
 # and in database.conf can usually remain untouched.
 #
-# localOverride.conf is the appropriate place to override permission settings, 
-# paths to macros and other customizations that are specific to your 
+# localOverride.conf is the appropriate place to override permission settings,
+# paths to macros and other customizations that are specific to your
 # WeBWorK site
 
 
@@ -40,9 +40,9 @@
 
 # This setting is only used if you need to send email from within a PG problem
 # (e.g. surveys, essay questions).  It is not necessary for using the email
-# tools in WeBWorK.  You can set email addresses here for users who need to 
+# tools in WeBWorK.  You can set email addresses here for users who need to
 # receive email from problems in all courses, or in course.conf for professors
-# who will receive email from problems in a single course. 
+# who will receive email from problems in a single course.
 
 $mail{feedbackRecipients}    = [
 	#'prof1@yourserver.yourdomain.edu',
@@ -53,13 +53,13 @@ $mail{feedbackRecipients}    = [
 # Repository Information
 ###############################################################################
 # This is where you put your remote and branch for your WeBWorK, PG and OPL
-# github repositories.  
+# github repositories.
 # To disable checking for a particular repository, set the remote and branch
-# variables to be empty strings.  
+# variables to be empty strings.
 
-# Note:  This process uses git ls-remote which can be very slow on some 
+# Note:  This process uses git ls-remote which can be very slow on some
 # systems.  If your course list page in the admin course is very slow
-# consider disabling this option.  
+# consider disabling this option.
 
 $enableGitUpgradeNotifier = 0;
 
@@ -81,7 +81,7 @@ $defaultThemeTemplate = "system";
 # Language
 ################################################################################
 
-$language = "en";   
+$language = "en";
 # Check the directory .../webwork2/lib/WeBWorK/Localize to what languages are
 # currently supported (e.g. en, es,. fr, heb, tr, zk_hk).
 
@@ -105,7 +105,7 @@ $webworkFiles{hardcopySnippets}{setHeader}     = "$webworkDirs{conf}/snippets/AS
 # The set header is displayed on the problem set page. It is a PG file.
 # One of these default files which is used if a specific files is not selected
 
-$webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/ASimpleCombinedHeaderFile.pg"; 
+$webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/ASimpleCombinedHeaderFile.pg";
 
 # $webworkFiles{screenSnippets}{setHeader}         = "$courseDirs{templates}/ASimpleScreenHeaderFile.pg"; # An alternate default screen HTML only header file
 # $webworkFiles{screenSnippets}{setHeader}         = "$courseDirs{templates}/ASimpleCombinedHeaderFile.pg";
@@ -125,11 +125,11 @@ $webworkFiles{screenSnippets}{setHeader}         = "$webworkDirs{conf}/snippets/
 # uncomment these lines below and comment out the line above if using OPL instead of NPL
 $problemLibrary{root}       = "/www_data/webwork/libraries/opl/OpenProblemLibrary";
 $contribLibrary{root}       = "/www_data/webwork/libraries/opl/Contrib";
-$problemLibrary{version}    = "2.5";  
+$problemLibrary{version}    = "2.5";
 
 # These flags control if statistics on opl problems are shown in the library
 # browser.  If you want to include local statistics you will need to
-# run webwork2/bin/update-OPL-statistics on a regular basis.  
+# run webwork2/bin/update-OPL-statistics on a regular basis.
 $problemLibrary{showLibraryLocalStats} = 1;
 # This flag controls whether global statistics will be displayed
 $problemLibrary{showLibraryGlobalStats} = 1;
@@ -141,15 +141,15 @@ $problemLibrary{showLibraryGlobalStats} = 1;
 # the top of the problem browser.  (No button will appear if there is no
 # directory or link with the given name in the templates directory.)  For
 # example,
-# 
+#
 #     $courseFiles{problibs} = {rochester => "Rochester", asu => "ASU"};
-# 
+#
 # would add two buttons, one for the Rochester library and one for the ASU
-# library, provided templates/rochester and templates/asu exists either as 
+# library, provided templates/rochester and templates/asu exists either as
 # subdirectories or links to other directories. The "NPL Directory" button
-# activated below gives access to all the directories in the National 
+# activated below gives access to all the directories in the National
 # Problem Library.
- 
+
 $courseFiles{problibs}    = {
 #	Library          => "OPL Directory",
 	ubcLibrary       => "UBC Library",
@@ -159,7 +159,7 @@ $courseFiles{problibs}    = {
 # 	dcdsLibrary      => "Detroit CDS",
 # 	dartmouthLibrary => "Dartmouth",
 # 	indianaLibrary   => "Indiana",
-# 	osuLibrary       => "Ohio State",	
+# 	osuLibrary       => "Ohio State",
 #       capaLibrary      => "CAPA",
 };
 
@@ -174,12 +174,12 @@ $courseFiles{problibs}    = {
 
 # User roles in order of increasing permissions. Each level has all of the privileges of
 # the lower levels.
-# 	guest 
-# 	student 
+# 	guest
+# 	student
 # 	login_proctor
 # 	grade_proctor
-# 	ta 
-# 	professor 
+# 	ta
+# 	professor
 # 	admin
 
 # The complete list of permissions is available in defaults.config.  If you want
@@ -217,7 +217,7 @@ $pg{displayModes} = [
 
 # Default display mode. Should be an uncommented item listed above.
 $pg{options}{displayMode}        = "MathJax";
- 
+
 ################################################################################
 #  Adding to the macro file search path. (Check with entries in defaults.config before overriding)
 ################################################################################
@@ -241,11 +241,11 @@ $pg{options}{displayMode}        = "MathJax";
 
 # If a full URL is given, it is used unmodified. If an
 # absolute path is given, the URL of the local server is prepended to it.
-# 
+#
 # For example, if an item is "/math/applets",
 # and the local server is  "https://math.yourschool.edu",
 # then the URL "https://math.yourschool.edu/math/applets" will be used.
-# 
+#
 # If your new applets location is a subdirectory of the webwork htdocs directory, you may
 # use notation such as "$webworkURLs{htdocs}/newsubdir"
 
@@ -255,24 +255,24 @@ $pg{directories}{appletPath} = [ @{$pg{directories}{appletPath}} , "$webworkURLs
 # Problem creation defaults
 ################################################################################
 
-# The default weight (also called value) of a problem to use when using the 
+# The default weight (also called value) of a problem to use when using the
 # Library Browser, Problem Editor or Hmwk Sets Editor to add problems to a set
 # or when this value is left blank in an imported set definition file.
 
-$problemDefaults{value} = 1;  
+$problemDefaults{value} = 1;
 
-# The default max_attempts for a problem to use when using the 
+# The default max_attempts for a problem to use when using the
 # Library Browser, Problem Editor or Hmwk Sets Editor to add problems to a set
-# or when this value is left blank in an imported set definition file.  Note that 
+# or when this value is left blank in an imported set definition file.  Note that
 # setting this to -1 gives students unlimited attempts.
 
-$problemDefaults{max_attempts} = -1;   
+$problemDefaults{max_attempts} = -1;
 
-# The default showMeAnother for a problem to use when using the 
+# The default showMeAnother for a problem to use when using the
 # Library Browser, Problem Editor or Hmwk Sets Editor to add problems to a set
-# or when this value is left blank in an imported set definition file.  Note that 
+# or when this value is left blank in an imported set definition file.  Note that
 # setting this to -1 disables the showMeAnother button
-$problemDefaults{showMeAnother} = -1;   
+$problemDefaults{showMeAnother} = -1;
 
 # The default prPeriod value (re-randomization period) to use for the newly created problem.
 # It is suggested to use the value of -1, which means that the course-wide setting would be used
@@ -299,7 +299,7 @@ $pg{options}{periodicRandomizationPeriod} = 5;
  $pg{specialPGEnvironmentVars}{DragMath} = 0;
  #$pg{specialPGEnvironmentVars}{CAPA_Tools}             = "$courseDirs{templates}/Contrib/CAPA/macros/CAPA_Tools/",
  #$pg{specialPGEnvironmentVars}{CAPA_MCTools}           = "$courseDirs{templates}/Contrib/CAPA/macros/CAPA_MCTools/",
- # The link Contrib in the course templates directory should point to ../webwork-open-problem-library/Contrib 
+ # The link Contrib in the course templates directory should point to ../webwork-open-problem-library/Contrib
 
 ################################################################################
 # Temporary hack for displaying the different versions of the editors
@@ -316,22 +316,22 @@ $pg{options}{periodicRandomizationPeriod} = 5;
 
 #$showeditors{pgproblemeditor3} = 1;
 
-# This will turn off ww3 
+# This will turn off ww3
 #$showeditors{ww3} = 0;
 
 ################################################################################
 # Directory for temporary files
-################################################################################ 
-# Location of web-accessible temporary files, such as equation images. 
+################################################################################
+# Location of web-accessible temporary files, such as equation images.
 # Default which is set in defaults.config:
 #$webworkDirs{htdocs_temp}   = "$webworkDirs{htdocs}/tmp";
 #$webworkURLs{htdocs_temp}   = "$webworkURLs{htdocs}/tmp";
 
-# Alternate locations -- this allows you to place temporary files in a location 
+# Alternate locations -- this allows you to place temporary files in a location
 # that is not backed up and is the recommended set up for most installations.
 # See http://webwork.maa.org/wiki/Store_WeBWorK%27s_temporary_files_in_a_separate_directory_or_partition
-# for more information.   Note that the wwtmp directory (or partition) should be 
-# created under Apache's main server document root which is usually /var/www. If this 
+# for more information.   Note that the wwtmp directory (or partition) should be
+# created under Apache's main server document root which is usually /var/www. If this
 # is in a different location on your system, edit the lines below accordingly.
 # To implement, uncomment the following 6 lines:
 #$webworkDirs{htdocs_temp}  =  '/var/www/wwtmp';
@@ -341,7 +341,7 @@ $pg{options}{periodicRandomizationPeriod} = 5;
 #$courseDirs{html_temp}  =  "/var/www/wwtmp/$courseName";
 #$courseURLs{html_temp}   = "/wwtmp/$courseName";
 
-################################################################################ 
+################################################################################
 # Student Date Format
 ################################################################################
 
@@ -396,10 +396,10 @@ $authen{user_module} = {
 #  $session_management_via = "key";
 
 ################################################################################
-# Searching for set.def files to import 
+# Searching for set.def files to import
 ################################################################################
 ## Uncomment below so that when the homework sets editor searches for set def
-## files, it searches beyond templates; it can search deeper subfolders of 
+## files, it searches beyond templates; it can search deeper subfolders of
 ## templates, and optionally also descend into Library
 
 #$options{setDefSearchDepth}=4; #search down 4 levels
@@ -475,6 +475,13 @@ $bridge{hide_new_courses} = 1;
 # will check for field values in order and fallback if field is not present/empty in launch request
 $bridge{user_identifier_fields} = [
 	'custom_ubc_puid',
+	'user_id'
+];
+# populate webwork student number by field
+# will check for field values in order and fallback if field is not present/empty in launch request
+$bridge{user_student_number_fields} = [
+	'custom_ubc_student_number',
+	'lis_person_sourcedid',
 	'user_id'
 ];
 # List of Vista ids that are blacklisted from import. Note that id matching
