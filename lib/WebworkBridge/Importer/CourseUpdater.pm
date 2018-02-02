@@ -319,6 +319,12 @@ sub addlog
 sub assignAllVisibleSetsToUser {
 	my ($self, $userID, $db) = @_;
 
+	# skip automatically assigning homeworksets if disabled for course
+	my $ltiAutoAssignHomeworksets = $db->getSettingValue('skipLTIAutomaticAssignHomeworksets');
+	if (defined($ltiAutoAssignHomeworksets) && $ltiAutoAssignHomeworksets eq "1") {
+		return;
+	}
+
 	my @globalSetIDs = $db->listGlobalSets;
 	my @GlobalSets = $db->getGlobalSets(@globalSetIDs);
 
