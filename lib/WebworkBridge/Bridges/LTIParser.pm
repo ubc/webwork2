@@ -117,6 +117,7 @@ sub parseUser
 	utf8::encode($user{'firstname'});
 	utf8::encode($user{'lastname'});
 	# fetch student number
+	$user{'studentid'} = '';
 	foreach my $field (@{$ce->{bridge}{user_student_number_fields}})
 	{
 		# create copy of user_identifier_field element
@@ -159,6 +160,7 @@ sub parseLaunchUser
 	utf8::encode($user{'firstname'});
 	utf8::encode($user{'lastname'});
 	# fetch student number
+	$user{'studentid'} = '';
 	foreach my $field_name (@{$ce->{bridge}{user_student_number_fields}})
 	{
 		if (defined($r->param($field_name)) && $r->param($field_name) ne '') {
