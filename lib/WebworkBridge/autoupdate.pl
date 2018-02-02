@@ -68,7 +68,7 @@ my $help = 0;
 GetOptions (
 	"check" => \$check,
 	"grade" => \$grade,
-	"request_url" => \$request_url,
+	"request_url=s" => \$request_url,
 	'help|?' => \$help,
 	man => \$man
 );
