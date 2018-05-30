@@ -28,6 +28,7 @@ services:
       - "8080:80"
     environment:
       DEV: 0
+      WEBWORK_ROOT_URL: http://localhost:8080
   r:
     image: ubcctlt/rserve
     ports:
