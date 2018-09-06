@@ -429,7 +429,7 @@ sub _ltiUpdateGrade()
 			return "Grade read failed for $lis_source_did, can't find user.";
 		}
 		elsif ($read_res->content =~ /textString>(.*)<\/textString/i) {
-			my $existing_score = sprintf("%.5f", $1);
+			my $existing_score = sprintf("%.4f", $1);
 			if ("$score" eq $existing_score) {
 				$extralog->logXML("Current Grade ($score) matches Tool Consumer ($existing_score). Update not neccissary.");
 				debug("Grade read successful for $lis_source_did. Update not neccissary.");

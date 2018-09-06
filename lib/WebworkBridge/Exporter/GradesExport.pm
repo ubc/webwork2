@@ -156,11 +156,11 @@ sub getScore
 {
 	my ($self, $totalRight, $total) = @_;
 	if ($total <= 0 || $totalRight < 0) {
-		return 0;
+		return sprintf("%.4f", 0);
 	} elsif ($totalRight > $total) {
-		return 1;
+		return sprintf("%.4f", 1);
 	}
-	return sprintf("%.5f", $totalRight/$total);
+	return sprintf("%.4f", $totalRight/$total);
 }
 
 # Get the grades for a set.
