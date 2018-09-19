@@ -41,6 +41,7 @@ use WeBWorK::Utils::Tasks qw(fake_set fake_set_version fake_problem);
 use WeBWorK::Debug;
 use WeBWorK::ContentGenerator::Instructor qw(assignSetVersionToUser);
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
+use WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService;
 use PGrandom;
 
 use Caliper::Sensor;
@@ -1643,6 +1644,15 @@ sub body {
 		  } elsif ($LTIGradeMode eq 'homework') {
 		    $LTIGradeResult = $grader->submit_set_grade($effectiveUser, $setName);
 		  }
+		}
+		if ($submitAnswers && $will{recordAnswers} && $self->{ce}->{bridge}{push_grades_on_submit}) {
+			my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($self->{ce}, $db);
+			$assignment_and_grade_service->pushUserGradesOnSubmit($effectiveUser, $setName);
+			if ($assignment_and_grade_service->{error}) {
+				$LTIGradeResult = -1;
+			} else {
+				$LTIGradeResult = 1;
+			}
 		}
 
 		## finally, log student answers if we're submitting,

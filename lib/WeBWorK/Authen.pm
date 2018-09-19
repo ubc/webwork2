@@ -862,10 +862,8 @@ sub fetchCookie {
 	my $self = shift;
 	my $r = $self->{r};
 	my $ce = $r->ce;
-	my $urlpath = $r->urlpath;
-	
-	my $courseID = $urlpath->arg("courseID");
-	
+	my $courseID = $ce->{courseName};
+
 	# AP2 - Apache2::Cookie needs $r, Apache::Cookie doesn't
     #my %cookies = WeBWorK::Cookie->fetch( MP2 ? $r : () );
     #my $cookie = $cookies{"WeBWorKCourseAuthen.$courseID"};
@@ -916,9 +914,8 @@ sub sendCookie {
 	my ($self, $userID, $key) = @_;
 	my $r = $self->{r};
 	my $ce = $r->ce;
-	
-	my $courseID = $r->urlpath->arg("courseID");
-	
+	my $courseID = $ce->{courseName};
+
  	my $timestamp = time();
 	
 	my $cookie = WeBWorK::Cookie->new($r,
@@ -945,9 +942,8 @@ sub killCookie {
 	my ($self) = @_;
 	my $r = $self->{r};
 	my $ce = $r->ce;
-	
-	my $courseID = $r->urlpath->arg("courseID");
-	
+	my $courseID = $ce->{courseName};
+
 	my $expires = time2str("%a, %d-%h-%Y %H:%M:%S %Z", time-60*60*24, "GMT");
 	my $cookie = WeBWorK::Cookie->new($r,
 		-name => "WeBWorKCourseAuthen.$courseID",

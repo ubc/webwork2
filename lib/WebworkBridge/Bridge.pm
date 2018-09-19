@@ -18,9 +18,9 @@ sub new
 	my $self = {
 		r => $r,
 		useAuthenModule => 0,
-		useDisplayModule => 0,
-		homeworkSet => 0,
-		quizSet => 0
+		setId => 0,
+		useRedirect => 0,
+		redirect => ""
 	};
 	bless $self, $class;
 	return $self;
@@ -38,13 +38,6 @@ sub run
 	die "Not implemented";
 }
 
-# Returns whether this module requires the use of a custom display module
-sub useDisplayModule
-{
-	my $self = shift;
-	return $self->{useDisplayModule};
-}
-
 # Returns whether this module requires the use of a custom authen module
 sub useAuthenModule
 {
@@ -52,7 +45,7 @@ sub useAuthenModule
 	return $self->{useAuthenModule};
 }
 
-sub getDisplayModule
+sub getErrorDisplayModule
 {
 	my $self = shift;
 	return "WeBWorK::ContentGenerator::WebworkBridgeStatus";
@@ -64,23 +57,20 @@ sub getAuthenModule
 	die "Not implemented";
 }
 
-sub getHomeworkSet
+sub getSetId
 {
 	my $self = shift;
-	return $self->{homeworkSet};
-}
-
-sub getQuizSet
-{
-	my $self = shift;
-	return $self->{quizSet};
+	return $self->{setId};
 }
 
 sub createCourse
 {
-	my ($self, $course, $users) = @_;
+	my ($self, $courseID, $courseTitle) = @_;
+	my $r = $self->{r};
+	my $ce = $r->ce;
+	my $db = $r->db;
 
-	my $creator = WebworkBridge::Importer::CourseCreator->new($self->{r}, $course, $users);
+	my $creator = WebworkBridge::Importer::CourseCreator->new($ce, $db, $courseID, $courseTitle);
 	my $ret = $creator->createCourse();
 	if ($ret)
 	{
@@ -92,9 +82,9 @@ sub createCourse
 
 sub updateCourse
 {
-	my ($self, $course, $users) = @_;
+	my ($self, $ce, $db, $users) = @_;
 
-	my $creator = WebworkBridge::Importer::CourseUpdater->new($self->{r}, $course, $users);
+	my $creator = WebworkBridge::Importer::CourseUpdater->new($ce, $db, $users);
 	my $ret = $creator->updateCourse();
 	if ($ret)
 	{
@@ -104,51 +94,16 @@ sub updateCourse
 	return 0;
 }
 
-sub updateLoginList
+sub useRedirect
 {
-	# fieldsList is required to have
-	# Element 0 as the user id
-	# Element 1 is the course name in webwork
-	# so that we can check duplicate entries
-	my ($self, $file, $fieldsList) = @_;
-	my @fields = @{$fieldsList};
+	my $self = shift;
+	return $self->{useRedirect};
+}
 
-	my $time = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime);
-	my $info = "";
-
-	foreach (@fields)
-	{
-		$info .= "$_\t";
-	}
-	$info .= "$time\n";
-
-	if (-e $file)
-	{
-		my $ret = open FILE, "+<$file";
-		if (!$ret)
-		{
-			return error("Update Login List Failed. Unable to open the loginlist file: $file","#e011");
-		}
-		my @lines = <FILE>;
-		foreach (@lines)
-		{
-			my @line = split(/\t/,$_);
-			# if an entry already exists for the same course, ignore
-			if ($line[1] eq $fields[1])
-			{
-				return 0;
-			}
-		}
-		print FILE $info;
-		close FILE;
-	}
-	else
-	{
-		open FILE, ">$file";
-		print FILE $info;
-		close FILE;
-	}
-	return 0;
+sub getRedirect
+{
+	my $self = shift;
+	return $self->{redirect};
 }
 
 1;

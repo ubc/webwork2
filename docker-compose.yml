@@ -101,7 +101,6 @@ services:
 
       # Apache config (you probably need to customize some of these files)
       - "./docker-config/apache/000-default.conf:/etc/apache2/sites-available/000-default.conf"
-      - "./docker-config/apache/apache2.conf:/etc/apache2/apache2.conf"
       - "./docker-config/apache/mpm_prefork.conf:/etc/apache2/mods-enabled/mpm_prefork.conf"
 
       # Apache logs - to have them persistent (per host) mount directory from outside.

@@ -303,25 +303,18 @@ sub dispatch($) {
 	my $user_authen_module;
 
 	my $bridge = WebworkBridge::BridgeManager->new($r);
-	my $retstatus = $bridge->run();
-	if ($bridge->useAuthenModule())
-	{
+	my $bridge_error = $bridge->run();
+	if ($bridge->useAuthenModule()) {
 		$user_authen_module = $bridge->getAuthenModule();
+		# refresh ce after running bridge ($ce might change to a different course environment when redirecting from webwork root)
+		$ce = $r->{ce};
 	}
-	if ($bridge->useDisplayModule())
-	{
-		if ($retstatus)
-		{
-			MP2 ? $r->notes->set(import_error => $retstatus) : $r->notes('import_error' => $retstatus);
-		}
-		elsif (!$r->param('ext_ims_lis_memberships_url')) {
-			MP2 ? $r->notes->set(no_memebership => 1) : $r->notes('no_memebership' => 1);
-		}
-		$displayModule = $bridge->getDisplayModule();
+	if ($bridge_error) {
+		MP2 ? $r->notes->set(error_message => $bridge_error) : $r->notes('error_message' => $bridge_error);
+		$displayModule = $bridge->getErrorDisplayModule();
 	}
 
-	if (!defined($user_authen_module))
-	{
+	if (!defined($user_authen_module)) {
 		$user_authen_module = WeBWorK::Authen::class($ce, "user_module");
 	}
 
@@ -332,11 +325,12 @@ sub dispatch($) {
 
 	my $db;
 
-	if ($displayArgs{courseID}) {
+	my $courseID = $ce->{courseName};
+	if ($courseID ne '' && $courseID ne '___') {
 		debug("We got a courseID from the URLPath, now we can do some stuff:\n");
 
 		unless (-e $ce->{courseDirs}->{root}) {
-			die "Course '$displayArgs{courseID}' not found: $!";
+			die "Course '$courseID' not found: $!";
 		}
 
 		debug("...we can create a database object...\n");
@@ -362,8 +356,8 @@ sub dispatch($) {
 					debug("Ok, looks like you're allowed to become $eUserID. Whoopie!\n");
 				} else {
 					debug("Uh oh, you're not allowed to become $eUserID. Nice try!\n");
-					die "You do not have permission to act as another user. 
-					Close down your browser (this clears temporary cookies), 
+					die "You do not have permission to act as another user.
+					Close down your browser (this clears temporary cookies),
 					restart and try again.\n";
 				}
 			}
@@ -386,6 +380,12 @@ sub dispatch($) {
 				if (not $procAuthOK) {
 					$displayModule = PROCTOR_LOGIN_MODULE;
 				}
+			}
+
+			if ($bridge->useRedirect()) {
+				my $q = CGI->new();
+				my $redir = $bridge->getRedirect() . "&user=$userID&effectiveUser=$eUserID&key=" . $r->param("key");
+				print $q->redirect($redir);
 			}
 		} else {
 			debug("Bad news: authentication failed!\n");

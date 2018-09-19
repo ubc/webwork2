@@ -1,0 +1,125 @@
+{
+	"$schema": "http://json-schema.org/draft-06/schema#",
+	"$id": "ToolPlatformLinkRequest.json",
+	"title": "ToolPlatformLinkRequest",
+	"description":
+	  "Contextual properties associated with user's request for a tool's resource from a platform.",
+	"allOf": [
+	  {
+		"$ref": "./LtiToken.json"
+	  },
+	  {
+		"type": "object",
+		"properties": {
+		  "https://purl.imsglobal.org/spec/lti/claim/roles": {
+			"description":
+			  "An array of roles as defined in the Core LTI specification",
+			"type": "array"
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/context": {
+			"description":
+			  "Properties of the context from which the launch originated (for example, course id and title)",
+			"type": "object",
+			"properties": {
+			  "id": {
+				"description":
+				  "An opaque identifier that identifies the context where the launch originated. Must be unique within the scope of the tool_consumer_instance_guid",
+				"type": "string"
+			  },
+			  "type": {
+				"description":
+				  "An array of URI values that identify the type of context. The list MUST include a URN value drawn from the LIS vocabulary. The assumed namespace of these URNs is the LIS vocabulary so TCs can use the handles when the intent is to refer to an LIS context type. If the Tool Consumer wants to include a context type from another namespace, a fully qualified URN should be used.",
+				"type": ["array", "null"]
+			  },
+			  "title": {
+				"description": "A plain text title of the context.",
+				"type": ["string", "null"]
+			  },
+			  "label": {
+				"description": "A plain text label for the context.",
+				"type": ["string", "null"]
+			  }
+			},
+			"required": ["id"]
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/launch_presentation": {
+			"type": "object",
+			"properties": {
+			  "document_target": {
+				"description":
+				  "The type of 'browsing context' the launch occurred in. See https://www.w3.org/TR/html51/browsers.html#sec-browsing-contexts",
+				"type": "string",
+				"enum": ["iframe", "window", "null"]
+			  },
+			  "width": {
+				"description":
+				  "The width in pixels of the window or frame where the content from the tool will be displayed.",
+				"type": ["integer", "null"]
+			  },
+			  "height": {
+				"description":
+				  "The height in pixels of the window or frame where the content from the tool will be displayed.",
+				"type": ["integer", "null"]
+			  },
+			  "return_url": {
+				"description":
+				  "Fully qualified URL within the tool platform interface to which the tool can redirect the user when it's done. An lti_log or lti_errormsg parameter may be added as a query parameter.",
+				"type": ["string", "null"],
+				"format": "url"
+			  }
+			}
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/role_scope_mentor": {
+			"description":
+			  "An array of the user_id values which the current user can access as a mentor. ",
+			"type": "array"
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/tool_platform": {
+			"type": "object",
+			"properties": {
+			  "contact_email": {
+				"type": ["string", "null"],
+				"description": "An email contact for the platform."
+			  },
+			  "description": {
+				"type": ["string", "null"],
+				"description":
+				  "This is a plain text user friendly field which describes the tool platform."
+			  },
+			  "guid": {
+				"type": "string",
+				"description":
+				  "This is a unique identifier for the tool platform (not the software the platform uses)."
+			  },
+			  "name": {
+				"type": ["string", "null"],
+				"description":
+				  "This is a plain text user visible field to identify the tool platform."
+			  },
+			  "url": {
+				"type": ["string", "null"],
+				"description": "Common home URL for the tool platform",
+				"format": "url"
+			  },
+			  "product_family_code": {
+				"type": ["string", "null"],
+				"description": "A code to identify the tool platform's software"
+			  },
+			  "version": {
+				"type": ["string", "null"],
+				"description":
+				  "The version of the software the tool platform is currently running on"
+			  }
+			},
+			"required": ["guid"]
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/custom": {
+			"type": "object",
+			"description":
+			  "This is a map of key/value custom parameters which are to be included with the launch."
+		  }
+		},
+		"required": ["https://purl.imsglobal.org/spec/lti/claim/tool_platform"]
+	  }
+	]
+  }

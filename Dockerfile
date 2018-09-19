@@ -41,7 +41,7 @@ FROM alpine/git AS base
 
 # build args specifying the branches for webwork2 and pg used to build the image
 
-# To use the master branches of webwork2 and pg 
+# To use the master branches of webwork2 and pg
 #ARG WEBWORK2_BRANCH=master
 #ARG PG_BRANCH=master
 # To use the 2.15 branches of webwork2 and pg from the "official" GitHub repositories
@@ -194,6 +194,10 @@ RUN apt-get update \
 	libtest-fatal-perl \
 	libjson-xs-perl \
 	libmoox-options-perl \
+	libnet-https-nb-perl \
+	libhttp-async-perl \
+	libcrypt-jwt-perl \
+	libjson-validator-perl \
 	make \
 	netpbm \
 	preview-latex-style \

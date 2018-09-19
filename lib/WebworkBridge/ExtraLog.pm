@@ -12,34 +12,51 @@ use Date::Format;
 use WeBWorK::CourseEnvironment;
 
 # Constructor
-sub new 
+sub new
 {
-	my ($class, $r) = @_;
+	my ($class, $ce) = @_;
 	my $self = {
-		r => $r
+		ce => $ce
 	};
 	bless $self, $class;
 	return $self;
 }
 
-sub logXML
+sub logLTIRequest
 {
-	my ($self, $xml) = @_;
+	my ($self, $service_name, $text) = @_;
 	my ($sec, $msec) = gettimeofday;
 	my $date = time2str("%a %b %d %H:%M:%S.$msec %Y", $sec);
+	my $filename_date = time2str("%Y\_%m", $sec); #time2str("%Y\_%m\_%d", $sec);
 
-	my $msg = "[$date] $xml\n";
+	my $msg = "[$date] $text\n";
 
-	my $logfile = $self->{r}->ce->{webworkDirs}{logs} . "/lti_xml.log";
-	if (open my $f, ">>", $logfile)
-	{
+	my $logfile = $self->{ce}->{webworkDirs}{logs} . "/lti_". $service_name . "_" . $filename_date . ".log";
+	if (open my $f, ">>", $logfile) {
 		print $f $msg;
 		close $f;
+	} else {
+		debug("Error, unable to open lti request log file '$logfile' in append mode: $!");
 	}
-	else
-	{
-		debug("Error, unable to open lti xml log file '$logfile' in append mode: $!");
-	}
+
+}
+
+sub logNRPSRequest
+{
+	my ($self, $text) = @_;
+	$self->logLTIRequest('nrps_request', $text);
+}
+
+sub logAGSRequest
+{
+	my ($self, $text) = @_;
+	$self->logLTIRequest('ags_request', $text);
+}
+
+sub logAccessTokenRequest
+{
+	my ($self, $text) = @_;
+	$self->logLTIRequest('access_token_request', $text);
 }
 
 1;

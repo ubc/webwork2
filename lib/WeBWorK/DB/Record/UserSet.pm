@@ -60,8 +60,7 @@ BEGIN {
 		restricted_login_proctor  => { type=>"ENUM('No','Yes')" },
 		hide_hint                 => { type=>"INT" },
 		restrict_prob_progression => { type=>"INT" },
-		email_instructor          => { type=>"INT" },
-		lis_source_did            => { type=>"BLOB"},	     
+		email_instructor          => { type=>"INT" }
 	);
 }
 
