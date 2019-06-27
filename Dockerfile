@@ -64,6 +64,8 @@ RUN apt-get update \
        libxml-parser-perl \
        libxml-writer-perl \
        libapache2-reload-perl \
+       libnet-https-nb-perl \
+       libhttp-async-perl \
        make \
        netpbm \
        preview-latex-style \

@@ -119,6 +119,7 @@ my @modulesList = qw(
 	YAML
     XML::Simple
     App::Genpass
+	HTTP::Async
 );
 
 my %moduleVersion = (
