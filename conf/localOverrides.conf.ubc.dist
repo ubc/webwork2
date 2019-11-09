@@ -462,10 +462,20 @@ $caliper{custom_actor_generator} = sub {
 	my ($ce, $db, $user) = @_;
 	# set caliper id as needed
 	my $caliper_id = 'http://www.ubc.ca/' . $user->user_id();
+	my $otherIdentifiers = [];
+
+	# add lti user ids when available
+	# push @$otherIdentifiers, {
+	# 	'identifier' => ,
+	# 	'type' => 'SystemIdentifier',
+	# 	'identifierType' => 'LtiUserId',
+	# };
+
 	return {
 		'id' => $caliper_id,
 		'type' => 'Person',
 		'name' => $user->first_name() . " " . $user->last_name(),
+		'otherIdentifiers' => $otherIdentifiers,
 	};
 };
 
