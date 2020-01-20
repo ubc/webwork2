@@ -2201,8 +2201,10 @@ sub body {
 
 		$self->handle_input_colors;
 
-		# a quick hack to trigger "preview" via ajax to do an auto-save every ~3 minutes
-		my $autosaveScript=<<"EOF";
+		# a quick hack to trigger "preview" via ajax to do an auto-save every ~3 minutes.
+		# only setup auto-save if we are not acting as someone else and are before due date.
+		if ($user eq $effectiveUser && before($set->due_date())) {
+			my $autosaveScript=<<"EOF";
 \$(document).ready(function() {
 	if (\$(document).find('.gwPreview').length) {
 		setInterval(function() {
@@ -2215,18 +2217,22 @@ sub body {
 				success: function(data) {
 					var today = new Date();
 					var date = today.toDateString();
-					var time = (today.getHours() < 10? "0" : "") + today.getHours() + ":" + (today.getMinutes() < 10? "0" : "") + today.getMinutes() + ":" + (today.getSeconds() < 10? "0" : "") + today.getSeconds();
+					var _hours = today.getHours();
+					var _minutes = today.getMinutes();
+					var _seconds = today.getSeconds();
+					var time = (_hours < 10? "0" : "") + _hours + ":" + (_minutes < 10? "0" : "") + _minutes + ":" + (_seconds < 10? "0" : "") + _seconds;
 					var dateTime = date+' '+time;
 					\$("#autosaveStatus").text('Autosaved at ' + dateTime);
 				}
 			});
-		}, 180000 + Math.floor((Math.random() * 60000))); // add some randomness to avoid rush of autosave if students start the test at the same time
+		}, 180000 + Math.floor((Math.random() * 60000))); // add some randomness to avoid rush of autosave if students started the test at the same time
 	}
 });
 
 EOF
-		print CGI::start_script(), $autosaveScript, CGI::end_script();
-		print CGI::start_div({id=>"autosaveStatus"}), '', CGI::end_div();
+			print CGI::start_script(), $autosaveScript, CGI::end_script();
+			print CGI::start_div({id=>"autosaveStatus"}), '', CGI::end_div();
+		}
 
 		print CGI::div($jumpLinks, "\n");
 		print "\n",CGI::hr(), "\n";
