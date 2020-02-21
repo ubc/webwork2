@@ -74,12 +74,10 @@ function checkAlert() {
     if ( timeRemaining <= 0 ) {
         alert("* You are out of time! *\n" + 
 	      "* Press grade now!     *");
-    } else if ( timeRemaining <= 45 && timeRemaining > 40 ) {
-	alert("* You have less than 45 seconds left! *\n" + 
-	      "*      Press Grade very soon!         *");
-    } else if ( timeRemaining <= 90 && timeRemaining > 85 ) {
-	alert("* You only have less than 90 sec left to complete  *\n" + 
-	      "* this assignment. You should finish it very soon! *");
+    } else if ( timeRemaining <= 45 && theTimer ) {
+        theTimer.style.backgroundColor = "red";
+    } else if ( timeRemaining <= 90 && theTimer ) {
+        theTimer.style.backgroundColor = "orange";
     }
     if ( timeRemaining > 0 ) {
 	setTimeout("checkAlert();", 5000);
