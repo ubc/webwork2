@@ -262,6 +262,8 @@ sub process_and_log_answer{
 				} else {
 					$scoreRecordedMessage = $r->maketext("Your score was not recorded because there was a failure in storing the problem record to the database.");
 				}
+				# suppress uninitialized value warning when user submit empty values
+				no warnings 'uninitialized';
 				# write to the transaction log, just to make sure
 				writeLog($self->{ce}, "transaction",
 					$problem->problem_id."\t".
@@ -695,7 +697,7 @@ sub jitar_send_warning_email {
 # 			ssl => $ce->{mail}->{tls_allowed}//1, ## turn on ssl security
 # 			timeout => $ce->{mail}->{smtpTimeout}
 # 		});
-# 
+#
 
 #           createEmailSenderTransportSMTP is defined in ContentGenerator
 		my $transport = $self->createEmailSenderTransportSMTP();
