@@ -43,6 +43,8 @@ use WeBWorK::ContentGenerator::Instructor qw(assignSetVersionToUser);
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
 use PGrandom;
 
+use Caliper::Sensor;
+use Caliper::Entity;
 # template method
 sub templateName {
 	return "gateway";
@@ -1709,6 +1711,98 @@ sub body {
 
 			}
 		}
+
+		my $caliper_sensor = Caliper::Sensor->new($self->{ce});
+		if ($caliper_sensor->caliperEnabled()) {
+			my $events = [];
+
+			my $startTime = $r->param('startTime');
+			my $endTime = time();
+			if ($submitAnswers && $will{recordAnswers}) {
+				foreach my $i ( 0 .. $#problems ) {
+					my $problem = $problems[$i];
+					my $pg = $pg_results[$i];
+					my $completed_question_event = {
+						'type' => 'AssessmentItemEvent',
+						'action' => 'Completed',
+						'profile' => 'AssessmentProfile',
+						'object' => Caliper::Entity::problem_user(
+							$self->{ce},
+							$db,
+							$problem->set_id(),
+							$versionNumber,
+							$problem->problem_id(),
+							$problem->user_id(),
+							$pg
+						),
+						'generated' => Caliper::Entity::answer(
+							$self->{ce},
+							$db,
+							$problem->set_id(),
+							$versionNumber,
+							$problem->problem_id(),
+							$problem->user_id(),
+							$pg,
+							0, # don't track start/end time for gateway problems (multiple answers per page)
+							0 # don't track start/end time for gateway problems (multiple answers per page)
+						),
+					};
+					push @$events, $completed_question_event;
+				}
+				my $submitted_set_event = {
+					'type' => 'AssessmentEvent',
+					'action' => 'Submitted',
+					'profile' => 'AssessmentProfile',
+					'object' => Caliper::Entity::problem_set(
+						$self->{ce},
+						$db,
+						$setName
+					),
+					'generated' => Caliper::Entity::problem_set_attempt(
+						$self->{ce},
+						$db,
+						$setName,
+						$versionNumber,
+						$effectiveUser,
+						$startTime,
+						$endTime
+					),
+				};
+				push @$events, $submitted_set_event;
+			} else {
+				my $paused_set_event = {
+					'type' => 'AssessmentEvent',
+					'action' => 'Paused',
+					'profile' => 'AssessmentProfile',
+					'object' => Caliper::Entity::problem_set(
+						$self->{ce},
+						$db,
+						$setName
+					),
+					'generated' => Caliper::Entity::problem_set_attempt(
+						$self->{ce},
+						$db,
+						$setName,
+						$versionNumber,
+						$effectiveUser,
+						$startTime,
+						$endTime
+					),
+				};
+				push @$events, $paused_set_event;
+			}
+			my $tool_use_event = {
+				'type' => 'ToolUseEvent',
+				'action' => 'Used',
+				'profile' => 'ToolUseProfile',
+				'object' => Caliper::Entity::webwork_app(),
+			};
+			push @$events, $tool_use_event;
+			$caliper_sensor->sendEvents($r, $events);
+
+			# reset start time
+			$r->param('startTime', '');
+		}
 	}
 	debug("end answer processing");
 
@@ -2025,6 +2119,7 @@ sub body {
 
 	# else: we're not hiding answers
 	} else {
+		my $startTime = $r->param('startTime') || time();
 
 		print CGI::start_form({-name=>"gwquiz", -method=>"POST",
 				      -action=>$action}),
@@ -2035,6 +2130,7 @@ sub body {
 	#    subsequent pages of a multipage test
 		print CGI::hidden({-name=>'previewHack', -value=>''}),
 			CGI::br();
+		print CGI::hidden({-name=>'startTime', -value=>$startTime});
 		if ( $numProbPerPage && $numPages > 1 ) {
 			print CGI::hidden({-name=>'newPage', -value=>''});
 			print CGI::hidden({-name=>'currentPage',

@@ -64,6 +64,9 @@ use Scalar::Util qw(weaken);
 use mod_perl;
 use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
 
+use Caliper::Sensor;
+use Caliper::Entity;
+
 #####################
 ## WeBWorK-tr modification
 ## If GENERIC_ERROR_MESSAGE is constant, we can't translate it
@@ -246,6 +249,17 @@ sub verify {
 		}
 	}
 	
+	my $caliper_sensor = Caliper::Sensor->new($self->{r}->ce);
+	if ($caliper_sensor->caliperEnabled() && $result && $self->{initial_login}) {
+		my $login_event = {
+			'type' => 'SessionEvent',
+			'action' => 'LoggedIn',
+			'profile' => 'SessionProfile',
+			'object' => Caliper::Entity::webwork_app()
+		};
+		$caliper_sensor->sendEvents($self->{r}, [$login_event]);
+	}
+
 	debug("END VERIFY");
 	debug("result $result");
 	return $result;
@@ -783,6 +797,17 @@ sub killSession {
 	my $r = $self -> {r};
 	my $ce = $r -> {ce};
 	my $db = $r -> {db};
+
+	my $caliper_sensor = Caliper::Sensor->new($ce);
+	if ($caliper_sensor->caliperEnabled()) {
+		my $login_event = {
+			'type' => 'SessionEvent',
+			'action' => 'LoggedOut',
+			'profile' => 'SessionProfile',
+			'object' => Caliper::Entity::webwork_app()
+		};
+		$caliper_sensor->sendEvents($self->{r}, [$login_event]);
+	}
 
 	$self -> forget_verification;
 	if ($ce -> {session_management_via} eq "session_cookie")  {
