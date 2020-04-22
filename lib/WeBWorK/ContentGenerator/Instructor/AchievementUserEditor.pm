@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/Instructor/UsersAssignedToSet.pm,v 1.23 2006/09/25 22:14:53 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -56,7 +56,7 @@ sub initialize {
 		$self->addmessage(CGI::div({class=>'ResultsWithoutError'}, $r->maketext("Achievement has been unassigned to all students.")));
 		$doAssignToSelected = 1;
 	} elsif (defined $r->param('assignToSelected')) {
-	   	$self->addmessage(CGI::div({class=>'ResultsWithoutError'}, $r->maktext("Achievement has been assigned to selected users.")));
+	   	$self->addmessage(CGI::div({class=>'ResultsWithoutError'}, $r->maketext("Achievement has been assigned to selected users.")));
 		$doAssignToSelected = 1;
 	} elsif (defined $r->param("unassignFromAll")) {
 	   # no action taken

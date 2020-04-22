@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright � 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/Instructor/Stats.pm,v 1.68 2007/08/13 22:59:56 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -677,6 +677,13 @@ print  CGI::p($r->maketext('The percentage of active students with correct answe
 			                      ? sprintf("%0.1f",$number_of_attempts_for_problem{$_}/$number_of_students_attempting_problem{$_})
 			                      : '-'}			                   
 			                       @problemIDs 
+			]
+			)),
+		CGI::Tr(CGI::td(
+			[ $r->maketext('# of active students'), map {($number_of_students_attempting_problem{$_})
+			                      ? $number_of_students_attempting_problem{$_}
+			                      : '-'}
+			                       @problemIDs
 			]
 			));
 

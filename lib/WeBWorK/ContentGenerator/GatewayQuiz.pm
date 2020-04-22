@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright � 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/GatewayQuiz.pm,v 1.54 2008/07/01 13:12:56 glarose Exp $
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -322,9 +322,22 @@ sub can_useMathView {
     my ($self, $User, $EffectiveUser, $Set, $Problem, $submitAnswers) = @_;
     my $ce= $self->r->ce;
 
-    return $ce->{pg}->{specialPGEnvironmentVars}->{MathView};
+    return $ce->{pg}->{specialPGEnvironmentVars}->{entryAssist} eq 'MathView';
 }
 
+sub can_useWirisEditor {
+    my ($self, $User, $EffectiveUser, $Set, $Problem, $submitAnswers) = @_;
+    my $ce= $self->r->ce;
+
+    return $ce->{pg}->{specialPGEnvironmentVars}->{entryAssist} eq 'WIRIS';
+}
+
+sub can_useMathQuill {
+    my ($self, $User, $EffectiveUser, $Set, $Problem, $submitAnswers) = @_;
+    my $ce= $self->r->ce;
+
+    return $ce->{pg}->{specialPGEnvironmentVars}->{entryAssist} eq 'MathQuill';
+}
 ################################################################################
 # output utilities
 ################################################################################
@@ -406,7 +419,7 @@ sub attemptResults {
 	    my $correctAnswer = $answerResult->{correct_ans};
 	    $answerScore = $answerResult->{score}//0;
 	    my $answerMessage = $showMessages ? $answerResult->{ans_message} : "";
-	    $numCorrect += $answerScore > 0;
+	    $numCorrect += ($answerScore >= 1) ? 1 : 0;
 	    $numEssay += ($answerResult->{type}//'') eq 'essay';
 	    $numBlanks++ unless $studentAnswer =~/\S/ || $answerScore >= 1;
 
@@ -1103,6 +1116,8 @@ sub pre_header_initialize {
 	#    switching between pages
 	     checkAnswers       => $checkAnswers,
 	     useMathView        => $User->useMathView ne '' ? $User->useMathView : $ce->{pg}->{options}->{useMathView},
+	     useWirisEditor     => $User->useWirisEditor ne '' ? $User->useWirisEditor : $ce->{pg}->{options}->{useWirisEditor},
+	     useMathQuill       => $User->useMathQuill ne '' ? $User->useMathQuill : $ce->{pg}->{options}->{useMathQuill},
 	     );
 
 	# are certain options enforced?
@@ -1114,6 +1129,8 @@ sub pre_header_initialize {
 	     recordAnswers      => 0,
 	     checkAnswers       => 0,
 	     useMathView        => 0,
+	     useWirisEditor     => 0,
+	     useMathQuill     => 0,
 	     );
 
 	# does the user have permission to use certain options?
@@ -1130,7 +1147,9 @@ sub pre_header_initialize {
 	     recordAnswersNextTime => $self->can_recordAnswers(@args, $sAns),
 	     checkAnswersNextTime  => $self->can_checkAnswers(@args, $sAns),
 	     showScore          => $self->can_showScore(@args),
-	     useMathView              => $self->can_useMathView(@args)
+	     useMathView              => $self->can_useMathView(@args),
+	     useWirisEditor           => $self->can_useWirisEditor(@args),
+	     useMathQuill           => $self->can_useMathQuill(@args)
 	     );
 
 	# final values for options
@@ -1267,6 +1286,8 @@ sub pre_header_initialize {
 			$pg = $self->getProblemHTML($self->{effectiveUser},
 						    $set, $formFields,
 						    $ProblemN);
+			WeBWorK::ContentGenerator::ProblemUtil::ProblemUtil::insert_mathquill_responses($self, $pg)
+			if ($self->{will}->{useMathQuill});
 		}
 		push(@pg_results, $pg);
 	}
@@ -1530,7 +1551,7 @@ sub body {
 					# ref($pg) eq "WeBWorK::PG::Local";
 			} else {
 				my $prefix = sprintf('Q%04d_',$i+1);
-				my @fields = sort grep {/^$prefix/} (keys %{$self->{formFields}});
+				my @fields = sort grep {/^(?!previous).*$prefix/} (keys %{$self->{formFields}});
 				my %answersToStore = map {$_ => $self->{formFields}->{$_}} @fields;
 				my @answer_order = @fields;
 				$encoded_ans_string = encodeAnswers( %answersToStore,
@@ -1659,7 +1680,7 @@ sub body {
 					$answerString =~ s/\t+$/\t/;
 				} else {
 					my $prefix = sprintf('Q%04d_', ($probOrder[$i]+1));
-					my @fields = sort grep {/^$prefix/} (keys %{$self->{formFields}});
+					my @fields = sort grep {/^(?!previous).*$prefix/} (keys %{$self->{formFields}});
 					foreach ( @fields ) {
 						$answerString .= $self->{formFields}->{$_} . "\t";
 						$scores .= $self->{formFields}->{"probstatus" . ($probOrder[$i]+1)} >= 1 ? "1" : "0" if ( $submitAnswers );
@@ -2277,7 +2298,7 @@ sub body {
 				# and print out hidden fields with the current
 				#    last answers
 				my $curr_prefix = 'Q' . sprintf("%04d", $probOrder[$i]+1) . '_';
-				my @curr_fields = grep /^$curr_prefix/, keys %{$self->{formFields}};
+				my @curr_fields = grep {/^(?!previous).*$curr_prefix/} keys %{$self->{formFields}};
 				foreach my $curr_field ( @curr_fields ) {
  					foreach ( split(/\0/, $self->{formFields}->{$curr_field} // '') ) {
  						print CGI::hidden({-name=>$curr_field,
@@ -2475,6 +2496,7 @@ sub getProblemHTML {
 			     },
 			     );
 
+
 # FIXME  is problem_id the correct thing in the following two stanzas?
 # FIXME  the original version had "problem number", which is what we want.
 # FIXME  I think problem_id will work, too
@@ -2527,6 +2549,21 @@ sub output_JS{
 	    }
 	}
 
+	# WIRIS EDITOR
+	if ($self->{will}->{useWirisEditor}) {
+		print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/WirisEditor/quizzes.js"}), CGI::end_script();
+		print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/WirisEditor/wiriseditor.js"}), CGI::end_script();
+		print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/WirisEditor/mathml2webwork.js"}), CGI::end_script();
+	}
+
+
+	# MathQuill interface
+	if ($self->{will}->{useMathQuill}) {
+		print "<link href=\"$site_url/js/apps/MathQuill/mathquill.css\" rel=\"stylesheet\" />";
+		print "<link href=\"$site_url/js/apps/MathQuill/mqeditor.css\" rel=\"stylesheet\" />";
+        	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/MathQuill/mathquill.min.js"}), CGI::end_script();
+		print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/MathQuill/mqeditor.js"}), CGI::end_script();
+	}
 	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/vendor/other/knowl.js"}),CGI::end_script();
 	#This is for page specfific js
 	print CGI::start_script({type=>"text/javascript", src=>"$site_url/js/apps/GatewayQuiz/gateway.js"}), CGI::end_script();

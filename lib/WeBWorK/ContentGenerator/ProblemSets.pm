@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/ProblemSets.pm,v 1.94 2010/01/31 02:31:04 apizer Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -686,7 +686,7 @@ sub set_due_msg {
   if ($enable_reduced_scoring &&
       $t < $reduced_scoring_date) {
     
-    $status .= $r->maketext("Open, reduced scoring starts on [_1].", $beginReducedScoringPeriod);
+    $status .= $r->maketext("Open, due [_1], afterward reduced credit can be earned until [_2].", $beginReducedScoringPeriod, $self->formatDateTime($set->due_date(),undef,$ce->{studentDateDisplayFormat}));
   } else {
     if ($gwversion) {
       $status = $r->maketext("Open, complete by [_1].",  $self->formatDateTime($set->due_date(),undef,$ce->{studentDateDisplayFormat}));
@@ -696,8 +696,7 @@ sub set_due_msg {
 
     if ($enable_reduced_scoring && $reduced_scoring_date &&
 	$t > $reduced_scoring_date) {
-      $status .= ' ';
-      $status .= CGI::div({-class=>"ResultsAlert"}, $r->maketext("Reduced scoring started on [_1].", $beginReducedScoringPeriod));
+      $status = $r->maketext("Due date [_1] has passed, reduced credit can still be earned until [_2].", $beginReducedScoringPeriod, $self->formatDateTime($set->due_date(),undef,$ce->{studentDateDisplayFormat}));
     }
   }
 

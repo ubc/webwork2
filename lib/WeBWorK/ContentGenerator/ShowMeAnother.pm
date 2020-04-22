@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/ContentGenerator/Problem.pm,v 1.225 2010/05/28 21:29:48 gage Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -88,7 +88,7 @@ sub pre_header_initialize {
 
 	my %SMAoptions = map {$_ => 1} @{$ce->{pg}->{options}->{showMeAnother}};
 	my %showMeAnother = (
-	    active       => (!($checkAnswers or $previewAnswers) and $ce->{pg}->{options}->{enableShowMeAnother} and ($problem->{showMeAnother}>-1)),
+	    active       => (!($checkAnswers or $previewAnswers) and $ce->{pg}->{options}->{enableShowMeAnother} and ($problem->{showMeAnother}>-1 or $problem->{showMeAnother}==-2)),
             CheckAnswers => ($checkAnswers and $r->param("showMeAnotherCheckAnswers") and $ce->{pg}->{options}->{enableShowMeAnother}),
             IsPossible => 1,
             TriesNeeded => $problem->{showMeAnother},

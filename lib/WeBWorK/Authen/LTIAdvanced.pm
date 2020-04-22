@@ -1,6 +1,6 @@
 ###############################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2016 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2016 The WeBWorK Project, http://openwebwork.sf.net/
 # 
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
@@ -34,7 +34,6 @@ use WeBWorK::Localize;
 use WeBWorK::ContentGenerator::Instructor;
 use URI::Escape;
 use Net::OAuth;
-use mod_perl;
 use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
 
 $Net::OAuth::PROTOCOL_VERSION = Net::OAuth::PROTOCOL_VERSION_1_0A;
@@ -167,6 +166,7 @@ sub get_credentials {
 	 ['oauth_timestamp', 'oauth_timestamp'],
 	 ['section', 'custom_section'],
 	 ['recitation', 'custom_recitation'],
+	 ['student_id', 'custom_student_id'],
 	);
 
       # Some LMS's misspell the lis_person_sourcedid parameter name
@@ -199,6 +199,12 @@ sub get_credentials {
 	$self->{user_id} =~ s/@.*$// if
 	  $ce->{strip_address_from_email};
       }
+
+     if (!defined($self->{student_id})
+         and defined($ce->{preferred_source_of_student_id})) {
+       my $user_id_lti_param_name = $ce->{preferred_source_of_student_id};
+       $self->{student_id} = $r->param($user_id_lti_param_name);
+     }
       
       # For setting up its helpful to print out what the system think the
       # User id and address is at this point 
@@ -206,7 +212,9 @@ sub get_credentials {
 	warn "=========== summary ============";
 	warn "User id is |$self->{user_id}|\n";
 	warn "User mail address is |$self->{email}|\n";
+	warn "Student id is |", $self->{student_id}//'undefined',"|\n";
 	warn "preferred_source_of_username is |", $ce->{preferred_source_of_username}//'undefined',"|\n";
+	warn "preferred_source_of_student_id is |", $ce->{preferred_source_of_student_id}//'undefined',"|\n";
 	warn "================================\n";
       }
       if (!defined($self->{user_id})) {
@@ -413,23 +421,39 @@ sub authenticate {
       debug("OAuth verification SUCCEEDED !!");
       
       my $userID = $self->{user_id};
+
+	# Indentation of the internal blocks below was modified to follow
+	# the WW coding standard; however, the leading indentation of the
+	# if/elsif/closing '}' was kept as in the original code for now.
+	# Thus the apparenly overlarge indentation below.
       if (! $db->existsUser($userID) ) { # New User. Create User record
-	unless ($self->create_user()) {
-	  $r->maketext("There was an error during the login process.  Please speak to your instructor or system administrator.");
-	  $self->{log_error} .= "Failed to create user $userID.";
-	  if ( $ce->{debug_lti_parameters} ) {
-	    warn("Failed to create user $userID.");
-	  }
-	}
+		if ( $ce->{block_lti_create_user} ) {
+			# We don't yet have the next string in the PO/POT files - so the next line is disabled.
+			# $r->maketext("Account creation is currently disabled in this course.  Please speak to your instructor or system administrator.");
+			$self->{log_error} .= "Account creation blocked by block_lti_create_user setting. Did not create user $userID.";
+			if ( $ce->{debug_lti_parameters} ) {
+				warn("Account creation is currently disabled in this course.  Please speak to your instructor or system administrator.");
+			}
+			return 0;
+		} else {
+			# Attempt to create the user, and warn if that fails.
+			unless ($self->create_user()) {
+				$r->maketext("There was an error during the login process.  Please speak to your instructor or system administrator.");
+				$self->{log_error} .= "Failed to create user $userID.";
+				if ( $ce->{debug_lti_parameters} ) {
+					warn("Failed to create user $userID.");
+				}
+			}
+		}
       }  elsif ($ce->{LMSManageUserData}) {
-	# Existing user.  Possibly modify demographic information and permission level.
-	unless ($self->maybe_update_user()) {
-	  $r->maketext("There was an error during the login process.  Please speak to your instructor or system administrator.");
-	  $self->{log_error} .= "Failed to update user $userID.";
-	  if ( $ce->{debug_lti_parameters} ) {
-	    warn("Failed to updateuser $userID.");
-	  }
-	}
+		# Existing user.  Possibly modify demographic information and permission level.
+		unless ($self->maybe_update_user()) {
+			$r->maketext("There was an error during the login process.  Please speak to your instructor or system administrator.");
+			  $self->{log_error} .= "Failed to update user $userID.";
+			if ( $ce->{debug_lti_parameters} ) {
+				warn("Failed to updateuser $userID.");
+			}
+		}
       }
 
       # If we are using grade passback then make sure the data
@@ -518,6 +542,7 @@ sub create_user {
   $newUser-> section($self->{section} // "");
   $newUser->recitation($self->{recitation} // "");
   $newUser->comment(formatDateTime(time, "local"));
+  $newUser->student_id($self->{student_id} // "");
 
   # Allow sites to customize the user
   if (defined($ce->{LTI_modify_user})) {
@@ -593,6 +618,7 @@ sub maybe_update_user {
     $tempUser->status("C");
     $tempUser-> section($self->{section} // "");
     $tempUser->recitation($self->{recitation} // "");
+    $tempUser->student_id($self->{student_id} // "");
     
     # Allow sites to customize the temp user
     if (defined($ce->{LTI_modify_user})) {
@@ -601,7 +627,7 @@ sub maybe_update_user {
 
     my @elements = qw(last_name first_name 
 		      email_address status 
-		      section recitation);
+		      section recitation student_id);
 
     my $change_made = 0;
 

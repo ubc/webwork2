@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/Utils/DelayedMailer.pm,v 1.2 2007/08/13 22:59:59 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -52,7 +52,7 @@ sub new {
 # %msg format:
 #   $msg{to}      = either a single address or an arrayref containing multiple addresses
 #   $msg{subject} = string subject
-#   $msg{msg}     = string body of email (this is what Mail::Sender::MailMsg uses)
+#   $msg{msg}     = string body of email (this is what Email::Sender::MailMsg uses)
 sub add_message {
 	my ($self, %msg) = @_;
 	

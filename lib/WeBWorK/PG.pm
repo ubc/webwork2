@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WeBWorK/PG.pm,v 1.76 2009/07/18 02:52:51 gage Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -36,6 +36,7 @@ use constant DISPLAY_MODES => {
 	plainText     => "HTML",
 	images        => "HTML_dpng",
 	MathJax	      => "HTML_MathJax",
+	PTX           => "PTX",
 };
 
 sub new {
@@ -71,7 +72,7 @@ sub defineProblemEnvir {
 		$key,
 		$set,
 		$problem,
-		$psvn,  #FIXME  -- not used
+		$psvn, 
 		$formFields,
 		$translationOptions,
 		$extras,
@@ -91,10 +92,13 @@ sub defineProblemEnvir {
 	# ADDED: displayModeFailover, displayHintsQ, displaySolutionsQ,
 	#        refreshMath2img, texDisposition
 
-	# pstaab: changed the next line from
-	#$envir{psvn}                = $set->psvn;
-	# to
-	$envir{psvn}                = $psvn;
+	$envir{psvn}                = $psvn;  #'problem set version number' (associated with homework set)
+	$envir{psvn}                = $envir{psvn}//$set->psvn; # use set value of psvn unless there is an explicit override. 
+	# update problemUUID from submitted form, and fall back to the earlier name problemIdentifierPrefix if necessary
+	$envir{problemUUID}         =  	   $formFields->{problemUUID} // 
+	                                   $formFields->{problemIdentifierPrefix} //
+	                                   $envir{problemUUID}//
+	                                   0;
 	$envir{psvnNumber}          = "psvnNumber-is-deprecated-Please-use-psvn-Instead"; #FIXME
 	$envir{probNum}             = $problem->problem_id;
 	$envir{questionNumber}      = $envir{probNum};

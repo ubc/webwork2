@@ -1,7 +1,7 @@
 #!perl
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/conf/database.conf.dist,v 1.38 2007/08/13 22:59:51 sh002i Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -73,55 +73,50 @@ Other parameters that can be given are as follows:
 
 =cut
 
+
 # params common to all tables
+
 my %sqlParams = (
 	username => $database_username,
 	password => $database_password,
 	debug    => $database_debug,
+    ($ENABLE_UTF8MB)?(mysql_enable_utf8mb4 =>1):(mysql_enable_utf8 => 1),
 	# kinda hacky, but needed for table dumping
 	mysql_path     => $externalPrograms{mysql},
 	mysqldump_path => $externalPrograms{mysqldump},
 );
 
 $dbLayouts{sql_single} = {
-	locations => {
-		record => "WeBWorK::DB::Record::Locations",
-		schema => "WeBWorK::DB::Schema::NewSQL::Std",
-		driver => "WeBWorK::DB::Driver::SQL",
-		source => $database_dsn,
-		engine => $database_storage_engine,
-		params => { %sqlParams,
-			non_native => 1,
-		},
-	},
-	location_addresses => {
-		record => "WeBWorK::DB::Record::LocationAddresses",
-		schema => "WeBWorK::DB::Schema::NewSQL::Std",
-		driver => "WeBWorK::DB::Driver::SQL",
-		source => $database_dsn,
-		engine => $database_storage_engine,
-		params => { %sqlParams,
-			non_native => 1,
-		},
-	},
-	depths => {
-		record => "WeBWorK::DB::Record::Depths",
-		schema => "WeBWorK::DB::Schema::NewSQL::Std",
-		driver => "WeBWorK::DB::Driver::SQL",
-		source => $database_dsn,
-		engine => $database_storage_engine,
-		params => { %sqlParams,
-			non_native => 1,
-		},
-	},
-	lti_contexts => {
-		record => "WeBWorK::DB::Record::LTIContexts",
-		schema => "WeBWorK::DB::Schema::NewSQL::Std",
-		driver => "WeBWorK::DB::Driver::SQL",
-		source => $database_dsn,
-		engine => $database_storage_engine,
-		params => { %sqlParams,
-			non_native => 1,
+        locations => {
+                record => "WeBWorK::DB::Record::Locations",
+                schema => "WeBWorK::DB::Schema::NewSQL::Std",
+                driver => "WeBWorK::DB::Driver::SQL",
+                source => $database_dsn,
+                engine => $database_storage_engine,
+                character_set => $database_character_set,
+                params => { %sqlParams,
+                        non_native => 1,
+                },
+        },
+        location_addresses => {
+                record => "WeBWorK::DB::Record::LocationAddresses",
+                schema => "WeBWorK::DB::Schema::NewSQL::Std",
+                driver => "WeBWorK::DB::Driver::SQL",
+                source => $database_dsn,
+                engine => $database_storage_engine,
+                character_set => $database_character_set,
+                params => { %sqlParams,
+                        non_native => 1,
+                },
+        },
+        depths => {
+				record => "WeBWorK::DB::Record::Depths",
+				schema => "WeBWorK::DB::Schema::NewSQL::Std",
+				driver => "WeBWorK::DB::Driver::SQL",
+				source => $database_dsn,
+        		engine => $database_storage_engine,
+				params => { %sqlParams,
+					non_native => 1,
 		},
 	},
 	password => {
@@ -129,7 +124,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+        character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_password",
 		},
@@ -139,7 +135,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_permission",
 		},
@@ -149,7 +146,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_key",
 			fieldOverride => { key => "key_not_a_keyword" },
@@ -160,7 +158,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_user",
 		},
@@ -170,7 +169,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_set",
 			#fieldOverride => { visible => "published" }, # for compatibility -- visible was originally called published
@@ -181,7 +181,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::NonVersioned",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_set_user",
 			#fieldOverride => { visible => "published" }, # for compatibility -- visible was originally called published
@@ -192,7 +193,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Merge",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		depend => [qw/set_user set/],
 		params => { %sqlParams,
 			non_native => 1,
@@ -204,7 +206,7 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Versioned",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+        engine => $database_storage_engine,
 		params => { %sqlParams,
 			non_native => 1,
 			tableOverride => "${courseName}_set_user",
@@ -217,7 +219,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Merge",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		depend => [qw/set_version set_user set/],
 		params => { %sqlParams,
 			non_native => 1,
@@ -230,6 +233,7 @@ $dbLayouts{sql_single} = {
                 driver => "WeBWorK::DB::Driver::SQL",
                 source => $database_dsn,
                 engine => $database_storage_engine,
+                character_set => $database_character_set,
                 params => { %sqlParams,
                         tableOverride => "${courseName}_set_locations"
                 },
@@ -240,6 +244,7 @@ $dbLayouts{sql_single} = {
                 driver => "WeBWorK::DB::Driver::SQL",
                 source => $database_dsn,
                 engine => $database_storage_engine,
+                character_set => $database_character_set,
                 params => { %sqlParams,
                         tableOverride => "${courseName}_set_locations_user"
                 },
@@ -249,7 +254,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_problem"
 		},
@@ -259,7 +265,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::NonVersioned",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_problem_user"
 		},
@@ -269,7 +276,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Merge",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		depend => [qw/problem_user problem/],
 		params => { %sqlParams,
 			non_native => 1,
@@ -281,7 +289,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Versioned",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			non_native => 1,
 			tableOverride => "${courseName}_problem_user",
@@ -292,7 +301,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Merge",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		depend => [qw/problem_version problem_user problem/],
 		params => { %sqlParams,
 			non_native => 1,
@@ -304,7 +314,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_setting"
 		},
@@ -314,7 +325,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_achievement"
 		},
@@ -324,7 +336,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			    tableOverride => "${courseName}_past_answer"
 	 	},
@@ -335,7 +348,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_achievement_user"
 	 	},
@@ -345,7 +359,8 @@ $dbLayouts{sql_single} = {
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
 		driver => "WeBWorK::DB::Driver::SQL",
 		source => $database_dsn,
-    engine => $database_storage_engine,
+    	engine => $database_storage_engine,
+    	character_set => $database_character_set,
 		params => { %sqlParams,
 			tableOverride => "${courseName}_global_user_achievement"
 		},

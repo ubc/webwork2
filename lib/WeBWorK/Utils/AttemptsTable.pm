@@ -3,7 +3,7 @@ use 5.010;
 
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader: webwork2/lib/WebworkClient.pm,v 1.1 2010/06/08 11:46:38 gage Exp $
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -284,7 +284,7 @@ sub formatAnswerRow {
 
 	my $row = join('',
 			  ($self->showAnswerNumbers) ? CGI::td({},$answerNumber):'',
-			  ($self->showAttemptAnswers) ? CGI::td({},$self->nbsp($answerString)):'' ,   # student original answer
+			  ($self->showAttemptAnswers) ? CGI::td({dir=>"auto"},$self->nbsp($answerString)):'' ,   # student original answer
 			  ($self->showAttemptPreviews)?  $self->formatToolTip($answerString, $answerPreview):"" ,
 			  ($self->showAttemptResults)?   $attemptResults : '' ,
 			  ($self->showCorrectAnswers)?  $self->formatToolTip($correctAnswer,$correctAnswerPreview):"" ,
