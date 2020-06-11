@@ -61,10 +61,7 @@ use HTML::Entities;
 use HTML::Scrubber;
 use WeBWorK::Utils qw(jitar_id_to_seq);
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
-<<<<<<< HEAD
-=======
 use Encode;
->>>>>>> WeBWorK-2.15
 
 our $TRACE_WARNINGS = 0;   # set to 1 to trace channel used by warning message
 
@@ -603,12 +600,8 @@ sub content {
 	   		"in the files localOverrides.conf, course.conf and ".
 	   		"simple.conf and on the course configuration page.\n"
 	   	} else {
-<<<<<<< HEAD
-	   		die "Neither the theme $theme nor the defaultTheme math4 are available.  ".
-=======
 			$theme = HTML::Entities::encode_entities($theme);
 	   		die "Neither the theme $theme nor the defaultTheme math4 are available.  ".
->>>>>>> WeBWorK-2.15
 	   		"Please notify your site administrator that the structure of the ".
 	   		"themes directory needs attention.";
 
