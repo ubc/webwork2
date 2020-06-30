@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 ENV WEBWORK_URL /webwork2
 ENV WEBWORK_ROOT_URL http://localhost
@@ -139,6 +139,9 @@ RUN apt-get update \
        lmodern \
        zip \
        jq \
+       unixodbc \
+       libapache2-mod-shib \
+       gettext \
     && apt-get clean \
     && rm -fr /var/lib/apt/lists/* ./cpanm /root/.cpanm /tmp/*
 
@@ -252,6 +255,17 @@ RUN cd $APP_ROOT/webwork2/conf \
       PerlPassEnv WEBWORK_SMTP_SENDER\n\
       PerlPassEnv WEBWORK_TIMEZONE\n\
       \n<Perl>/' /etc/apache2/conf-enabled/webwork.conf
+
+# install odbc for shib sp
+RUN cd /usr && \
+    curl https://downloads.mariadb.com/Connectors/odbc/connector-odbc-3.1.1/mariadb-connector-odbc-3.1.1-ga-debian-x86_64.tar.gz | tar -xvz && \
+    echo "[MariaDB]" > MariaDB_odbc_driver_template.ini && \
+    echo "Description = MariaDB Connector/ODBC v.3.1" >> MariaDB_odbc_driver_template.ini && \
+    echo "Driver = /usr/lib/libmaodbc.so" >> MariaDB_odbc_driver_template.ini && \
+    odbcinst -i -d -f MariaDB_odbc_driver_template.ini
+
+COPY docker-config/apache/shibboleth2.xml-template /etc/shibboleth/
+COPY docker-config/apache/moodle-shib.conf /etc/apache2/conf-enabled/
 
 EXPOSE 80
 WORKDIR $APP_ROOT

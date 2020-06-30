@@ -211,4 +211,10 @@ if [ "$1" = 'apache2' ]; then
 
 fi
 
+# setup shib
+export SHIBD_SERVICE_IP=`getent hosts ${SHIBD_SERVICE_NAME} | awk '{ print $1  }'`
+
+envsubst < /etc/shibboleth/shibboleth2.xml-template > /etc/shibboleth/shibboleth2.xml
+chmod 644 /etc/shibboleth/shibboleth2.xml
+
 exec "$@"
