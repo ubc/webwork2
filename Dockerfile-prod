@@ -265,7 +265,7 @@ RUN cd /usr && \
     odbcinst -i -d -f MariaDB_odbc_driver_template.ini
 
 COPY docker-config/apache/shibboleth2.xml-template /etc/shibboleth/
-COPY docker-config/apache/moodle-shib.conf /etc/apache2/conf-enabled/
+COPY docker-config/apache/mod_shib.conf /etc/apache2/conf-enabled/
 
 EXPOSE 80
 WORKDIR $APP_ROOT
