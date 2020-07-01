@@ -191,23 +191,23 @@ if [ "$1" = 'apache2' ]; then
     fi
 
     # Fix possible permission issues
-    echo "Fixing ownership and permissions (just in case it is needed)"
-    cd $WEBWORK_ROOT
-    # Symbolic links which have no target outside the Docker container
-    # cause problems duringt the rebuild process on some systems.
-    # So we delete them. They will be rebuilt automatically when needed again
-    # at the cost of some speed.
-    find htdocs/tmp -type l -exec rm -f {} \;
-    chown -R www-data:www-data logs tmp DATA htdocs/tmp
-    chmod -R u+w logs tmp DATA  ../courses htdocs/tmp
-    cd $APP_ROOT
-    # The chown for files/directories under courses is done using find, as
-    # using a simple "chown -R www-data $APP_ROOT/courses" would sometimes
-    # cause errors in Docker on Mac OS X when there was a broken symbolic link
-    # somewhere in the directory tree being processed.
-    find courses -type f -exec chown www-data:www-data {} \;
-    find courses -type d -exec chown www-data:www-data {} \;
-    echo "end fixing ownership and permissions"
+#    echo "Fixing ownership and permissions (just in case it is needed)"
+#    cd $WEBWORK_ROOT
+#    # Symbolic links which have no target outside the Docker container
+#    # cause problems duringt the rebuild process on some systems.
+#    # So we delete them. They will be rebuilt automatically when needed again
+#    # at the cost of some speed.
+#    find htdocs/tmp -type l -exec rm -f {} \;
+#    chown -R www-data:www-data logs tmp DATA htdocs/tmp
+#    chmod -R u+w logs tmp DATA  ../courses htdocs/tmp
+#    cd $APP_ROOT
+#    # The chown for files/directories under courses is done using find, as
+#    # using a simple "chown -R www-data $APP_ROOT/courses" would sometimes
+#    # cause errors in Docker on Mac OS X when there was a broken symbolic link
+#    # somewhere in the directory tree being processed.
+#    find courses -type f -exec chown www-data:www-data {} \;
+#    find courses -type d -exec chown www-data:www-data {} \;
+#    echo "end fixing ownership and permissions"
 
 fi
 
