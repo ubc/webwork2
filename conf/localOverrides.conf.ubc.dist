@@ -219,7 +219,7 @@ $permissionLevels{modify_set_def_files} = "ta";
 $permissionLevels{manage_course_files} = "ta";
 $permissionLevels{avoid_recording_answers} = "ta";
 #$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
-#$permissionLevels{record_answers_when_acting_as_student} = "professor";
+$permissionLevels{record_answers_when_acting_as_student} = "ta";
 
 ################################################################################
 # Default settings for the problem editor pages
@@ -596,7 +596,7 @@ $authen{'xmlrpc'} = "WeBWorK::Authen";
 ################################################################################
 
 # enable/disable Caliper for install
-$caliper{enabled} = 1;
+$caliper{enabled} = 0;
 # base_url should ideally be hard coded to a persistent url pointing to the webwork root
 # (important to keep it consistent over time)
 $caliper{base_url} = 'https://webwork.elearning.ubc.ca/webwork2/';
@@ -639,19 +639,6 @@ $bridge{lti_secrets} = {
 	'bbprod' => "",
 	'lti_secret' => "secret"
 };
-# Options for particular authentication modules
-$bridge{vista_login_options} = {
-    enable_param => "vistalogin",
-    course_param => "courseTitle",
-    section_param => "sectionTitle",
-    user_param => "userid",
-    time_param => "timestamp",
-    mac_param => "mac2",
-    secret => "secret",
-    valid_time_diff => 60, # number of seconds we can tolerate difference in timestamp
-};
-$bridge{vista_importer} = $webworkDirs{root} . "/lib/WebworkBridge/Bridges/vistawebworksimporter.jar";
-$bridge{vista_loginlist} = $webworkDirs{root} . "/lib/WebworkBridge/classlists/loginlist";
 
 # define which LTI roles can launch the membership request.
 # AutoUpdater role is used by auto update script
@@ -661,13 +648,14 @@ $bridge{hide_new_courses} = 1;
 # will check for field values in order and fallback if field is not present/empty in launch request
 $bridge{user_identifier_fields} = [
 	'custom_ubc_puid',
+	'lis_person_sourcedid',
 	'user_id'
 ];
 # populate webwork student number by field
 # will check for field values in order and fallback if field is not present/empty in launch request
 $bridge{user_student_number_fields} = [
 	'custom_ubc_student_number',
-	'lis_person_sourcedid',
+#	'lis_person_sourcedid',
 	'user_id'
 ];
 # List of Vista ids that are blacklisted from import. Note that id matching
