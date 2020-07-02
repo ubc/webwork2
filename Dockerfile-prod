@@ -266,6 +266,7 @@ RUN cd /usr && \
 
 COPY docker-config/apache/shibboleth2.xml-template /etc/shibboleth/
 COPY docker-config/apache/mod_shib.conf /etc/apache2/conf-enabled/
+COPY docker-config/apache/000-default.conf /etc/apache2/sites-available/
 
 EXPOSE 80
 WORKDIR $APP_ROOT
