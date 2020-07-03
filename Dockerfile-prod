@@ -166,9 +166,9 @@ RUN WEBWORK_VERSION=`cat /tmp/VERSION|sed -n 's/.*\([0-9]\.[0-9]*\)'\'';/\1/p'` 
     && tar xzf /tmp/opl.tar.gz \
     && mv webwork-open-problem-library-master $APP_ROOT/libraries/webwork-open-problem-library \
     && rm /tmp/opl.tar.gz \
-    && curl -fSL https://github.com/mathjax/MathJax/archive/master.tar.gz -o /tmp/mathjax.tar.gz \
+    && curl -fSL https://github.com/mathjax/MathJax/archive/legacy-v2.tar.gz -o /tmp/mathjax.tar.gz \
     && tar xzf /tmp/mathjax.tar.gz \
-    && mv MathJax-master $APP_ROOT/MathJax \
+    && mv MathJax-legacy-v2 $APP_ROOT/MathJax \
     && rm /tmp/mathjax.tar.gz \
     && rm /tmp/VERSION
     #curl -fSL https://github.com/openwebwork/webwork2/archive/WeBWorK-${WEBWORK_VERSION}.tar.gz -o /tmp/WeBWorK-${WEBWORK_VERSION}.tar.gz \
