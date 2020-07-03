@@ -153,7 +153,7 @@ RUN apt-get update \
 # Phase 4 - Install webwork2, pg, MathJaX which were downloaded to /opt/base/ in phase 1
 #   Option: Install the OPL in the image also (about 850 MB)
 
-RUN mkdir -p $APP_ROOT/courses $APP_ROOT/libraries $APP_ROOT $APP_ROOT/webwork2 /www/www/html
+RUN mkdir -p $APP_ROOT/courses $APP_ROOT/libraries $APP_ROOT $APP_ROOT/webwork2
 
 COPY VERSION /tmp
 
