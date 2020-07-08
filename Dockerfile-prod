@@ -115,6 +115,7 @@ RUN apt-get update \
        libmoox-options-perl \
        libnet-https-nb-perl \
        libhttp-async-perl \
+       libmoose-perl \
        make \
        netpbm \
        preview-latex-style \
