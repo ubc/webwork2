@@ -24,6 +24,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV DEBCONF_NONINTERACTIVE_SEEN true
 ENV WEBWORK_ROOT $APP_ROOT/webwork2
 ENV PG_ROOT $APP_ROOT/pg
+ENV R_HOST r
 ENV DEV 0
 
 # ==================================================================

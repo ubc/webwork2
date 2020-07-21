@@ -70,11 +70,11 @@ $feedback_button_name = "Email WeBWorK TA";
 $enableGitUpgradeNotifier = 0;
 
 $gitWeBWorKRemoteName = "origin";
-$gitWeBWorKBranchName = "master";
+$gitWeBWorKBranchName = "ubc";
 $gitPGRemoteName = "origin";
 $gitPGBranchName = "master";
 $gitLibraryRemoteName = "origin";
-$gitLibraryBranchName = "master";
+$gitLibraryBranchName = "ubc";
 
 ################################################################################
 # Theme
@@ -158,6 +158,7 @@ $problemLibrary{showLibraryGlobalStats} = 1;
 
 $courseFiles{problibs}    = {
 	Library          => "OPL Directory",
+	ubcLibrary       => "UBC Library",
     capaLibrary      => "CAPA",
     Contrib          => "Contrib",
 # the following are not really needed but you can
@@ -199,7 +200,7 @@ $courseFiles{problibs}    = {
 # The above code would give the permission to login to any user with permission
 # level guest or higher.
 
-$permissionLevels{dont_log_past_answers} = undef;   #controls logging of the responses to a question
+$permissionLevels{dont_log_past_answers} = "professor";    #controls logging of the responses to a question
                                                     # in the past answer data base
                                                     # and in the myCourse/logs/answer_log file.
                                                     # Activities of users with this permission enabled are not entered
@@ -207,8 +208,18 @@ $permissionLevels{dont_log_past_answers} = undef;   #controls logging of the res
                                                     # to avoid contaminating the data with TA and instructor activities.
                                                     # The undef setting means that even professor answers are logged and
                                                     # saved in the past answer database.
+
+$permissionLevels{become_student} = "ta";
+$permissionLevels{send_email} = "ta";
+$permissionLevels{create_and_delete_problem_sets} = "ta";
+$permissionLevels{assign_problem_sets} = "ta";
+$permissionLevels{modify_problem_sets} = "ta";
+$permissionLevels{modify_student_data} = "ta";
+$permissionLevels{modify_set_def_files} = "ta";
+$permissionLevels{manage_course_files} = "ta";
+$permissionLevels{avoid_recording_answers} = "ta";
 #$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
-#$permissionLevels{record_answers_when_acting_as_student} = "professor";
+$permissionLevels{record_answers_when_acting_as_student} = "ta";
 
 ################################################################################
 # Default settings for the problem editor pages
@@ -433,6 +444,9 @@ $showeditors{simplepgeditor}   = 0;
 
 # Extra modules have been created to allow WeBWorK to use certain external
 # methods of authentication.
+$authen{user_module} = {
+	"*" => "WeBWorK::Authen::Shibboleth",
+};
 
 ################################################################################
 # IMS LTI Authentication
@@ -543,6 +557,37 @@ $hardcopyThemeNames = {
 #$hardcopyTheme = "XeLaTeX-twoColumn";
 #$externalPrograms{pdflatex} ="/usr/bin/xelatex --shell-escape";
 
+# Modify the Proctor status to Professor status and allow course access.
+# Users marked as "Enrolled" or "Teaching" can be modified during course
+# enrolment sync, e.g.: they can be dropped.
+#
+# Users marked as "EnrolledNoDrop" or "TeachingNoDrop" are exempted from
+# modification during course enrolment sync.
+
+$statuses{Teaching} = {
+    abbrevs => [qw/ P p professor /],
+    behaviors => [qw/ allow_course_access include_in_assignment /],
+};
+$statuses{EnrolledNoDrop} = {
+    abbrevs => [qw/ E e enrollednodrop /],
+    behaviors => [qw/ allow_course_access include_in_assignment include_in_stats include_in_email include_in_scoring /],
+};
+$statuses{TeachingNoDrop} = {
+    abbrevs => [qw/ T t teachingnodrop /],
+    behaviors => [qw/ allow_course_access include_in_assignment /],
+};
+
+delete $statuses{Proctor};
+
+# URL of WeBWorK Bugzilla database.
+$webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
+
+# Add in custom authen modules
+$authen{lti} = "WeBWorK::Authen::LTI";
+$authen{vista_login} = "WeBWorK::Authen::VistaLogin2";
+# xmlrpc webservice requests will use the default auth instead of shib
+$authen{'xmlrpc'} = "WeBWorK::Authen";
+
 ################################################################################
 
 
@@ -562,16 +607,148 @@ $caliper{api_key} = '1234567890abcdefg';
 # log file for caliper errors
 $caliper{errorlog} = $webworkDirs{logs} . "/caliper_errors.log";
 # customized Caliper actor. Useful if persistent identifiers for students are available in WebWork
-# $caliper{custom_actor_generator} = sub {
-# 	my ($ce, $db, $user) = @_;
-# 	# set caliper id as needed
-# 	my $caliper_id = 'http://www.ubc.ca/' . $user->user_id();
-# 	return {
-# 		'id' => $caliper_id,
-# 		'type' => 'Person',
-# 		'name' => $user->first_name() . " " . $user->last_name(),
-# 	};
-# };
+$caliper{custom_actor_generator} = sub {
+	my ($ce, $db, $user) = @_;
+	# set caliper id as needed
+	my $caliper_id = 'http://www.ubc.ca/' . $user->user_id();
+	my $otherIdentifiers = [];
 
-# $permissionLevels{modify_tags} = "undef";
+	# add lti user ids when available
+	# push @$otherIdentifiers, {
+	# 	'identifier' => ,
+	# 	'type' => 'SystemIdentifier',
+	# 	'identifierType' => 'LtiUserId',
+	# };
+
+	return {
+		'id' => $caliper_id,
+		'type' => 'Person',
+		'name' => $user->first_name() . " " . $user->last_name(),
+		'otherIdentifiers' => $otherIdentifiers,
+	};
+};
+
+
+################################################################################
+# Webwork Bridge
+################################################################################
+$bridge{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
+# Set password for the admin user created for all imported courses.
+$bridge{adminuserpw} = "admin";
+$bridge{lti_secrets} = {
+	'bbprod' => "",
+	'lti_secret' => "secret"
+};
+
+# define which LTI roles can launch the membership request.
+# AutoUpdater role is used by auto update script
+$bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
+$bridge{hide_new_courses} = 1;
+# populate webwork user id by field
+# will check for field values in order and fallback if field is not present/empty in launch request
+$bridge{user_identifier_fields} = [
+	'custom_ubc_puid',
+	'lis_person_sourcedid',
+	'user_id'
+];
+# populate webwork student number by field
+# will check for field values in order and fallback if field is not present/empty in launch request
+$bridge{user_student_number_fields} = [
+	'custom_ubc_student_number',
+#	'lis_person_sourcedid',
+	'user_id'
+];
+# List of Vista ids that are blacklisted from import. Note that id matching
+# is done using m//, so any occurance of the string below in an id will mark
+# that id as blacklisted.
+$bridge{vista_blacklist} = (
+    "webct_demo"
+);
+# Note that the mapped Webwork course name still goes through sanitization.
+# Please make sure they match these requirements or the courses will not match.
+# - Allowed characters in regex form: [a-zA-Z0-9_-]
+# - Max length 40 characters
+# See WebworkBridge's Parser::sanitizeCourseName() for implementation
+$bridge{custom_course_title_parser} = sub {
+	my $r = shift;
+
+	# check if blackboard (legacy support)
+	my $blackboardTitle = $bridge{blackboard_course_title_parser}($r);
+	if ($blackboardTitle) {
+		return $blackboardTitle;
+	}
+
+	# else use term name (if available) and context_label
+	my $course_title = $r->param("context_label");
+	if (defined($r->param("custom_term_name")) && $r->param("custom_term_name") ne "" &&
+			$r->param("custom_term_name") ne "Canvas.term.name" && $r->param("custom_term_name") ne "Default Term") {
+		# do term then context title in order to reduce change of collision if context title is very long
+		$course_title = $r->param("custom_term_name") . "_" . $r->param("context_label");
+	}
+
+	return $course_title;
+};
+
+$bridge{blackboard_course_title_parser} = sub {
+	my $r = shift;
+
+	$value = $r->param("context_label");
+	if ($value =~ m/WS.UBC.MATH.104.101.2012W1.12422/) {
+		$value =~ s/WS.UBC.MATH.104.101.2012W1.12422/MATH104_2012W1/;
+		return $value;
+	} elsif ($value =~ m/(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*/) {
+		$value =~ s/(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*/$2_$3_$4_$5/;
+		return $value;
+	} elsif ($value =~ m/CL\.[^.]*\.(.*)/) {
+		$value =~ s/CL\.[^.]*\.(.*)/$1/;
+		return $value;
+	} elsif ($value =~ m/WS\.[^.]*\.(.*)/) {
+		$value =~ s/WS\.[^.]*\.(.*)/$1/;
+		return $value;
+	}
+
+	return 0;
+};
+
+$bridge{course_template} = "modelCourse";
+
+$shibboleth{login_script} = "/Shibboleth.sso/Login";
+$shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url;
+$shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if there is an existing shibboleth session
+$shibboleth{manage_session_timeout} = 0; #allow shib to manage session time instead of webwork
+$shibboleth{hash_user_id_method} = "none"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url.
+$shibboleth{hash_user_id_salt} = ""; # salt for hash function
+#define mapping between shib and webwork
+$shibboleth{attributes} = [
+        'puid',
+        'studentNumber',
+        'employeeNumber',
+        'cwlLoginName',
+];
+
+push @{$pg{modules}},
+   [qw( Statistics::R::IO::Rserve )],
+   [qw( Statistics::R::IO::ParserState )],
+   [qw( Statistics::R::REXP::Character )],
+   [qw( Statistics::R::REXP::Double )],
+   [qw( Statistics::R::REXP::Environment )],
+   [qw( Statistics::R::REXP::GlobalEnvironment )],
+   [qw( Statistics::R::REXP::Integer )],
+   [qw( Statistics::R::REXP::Language )],
+   [qw( Statistics::R::REXP::List )],
+   [qw( Statistics::R::REXP::Logical )],
+   [qw( Statistics::R::REXP::Null )],
+   [qw( Statistics::R::REXP::Raw )],
+   [qw( Statistics::R::REXP::Symbol )],
+   [qw( Statistics::R::REXP::Unknown )],
+   [qw( Statistics::R::REXP::Vector )],
+   [qw( Statistics::R::REXP )],
+   [qw( Math::Complex )],
+   [qw( IO::File )],
+   [qw( IO::Handle )],
+   [qw( Moose )],
+   [qw( Class::MOP )];
+
+$pg{specialPGEnvironmentVars}{Rserve} = {host => $ENV{"R_HOST}"}};
+
 1; #final line of the file to reassure perl that it was read properly.

@@ -27,7 +27,9 @@ services:
     # Select the appropriate "build:" block:
 
     # For use/building when docker-compose.yml is in the webwork2 directory
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile-prod
 
     # For use/building when docker-compose.yml is OUTSIDE the webwork2 directory.
     # For example, if multiple hosts use a NFS shared webwork2/ directory, and
@@ -182,6 +184,7 @@ services:
 #      WEBWORK_SMTP_SENDER: support@mydomain.edu
 
 #      WEBWORK_TIMEZONE: America/New_York
+#      R_HOST: r
 
   r:
     image: ubcctlt/rserve
