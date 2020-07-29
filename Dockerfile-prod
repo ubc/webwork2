@@ -129,7 +129,7 @@ RUN apt-get update \
        texlive-lang-arabic \
        libc6-dev \
        git \
-       mysql-client \
+       mariadb-client \
        tzdata \
        apt-utils \
        locales \
