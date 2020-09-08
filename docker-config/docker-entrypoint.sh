@@ -8,9 +8,9 @@ function wait_for_db {
 		sleep 0.5; \
 	done
 }
-# if command starts with an option, prepend apache2
+# if command starts with an option, prepend apache2-forground
 if [ "${1:0:1}" = '-'  ]; then
-    set -- apache2 "$@"
+    set -- apache2-forground "$@"
 fi
 
 # Enable SSL when it is requested by the SSL environment variable
@@ -60,7 +60,7 @@ if [ ! -d "$APP_ROOT/libraries/webwork-open-problem-library/OpenProblemLibrary" 
   touch "$APP_ROOT/libraries/Restore_or_build_OPL_tables"
 fi
 
-if [ "$1" = 'apache2' ]; then
+if [[ "$1" =~ ^(apache2|apache2-foreground)$ ]]; then
     # generate conf files if not exist
     for i in site.conf localOverrides.conf; do
         if [ ! -f $WEBWORK_ROOT/conf/$i ]; then
@@ -82,11 +82,9 @@ if [ "$1" = 'apache2' ]; then
     done
     # create admin course if not existing
     if [ ! -d "$APP_ROOT/courses/admin"  ]; then
-        newgrp www-data
-        umask 2
         cd $APP_ROOT/courses
         wait_for_db
-        $WEBWORK_ROOT/bin/addcourse admin --db-layout=sql_single --users=$WEBWORK_ROOT/courses.dist/adminClasslist.lst --professors=admin
+        sudo -u www-data $WEBWORK_ROOT/bin/addcourse admin --db-layout=sql_single --users=$WEBWORK_ROOT/courses.dist/adminClasslist.lst --professors=admin
         chown www-data:www-data -R $APP_ROOT/courses
         echo "Admin course is created."
     fi

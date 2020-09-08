@@ -247,6 +247,10 @@ RUN cd $APP_ROOT/webwork2/conf \
     && mkdir -p $APACHE_RUN_DIR $APACHE_LOCK_DIR $APACHE_LOG_DIR \
     && mkdir /etc/ssl/local  \
     && a2enmod rewrite \
+    && ln -sfT /dev/stderr "$APACHE_LOG_DIR/error.log" \
+    && ln -sfT /dev/stdout "$APACHE_LOG_DIR/access.log" \
+    && ln -sfT /dev/stdout "$APACHE_LOG_DIR/other_vhosts_access.log" \
+    && chown -R --no-dereference "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_LOG_DIR" \
     && sed -i -e 's/^<Perl>$/\
       PerlPassEnv WEBWORK_URL\n\
       PerlPassEnv WEBWORK_ROOT_URL\n\
@@ -269,6 +273,7 @@ RUN cd /usr && \
 COPY docker-config/apache/shibboleth2.xml-template /etc/shibboleth/
 COPY docker-config/apache/mod_shib.conf /etc/apache2/conf-enabled/
 COPY docker-config/apache/000-default.conf /etc/apache2/sites-available/
+COPY docker-config/apache/apache2-foreground /usr/local/bin/
 
 EXPOSE 80
 WORKDIR $APP_ROOT
@@ -301,4 +306,7 @@ ENV SSL=0 \
 
 # ================================================
 
-CMD ["apache2", "-DFOREGROUND"]
+# https://httpd.apache.org/docs/2.4/stopping.html#gracefulstop
+STOPSIGNAL SIGWINCH
+
+CMD ["apache2-foreground"]
