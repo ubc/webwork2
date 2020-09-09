@@ -218,6 +218,7 @@ RUN apt-get update \
 	lmodern \
 	zip \
 	jq \
+        sudo \
     && apt-get clean \
     && rm -fr /var/lib/apt/lists/* /tmp/*
 
