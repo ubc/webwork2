@@ -26,6 +26,7 @@ ENV WEBWORK_ROOT $APP_ROOT/webwork2
 ENV PG_ROOT $APP_ROOT/pg
 ENV R_HOST r
 ENV DEV 0
+ENV OPL_DOWNLOAD_URL https://github.com/openwebwork/webwork-open-problem-library/archive/master.tar.gz
 
 # ==================================================================
 
@@ -164,7 +165,7 @@ RUN WEBWORK_VERSION=`cat /tmp/VERSION|sed -n 's/.*\([0-9]\.[0-9]*\)'\'';/\1/p'` 
     && tar xzf /tmp/PG-${WEBWORK_VERSION}.tar.gz \
     && mv pg-PG-${WEBWORK_VERSION} $APP_ROOT/pg \
     && rm /tmp/PG-${WEBWORK_VERSION}.tar.gz \
-    && curl -fSL https://github.com/openwebwork/webwork-open-problem-library/archive/master.tar.gz -o /tmp/opl.tar.gz \
+    && curl -fSL ${OPL_DOWNLOAD_URL} -o /tmp/opl.tar.gz \
     && tar xzf /tmp/opl.tar.gz \
     && mv webwork-open-problem-library-master $APP_ROOT/libraries/webwork-open-problem-library \
     && rm /tmp/opl.tar.gz \
