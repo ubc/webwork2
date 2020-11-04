@@ -910,6 +910,12 @@ sub pre_header_initialize {
 				$set->answer_date($set->due_date + $ansOffset);
 				$set->version_last_attempt_time( 0 );
 
+				my $proctorOnlyNeededWhenStarting = $ce->{options}{proctorOnlyNeededWhenStarting} // 0;
+				if ( $set->assignment_type eq 'proctored_gateway' && $proctorOnlyNeededWhenStarting ) {
+					# override the assignment type if proctor login is only required to start the quiz
+					$set->assignment_type( 'gateway' );
+				}
+
 				# put this new info into the database.  we
 				#    put back that data which we need for the
 				#    version, and leave blank any information
@@ -2349,7 +2355,7 @@ sub body {
 					var _seconds = today.getSeconds();
 					var time = (_hours < 10? "0" : "") + _hours + ":" + (_minutes < 10? "0" : "") + _minutes + ":" + (_seconds < 10? "0" : "") + _seconds;
 					var dateTime = date+' '+time;
-					\$("#autosaveStatus").text('Autosaved at ' + dateTime);
+					\$("#autosaveStatus").text('Attempted to auto-save at ' + dateTime);
 				}
 			});
 		}, 180000 + Math.floor((Math.random() * 60000))); // add some randomness to avoid rush of autosave if students started the test at the same time

@@ -310,6 +310,7 @@ sub displaySets {
 		return lc($a->{section}) cmp lc($b->{section}) if $sort_method_name eq 'section';
 		return lc($a->{recitation}) cmp lc($b->{recitation}) if $sort_method_name eq 'recitation';
 		return lc($a->{user_id}) cmp lc($b->{user_id}) if $sort_method_name eq 'user_id';
+		return ($a->{total} eq 'n/a' ? 9**9**9 : $a->{num_of_attempts} || 0) <=> ($b->{total} eq 'n/a' ? 9**9**9 : $b->{num_of_attempts} || 0) if $sort_method_name eq 'num_of_attempts';
 		if ($sort_method_name =~/p(\d+)/) {
 			my $left  =  $b->{problemData}->{$1} ||0;
 			my $right =  $a->{problemData}->{$1} ||0;
@@ -326,6 +327,7 @@ sub displaySets {
 		section => 'section',
 		recitation => 'recitation',
 		user_id => 'login name',
+		num_of_attempts => '# of attempts',
 	);				
 
 # get versioning information
@@ -652,6 +654,7 @@ sub displaySets {
 		                                  problemData    => {%h_problemData},
 						  date           => $dateOfTest,
 						  testtime       => $testTime,
+						  num_of_attempts=> $num_of_attempts,
 					      }; 
 			
 			# keep track of best score
@@ -876,6 +879,7 @@ sub displaySets {
 		if ( $showColumns{ 'recit' } );
 	    push( @columnHdrs, CGI::a({"href"=>$self->systemLink($setStatsPage,params=>{primary_sort=>'user_id', %params})},$r->maketext('Login Name')) )
 		if ( $showColumns{ 'login' } );
+	    push( @columnHdrs, CGI::a({"href"=>$self->systemLink($setStatsPage,params=>{primary_sort=>'num_of_attempts', %params})},$r->maketext('# of Attempts')) );
 
 	    print CGI::start_table({-class=>"progress-table", -border=>5,style=>'font-size:smaller'}),
 	        CGI::Tr(CGI::td(  {-align=>'left'},
@@ -890,7 +894,7 @@ sub displaySets {
     #    (the total number of columns is two more than this; we want the 
     #    number that missing record information should span)
 
-	my $numCol = 1;
+	my $numCol = 2;
 	$numCol++ if $showColumns{'date'};
 	$numCol++ if $showColumns{'testtime'};
 	$numCol++ if $showColumns{'problems'};
@@ -947,6 +951,7 @@ sub displaySets {
 				push(@cols, $self->nbsp($rec->{recitation})) 
 				    if ($showColumns{'recit'});
 				push(@cols, $rec->{user_id}) if ($showColumns{'login'});
+				push(@cols, $rec->{num_of_attempts});
 				print CGI::Tr( CGI::td( [ @cols ] ) );
 			} else {
 				my @cols = ( CGI::td( $fullName ),
