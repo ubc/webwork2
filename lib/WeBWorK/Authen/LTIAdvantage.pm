@@ -178,6 +178,15 @@ sub get_credentials {
 	$self->{user_id} = $user_id;
     $self->{login_type} = "normal";
     $self->{credential_source} = "LTIAdvantage";
+	$self->{session_key} = undef;
+
+	# resuse session_key if possible
+	my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
+	if (defined($cookieUser) && defined($cookieKey)) {
+		if ($cookieUser eq $user_id) {
+			$self->{session_key} = $cookieKey;
+		}
+	}
 
 	return 1;
 }

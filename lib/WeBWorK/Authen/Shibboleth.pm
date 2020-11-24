@@ -99,17 +99,22 @@ sub get_credentials {
 					# got one match, login user
 					if ($db->getUser($user_id)) {
 						debug("Got user_id $user_id from shib attribute $key");
-						$self->{'user_id'} = $user_id;
+						$self->{user_id} = $user_id;
 						$self->{r}->param("user", $user_id);
+						$self->{session_key} = undef;
 
-						# set external auth parameter so that login.pm
-						#    knows not to rely on internal logins if
-						#    there's a check_user failure.
-						$self->{session_key}   = undef;
+						# reuse db session_key if still valid (prevent new tab issue)
+						my $Key = $db->getKey($user_id);
+						if (defined($Key)) {
+							if (time <= $Key->timestamp()+$ce->{sessionKeyTimeout}) {
+								$self->{session_key} = $Key->key;
+							}
+						}
 						$self->{password}      = "youwouldneverpickthispassword";
 						$self->{login_type}    = "normal";
 						$self->{credential_source} = "params";
-						last;
+						$self->{password} = 1;
+						return 1;
 					}
 				}
 			}
@@ -120,24 +125,15 @@ sub get_credentials {
 				$self->{error} = "Access Denied.";
 				return 0;
 			}
-		} else {
-			debug("Couldn't shib header or user_id");
-			my $q = new CGI;
-            #my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url(-path=>1);
-            my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url();
-			$self->{redirect} = $go_to;
-			print $q->redirect($go_to);
-			return 0;
 		}
 
-		# the session key isn't used (Shibboleth is managing this
-		#    for us), and we want to force checking against the
-		#    site_checkPassword
-		$self->{'session_key'} = undef;
-		$self->{'password'} = 1;
-		$self->{'credential_source'} = "params";
-
-		return 1;
+		debug("Couldn't shib header or user_id");
+		my $q = new CGI;
+		#my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url(-path=>1);
+		my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url();
+		$self->{redirect} = $go_to;
+		print $q->redirect($go_to);
+		return 0;
 	}
 }
 
@@ -213,7 +209,7 @@ sub check_session {
 		return $self->SUPER::check_session( @_ );
 	} else {
 		my $Key = $db->getKey($userID); # checked
-			return 0 unless defined $Key;
+		return 0 unless defined $Key;
 
 		my $keyMatches = (defined $possibleKey and $possibleKey eq $Key->key);
 		my $timestampValid = (time <= $Key->timestamp()+$ce->{sessionKeyTimeout});
