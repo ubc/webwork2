@@ -384,8 +384,7 @@ sub dispatch($) {
 
 			if ($bridge->useRedirect()) {
 				my $q = CGI->new();
-				my $redir = $bridge->getRedirect() . "&user=$userID&effectiveUser=$eUserID&key=" . $r->param("key");
-				print $q->redirect($redir);
+				print $q->redirect($bridge->getRedirect());
 			}
 		} else {
 			debug("Bad news: authentication failed!\n");

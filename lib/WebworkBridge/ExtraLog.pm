@@ -10,6 +10,7 @@ use warnings;
 use Time::HiRes qw/gettimeofday/;
 use Date::Format;
 use WeBWorK::CourseEnvironment;
+use WeBWorK::Debug;
 
 # Constructor
 sub new

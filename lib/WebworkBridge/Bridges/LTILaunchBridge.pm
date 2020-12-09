@@ -447,8 +447,8 @@ sub _updateClassGrades()
 		my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($ce, $db);
 		$assignment_and_grade_service->pushAllAssignmentGrades();
 		if ($assignment_and_grade_service->{error}) {
-			debug("There was an issue fetching updating class grades. ".$assignment_and_grade_service->{error});
-			return error("There was an issue fetching updating class grades. ".$assignment_and_grade_service->{error}, "#e017");
+			debug("There was an issue updating class grades. ".$assignment_and_grade_service->{error});
+			return error("There was an issue updating class grades. ".$assignment_and_grade_service->{error}, "#e017");
 		}
 	}
 
