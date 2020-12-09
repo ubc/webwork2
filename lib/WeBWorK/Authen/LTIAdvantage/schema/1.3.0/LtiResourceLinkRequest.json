@@ -1,0 +1,26 @@
+{
+	"$schema": "http://json-schema.org/draft-06/schema#",
+	"$id": "LtiResourceLinkRequest.json",
+	"title": "LtiResourceLinkRequest",
+	"description":
+	  "The LTI Resource Link Request is used to request a tool resource from the platform.",
+	"allOf": [
+	  {
+		"$ref": "./ResourceLink.json"
+	  },
+	  {
+		"$ref": "./LtiToken.json"
+	  },
+	  {
+		"$ref": "./ToolPlatformLinkRequest.json"
+	  },
+	  {
+		"type": "object",
+		"properties": {
+		  "https://purl.imsglobal.org/spec/lti/claim/message_type": {
+			"enum": ["LtiResourceLinkRequest"]
+		  }
+		}
+	  }
+	]
+  }

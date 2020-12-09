@@ -47,16 +47,25 @@ sub get_credentials {
 		return $self->SUPER::get_credentials(@_);
 	}
 
+	my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
+
+	if (defined($cookieUser) && defined($r->param("user")) ) {
+		if ($cookieUser ne $r->param("user")) {
+			#croak ("cookieUser = $cookieUser and paramUser = ". $r->param("user") . " are different.");
+			$self->maybe_kill_cookie; # use parameter "user" rather than cookie "user";
+		}
+	}
+
 	# if we come in with a user_id, then we've already authenticated
 	#    through the CAS.  So just check the provided user and session key.
-	if (defined $r->param('key') && defined $r->param('user')) {
+	if (defined($cookieUser) && defined($cookieKey)) {
 		# These lines were copied from the superclass get_credentials.
-		$self->{session_key} = $r->param('key');
-		$self->{user_id} = $r->param('user');
+		$self->{user_id} = $cookieUser;
+		$self->{session_key} = $cookieKey;
+		$self->{cookie_timestamp} = $cookieTimeStamp;
 		$self->{login_type} = 'normal';
-		$self->{credential_source} = 'params';
-		debug("CAS params user '", $self->{user_id},
-		  "' key '", $self->{session_key}, "'");
+		$self->{credential_source} = 'cookie';
+		debug("CAS params user '", $self->{user_id}, "' key '", $self->{session_key}, "'");
 		# Check session key and user here.  Otherwise, a student can
 		#    determine the enrollment status of any other student if
 		#    they know the userid (which is public information at

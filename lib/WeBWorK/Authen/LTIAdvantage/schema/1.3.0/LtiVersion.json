@@ -1,0 +1,9 @@
+{
+	"$schema": "http://json-schema.org/draft-06/schema#",
+	"$id": "LtiVersion.json",
+	"title": "LtiVersion",
+	"description": "The version of LTI being used",
+	"examples": ["1.3.0"],
+	"type": "string",
+	"pattern": "^(\\d*)\\.(\\d+).(\\d+)$"
+  }

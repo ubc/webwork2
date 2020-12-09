@@ -44,6 +44,7 @@ use WeBWorK::Utils qw(readFile writeLog writeCourseLog encodeAnswers decodeAnswe
 use WeBWorK::DB::Utils qw(global2user user2global);
 use URI::Escape;
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
+use WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService;
 use WeBWorK::Utils::Tasks qw(fake_set fake_problem);
 
 use Email::Simple;
@@ -364,6 +365,15 @@ sub process_and_log_answer{
 				    }
 				  }
 				}
+				if ($self->{ce}->{bridge}{push_grades_on_submit}) {
+					my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($self->{ce}, $db);
+					$assignment_and_grade_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
+					if ($assignment_and_grade_service->{error}) {
+						$scoreRecordedMessage .= $r->maketext(" Your score was not successfully sent to the LMS");
+					} else {
+						$scoreRecordedMessage .= $r->maketext(" Your score was successfully sent to the LMS");
+					}
+				}
 
 			} else {
 				if (before($set->open_date) or after($set->due_date)) {
@@ -514,9 +524,9 @@ sub output_JS{
 # prints out summary information for the problem pages.
 
 # sub output_summary{
-# 
+#
 # 	my $self = shift;
-# 
+#
 # 	my $editMode = $self->{editMode};
 # 	my $problem = $self->{problem};
 # 	my $pg = $self->{pg};
@@ -524,12 +534,12 @@ sub output_JS{
 # 	my %will = %{ $self->{will} };
 # 	my $checkAnswers = $self->{checkAnswers};
 # 	my $previewAnswers = $self->{previewAnswers};
-# 
+#
 # 	my $r = $self->r;
-# 
+#
 # 	my $authz = $r->authz;
 # 	my $user = $r->param('user');
-# 
+#
 # 	# custom message for editor
 # 	if ($authz->hasPermissions($user, "modify_problem_sets") and defined $editMode) {
 # 		if ($editMode eq "temporaryFile") {
@@ -539,15 +549,15 @@ sub output_JS{
 # 		}
 # 	}
 # 	print CGI::start_div({class=>"problemHeader"});
-# 
-# 
+#
+#
 # 	# attempt summary
 # 	#FIXME -- the following is a kludge:  if showPartialCorrectAnswers is negative don't show anything.
 # 	# until after the due date
 # 	# do I need to check $will{showCorrectAnswers} to make preflight work??
 # 	if (($pg->{flags}->{showPartialCorrectAnswers} >= 0 and $submitAnswers) ) {
 # 		# print this if user submitted answers OR requested correct answers
-# 
+#
 # 		print $self->attemptResults($pg, 1,
 # 			$will{showCorrectAnswers},
 # 			$pg->{flags}->{showPartialCorrectAnswers}, 1, 1);
@@ -567,7 +577,7 @@ sub output_JS{
 # 			# don't show attempt results (correctness)
 # 			# show attempt previews
 # 	}
-# 
+#
 # 	print CGI::end_div();
 # }
 

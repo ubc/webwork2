@@ -583,7 +583,7 @@ delete $statuses{Proctor};
 $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
 
 # Add in custom authen modules
-$authen{lti} = "WeBWorK::Authen::LTI";
+$authen{lti} = "WeBWorK::Authen::LTIAdvantage";
 $authen{vista_login} = "WeBWorK::Authen::VistaLogin2";
 # xmlrpc webservice requests will use the default auth instead of shib
 $authen{'xmlrpc'} = "WeBWorK::Authen";
@@ -635,29 +635,53 @@ $caliper{custom_actor_generator} = sub {
 $bridge{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
 # Set password for the admin user created for all imported courses.
 $bridge{adminuserpw} = "admin";
-$bridge{lti_secrets} = {
-	'bbprod' => "",
-	'lti_secret' => "secret"
+$bridge{push_grades_on_submit} = 0;
+$bridge{hide_new_courses} = 1;
+# define which LTI roles will launch the membership request on launch.
+$bridge{roles_can_update} = [
+	"http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+	"http://purl.imsglobal.org/vocab/lis/v2/membership#ContentDeveloper",
+	"http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator"
+];
+$bridge{lti_clients} = {
+	'example_client_id' => {
+		# will look inside of nested object if `|` is used as seperator. Doing this allow using fields inside of claims
+		# set to $Canvas.user.sisIntegrationId in canvas
+		user_identifier_field => "https://purl.imsglobal.org/spec/lti/claim/custom|ubc_puid",
+		# set to $Canvas.user.sisSourceId in canvas
+		user_student_number_field => "https://purl.imsglobal.org/spec/lti/claim/custom|student_number",
+
+		platform_id => "example_platform_id",
+		oauth2_access_token_url => "https://example.com/access_tokens",
+		oidc_auth_url => "https://example.com/authorizations/new",
+		platform_security_jwks_url => "https://example.com/security/jwks.json",
+		tool_public_key => "",
+		tool_private_key => "",
+	}
 };
 
-# define which LTI roles can launch the membership request.
-# AutoUpdater role is used by auto update script
-$bridge{roles_can_update} = 'Instructor ContentDeveloper AutoUpdater';
-$bridge{hide_new_courses} = 1;
-# populate webwork user id by field
-# will check for field values in order and fallback if field is not present/empty in launch request
-$bridge{user_identifier_fields} = [
-	'custom_ubc_puid',
-	'lis_person_sourcedid',
-	'user_id'
-];
-# populate webwork student number by field
-# will check for field values in order and fallback if field is not present/empty in launch request
-$bridge{user_student_number_fields} = [
-	'custom_ubc_student_number',
-#	'lis_person_sourcedid',
-	'user_id'
-];
+$bridge{lti_clients}{'example_client_id'}{tool_public_key} = <<'EOF';
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6sJx68cYViPEty86G2KB
+nWh62Aoc99zguv69ni4y+augier+1IArQ5apF8j657zbk/EYUf3kRka1fGmALvQY
+...
+6QYC0Fq4UQqgaioRSZAUylMdhmPZHcmD0ZspfT0qTmPBGD1NsVL5Ez1tbKyJKmCA
+lQIDAQAB
+-----END PUBLIC KEY-----
+EOF
+
+$bridge{lti_clients}{'example_client_id'}{tool_private_key} = <<'EOF';
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEA6sJx68cYViPEty86G2KBnWh62Aoc99zguv69ni4y+augier+
+1IArQ5apF8j657zbk/EYUf3kRka1fGmALvQYZ+MWjjomR64u7rofgdetgnfIOQQa
+XD4q6FRjJr6ljIZg8ZjdBmkF4dmSMjz51lIKfcwKPRCEKeA8h92XUeZh4EK7RCcg
+...
+wqw0N02hAoGAbpjOnPTul04AerLoehExqsBxTw255n/k70kWizKITmuPKFLwECKV
+7M6OVj6qd2EduHxBP39YtM4pJaL+uRFzhNfz1vBFCebe77V7rWliSLEKxL9JC2JZ
+/t74QYubrfWuiLLFeKDyLBu/Wx9kkKwo87U+o1P3/xZEqWzDlZ4wrb0=
+-----END RSA PRIVATE KEY-----
+EOF
+
 # List of Vista ids that are blacklisted from import. Note that id matching
 # is done using m//, so any occurance of the string below in an id will mark
 # that id as blacklisted.
@@ -668,46 +692,19 @@ $bridge{vista_blacklist} = (
 # Please make sure they match these requirements or the courses will not match.
 # - Allowed characters in regex form: [a-zA-Z0-9_-]
 # - Max length 40 characters
-# See WebworkBridge's Parser::sanitizeCourseName() for implementation
+# See WeBWorK::Authen::LTIAdvantage::LTILaunchParser() for implementation
 $bridge{custom_course_title_parser} = sub {
-	my $r = shift;
-
-	# check if blackboard (legacy support)
-	my $blackboardTitle = $bridge{blackboard_course_title_parser}($r);
-	if ($blackboardTitle) {
-		return $blackboardTitle;
-	}
+	my $parser = shift;
 
 	# else use term name (if available) and context_label
-	my $course_title = $r->param("context_label");
-	if (defined($r->param("custom_term_name")) && $r->param("custom_term_name") ne "" &&
-			$r->param("custom_term_name") ne "Canvas.term.name" && $r->param("custom_term_name") ne "Default Term") {
+	my $course_title = $parser->get_claim_param("context", "label");
+	my $term_name = $parser->get_claim_param("custom", "term_name");
+	if (defined($term_name) && $term_name ne "" && $term_name ne "Canvas.term.name" && $term_name ne "Default Term") {
 		# do term then context title in order to reduce change of collision if context title is very long
-		$course_title = $r->param("custom_term_name") . "_" . $r->param("context_label");
+		$course_title = $term_name . "_" . $course_title;
 	}
 
 	return $course_title;
-};
-
-$bridge{blackboard_course_title_parser} = sub {
-	my $r = shift;
-
-	$value = $r->param("context_label");
-	if ($value =~ m/WS.UBC.MATH.104.101.2012W1.12422/) {
-		$value =~ s/WS.UBC.MATH.104.101.2012W1.12422/MATH104_2012W1/;
-		return $value;
-	} elsif ($value =~ m/(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*/) {
-		$value =~ s/(SIS|WS)\.[^.]*\.([^.]*)\.([^.]*)\.([^.]*)\.([^.]*)\..*/$2_$3_$4_$5/;
-		return $value;
-	} elsif ($value =~ m/CL\.[^.]*\.(.*)/) {
-		$value =~ s/CL\.[^.]*\.(.*)/$1/;
-		return $value;
-	} elsif ($value =~ m/WS\.[^.]*\.(.*)/) {
-		$value =~ s/WS\.[^.]*\.(.*)/$1/;
-		return $value;
-	}
-
-	return 0;
 };
 
 $bridge{course_template} = "modelCourse";

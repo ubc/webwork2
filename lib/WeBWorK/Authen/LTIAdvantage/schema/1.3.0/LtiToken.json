@@ -1,0 +1,62 @@
+{
+	"$schema": "http://json-schema.org/draft-06/schema#",
+	"$id": "LtiToken.json",
+	"title": "LTI Token",
+	"description":
+	  "An LTI Token contains assertions about the context of a launch and the identity of the user",
+	"type": "object",
+	"allOf": [
+	  {
+		"$ref": "./Token.json"
+	  },
+	  {
+		"type": "object",
+		"properties": {
+		  "https://purl.imsglobal.org/spec/lti/claim/message_type": {
+			"description": "The type of LTI Message",
+			"type": "string"
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/version": {
+			"description": "The minimum LTI version required",
+			"$ref": "./LtiVersion.json"
+		  },
+		  "https://purl.imsglobal.org/spec/lti/claim/deployment_id": {
+			"description":
+			  "The deployment identifier, uniquely identifying the tool's deployment on the platform.",
+			"type": "string"
+		  }
+		},
+		"patternProperties": {
+		  "^http(s)://": {
+			"description":
+			  "Vendors may extend the the JWT by adding additional objects using a \"Public Claim Name\"(https://tools.ietf.org/html/rfc7519#section-4.2). Vendors should only use domains that they own, and must be prepended with \"http://\"",
+			"oneOf": [
+			  {
+				"type": "null"
+			  },
+			  {
+				"type": "boolean"
+			  },
+			  {
+				"type": "object"
+			  },
+			  {
+				"type": "array"
+			  },
+			  {
+				"type": "number"
+			  },
+			  {
+				"type": "string"
+			  }
+			]
+		  }
+		}
+	  }
+	],
+	"required": [
+	  "https://purl.imsglobal.org/spec/lti/claim/version",
+	  "https://purl.imsglobal.org/spec/lti/claim/message_type",
+	  "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
+	]
+  }

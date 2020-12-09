@@ -2291,13 +2291,13 @@ BEGIN {
 }
 
 sub existsLTIContext {
-	my ($self, $consumerKey, $contextID) = shift->checkArgs(\@_, qw/oauth_consumer_key context_id/);
-	return $self->{lti_contexts}->exists($consumerKey, $contextID);
+	my ($self, $clientID, $contextID) = shift->checkArgs(\@_, qw/client_id context_id/);
+	return $self->{lti_contexts}->exists($clientID, $contextID);
 }
 
 sub getLTIContext {
-	my ( $self, $consumerKey, $contextID) = shift->checkArgs(\@_, qw/oauth_consumer_key context_id/);
-	return ( $self->getLTIContexts([$consumerKey, $contextID]) )[0];
+	my ( $self, $clientID, $contextID) = shift->checkArgs(\@_, qw/client_id context_id/);
+	return ( $self->getLTIContexts([$clientID, $contextID]) )[0];
 }
 
 sub addLTIContext {
@@ -2324,7 +2324,7 @@ sub putLTIContext {
 }
 
 sub getLTIContexts {
-	my ($self, @toolContextIDs) = shift->checkArgsRefList(\@_, qw/oauth_consumer_key context_id/);
+	my ($self, @toolContextIDs) = shift->checkArgsRefList(\@_, qw/client_id context_id/);
 	return $self->{lti_contexts}->gets(@toolContextIDs);
 }
 
@@ -2338,6 +2338,222 @@ sub getAllLTIContextsByAutomaticUpdates {
 	my ($self, $automaticUpdates) = shift->checkArgs(\@_, qw/automaticUpdates/);
 	my $where = [automatic_updates_eq => $automaticUpdates];
 	return $self->{lti_contexts}->get_records_where($where);
+}
+
+################################################################################
+# lti_nonces functions
+################################################################################
+# this database table is for storing lti nonces
+
+BEGIN {
+	*LTINonce = gen_schema_accessor("lti_nonces");
+	*newLTINonce = gen_new("lti_nonces");
+	*existsLTINonceWhere = gen_exists_where("lti_nonces");
+	*getLTINonceWhere = gen_get_records_where("lti_nonces");
+}
+
+sub existsLTINonce {
+	my ($self, $platformID, $nonce) = shift->checkArgs(\@_, qw/platform_id nonce/);
+	return $self->{lti_nonces}->exists($platformID, $nonce);
+}
+
+sub getLTINonce {
+	my ( $self, $platformID, $nonce) = shift->checkArgs(\@_, qw/platform_id nonce/);
+	return ( $self->getLTINonces([$platformID, $nonce]) )[0];
+}
+
+sub addLTINonce {
+	my ( $self, $LTINonce ) = shift->checkArgs(\@_, qw/REC:lti_nonces/);
+
+	eval {
+		return $self->{lti_nonces}->add($LTINonce);
+	};
+	if ( my $ex = caught WeBWorK::DB::Ex::RecordExists ) {
+		croak "addLTINonce: lti_nonce exists (perhaps you meant to use putLTINonce?)";
+	} elsif ($@) {
+		die $@;
+	}
+}
+
+sub putLTINonce {
+	my ($self, $LTINonce) = shift->checkArgs(\@_, qw/REC:lti_nonces/);
+	my $rows = $self->{lti_nonces}->put($LTINonce); # DBI returns 0E0 for 0.
+	if ($rows == 0) {
+		croak "putLTINonce: lti_nonce not found (perhaps you meant to use addLTINonce?)";
+	} else {
+		return $rows;
+	}
+}
+
+sub getLTINonces {
+	my ($self, @platformNonces) = shift->checkArgsRefList(\@_, qw/platform_id nonce/);
+	return $self->{lti_nonces}->gets(@platformNonces);
+}
+
+################################################################################
+# lti_access_tokens functions
+################################################################################
+# this database table is for storing lti access tokens
+
+BEGIN {
+	*LTIAccessToken = gen_schema_accessor("lti_access_tokens");
+	*newLTIAccessToken = gen_new("lti_access_tokens");
+	*existsLTIAccessTokenWhere = gen_exists_where("lti_access_tokens");
+	*getLTIAccessTokenWhere = gen_get_records_where("lti_access_tokens");
+}
+
+sub existsLTIAccessToken {
+	my ($self, $clientID, $scopes) = shift->checkArgs(\@_, qw/client_id scopes/);
+	return $self->{lti_access_tokens}->exists($clientID, $scopes);
+}
+
+sub getLTIAccessToken {
+	my ( $self, $clientID, $scopes) = shift->checkArgs(\@_, qw/client_id scopes/);
+	return ( $self->getLTIAccessTokens([$clientID, $scopes]) )[0];
+}
+
+sub addLTIAccessToken {
+	my ( $self, $LTIAccessToken ) = shift->checkArgs(\@_, qw/REC:lti_access_tokens/);
+
+	eval {
+		return $self->{lti_access_tokens}->add($LTIAccessToken);
+	};
+	if ( my $ex = caught WeBWorK::DB::Ex::RecordExists ) {
+		croak "addLTIAccessToken: lti_access_token exists (perhaps you meant to use putLTIAccessToken?)";
+	} elsif ($@) {
+		die $@;
+	}
+}
+
+sub putLTIAccessToken {
+	my ($self, $LTIAccessToken) = shift->checkArgs(\@_, qw/REC:lti_access_tokens/);
+	my $rows = $self->{lti_access_tokens}->put($LTIAccessToken); # DBI returns 0E0 for 0.
+	if ($rows == 0) {
+		croak "putLTIAccessToken: lti_access_token not found (perhaps you meant to use addLTIAccessToken?)";
+	} else {
+		return $rows;
+	}
+}
+
+sub getLTIAccessTokens {
+	my ($self, @clientScopes) = shift->checkArgsRefList(\@_, qw/client_id scopes/);
+	return $self->{lti_access_tokens}->gets(@clientScopes);
+}
+
+################################################################################
+# lti_resource_link functions
+################################################################################
+# this database table is for linking lti resource links to course ids
+
+BEGIN {
+	*LTIResourceLink = gen_schema_accessor("lti_resource_link");
+	*newLTIResourceLink = gen_new("lti_resource_link");
+	*existsLTIResourceLinkWhere = gen_exists_where("lti_resource_link");
+	*getLTIResourceLinkWhere = gen_get_records_where("lti_resource_link");
+}
+
+sub existsLTIResourceLink {
+	my ($self, $clientID, $contextID, $resourceLinkID) = shift->checkArgs(\@_, qw/client_id context_id resource_link_id/);
+	return $self->{lti_resource_link}->exists($clientID, $contextID, $resourceLinkID);
+}
+
+sub getLTIResourceLink {
+	my ( $self, $clientID, $contextID, $resourceLinkID) = shift->checkArgs(\@_, qw/client_id context_id resource_link_id/);
+	return ( $self->getLTIResourceLinks([$clientID, $contextID, $resourceLinkID]) )[0];
+}
+
+sub addLTIResourceLink {
+	my ( $self, $LTIResourceLink ) = shift->checkArgs(\@_, qw/REC:lti_resource_link/);
+
+	eval {
+		return $self->{lti_resource_link}->add($LTIResourceLink);
+	};
+	if ( my $ex = caught WeBWorK::DB::Ex::RecordExists ) {
+		croak "addLTIResourceLink: lti_resource_link exists (perhaps you meant to use putLTIResourceLink?)";
+	} elsif ($@) {
+		die $@;
+	}
+}
+
+sub putLTIResourceLink {
+	my ($self, $LTIResourceLink) = shift->checkArgs(\@_, qw/REC:lti_resource_link/);
+	my $rows = $self->{lti_resource_link}->put($LTIResourceLink); # DBI returns 0E0 for 0.
+	if ($rows == 0) {
+		croak "putLTIResourceLink: lti_resource_link not found (perhaps you meant to use addLTIResourceLink?)";
+	} else {
+		return $rows;
+	}
+}
+
+sub getLTIResourceLinks {
+	my ($self, @toolResourceLinkIDs) = shift->checkArgsRefList(\@_, qw/client_id context_id resource_link_id/);
+	return $self->{lti_resource_link}->gets(@toolResourceLinkIDs);
+}
+
+sub getAllLTIResourceLinks {
+	my ( $self ) = shift->checkArgs(\@_);
+	return $self->{lti_resource_link}->get_records_where();
+}
+
+################################################################################
+# lti_user functions
+################################################################################
+# this database table is for linking lti resource links to course ids
+
+BEGIN {
+	*LTIUser= gen_schema_accessor("lti_user");
+	*newLTIUser = gen_new("lti_user");
+	*existsLTIUserWhere = gen_exists_where("lti_user");
+	*getLTIUserWhere = gen_get_records_where("lti_user");
+}
+
+sub existsLTIUser {
+	my ($self, $userID, $clientID) = shift->checkArgs(\@_, qw/user_id client_id/);
+	return $self->{lti_user}->exists($userID, $clientID);
+}
+
+sub getLTIUser {
+	my ( $self, $userID, $clientID) = shift->checkArgs(\@_, qw/user_id client_id/);
+	return ( $self->getLTIUsers([$userID, $clientID,]) )[0];
+}
+
+sub addLTIUser {
+	my ( $self, $LTIUser ) = shift->checkArgs(\@_, qw/REC:lti_user/);
+
+	eval {
+		return $self->{lti_user}->add($LTIUser);
+	};
+	if ( my $ex = caught WeBWorK::DB::Ex::RecordExists ) {
+		croak "addLTIUser: lti_user exists (perhaps you meant to use putLTIUser?)";
+	} elsif ($@) {
+		die $@;
+	}
+}
+
+sub putLTIUser {
+	my ($self, $LTIUser) = shift->checkArgs(\@_, qw/REC:lti_user/);
+	my $rows = $self->{lti_user}->put($LTIUser); # DBI returns 0E0 for 0.
+	if ($rows == 0) {
+		croak "putLTIUser: lti_user not found (perhaps you meant to use addLTIUser?)";
+	} else {
+		return $rows;
+	}
+}
+
+sub getLTIUsers {
+	my ($self, @LTIUserIDs) = shift->checkArgsRefList(\@_, qw/user_id client_id/);
+	return $self->{lti_user}->gets(@LTIUserIDs);
+}
+
+sub getAllLTIUsers {
+	my ( $self ) = shift->checkArgs(\@_);
+	return $self->{lti_user}->get_records_where();
+}
+
+sub getLTIUserByUserID {
+	my ($self, $userID) = shift->checkArgs(\@_, qw/user_id/);
+	my $where = [user_id_eq => $userID];
+	return $self->{lti_user}->get_records_where($where);
 }
 
 ################################################################################
@@ -2392,6 +2608,19 @@ sub validateKeyfieldValue {
     } elsif ($keyfield eq "ip_mask") {
 	croak "invalid characters in '$keyfield' field: '$value' (valid characters are [-a-zA-Z0-9_.,])"
 	    unless $value =~ m/^[-a-fA-F0-9_.:\/]*$/;
+
+    } elsif ($keyfield eq "platform_id" || $keyfield eq "platformID") {
+		# any varchar should be fine
+    } elsif ($keyfield eq "nonce") {
+		# any varchar should be fine
+    } elsif ($keyfield eq "client_id" || $keyfield eq "clientID") {
+		# any varchar should be fine
+    } elsif ($keyfield eq "context_id" || $keyfield eq "contextID") {
+		# any varchar should be fine
+    } elsif ($keyfield eq "resource_link_id" || $keyfield eq "resourceLinkID") {
+		# any varchar should be fine
+    } elsif ($keyfield eq "scopes") {
+		# any varchar should be fine
 
     } else {
 	croak "invalid characters in '".encode_entities($keyfield)." field: '".encode_entities($value)."' (valid characters are [0-9])"

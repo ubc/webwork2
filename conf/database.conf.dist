@@ -119,16 +119,36 @@ $dbLayouts{sql_single} = {
 					non_native => 1,
 		},
 	},
-        lti_contexts => {
-                record => "WeBWorK::DB::Record::LTIContexts",
-                schema => "WeBWorK::DB::Schema::NewSQL::Std",
-                driver => "WeBWorK::DB::Driver::SQL",
-                source => $database_dsn,
-                engine => $database_storage_engine,
-                params => { %sqlParams,
-                    non_native => 1,
-                },
+    lti_contexts => {
+        record => "WeBWorK::DB::Record::LTIContexts",
+        schema => "WeBWorK::DB::Schema::NewSQL::Std",
+        driver => "WeBWorK::DB::Driver::SQL",
+        source => $database_dsn,
+        engine => $database_storage_engine,
+        params => { %sqlParams,
+            non_native => 1,
         },
+    },
+    lti_nonces => {
+        record => "WeBWorK::DB::Record::LTINonces",
+        schema => "WeBWorK::DB::Schema::NewSQL::Std",
+        driver => "WeBWorK::DB::Driver::SQL",
+        source => $database_dsn,
+        engine => $database_storage_engine,
+        params => { %sqlParams,
+            non_native => 1,
+        },
+    },
+    lti_access_tokens => {
+        record => "WeBWorK::DB::Record::LTIAccessTokens",
+        schema => "WeBWorK::DB::Schema::NewSQL::Std",
+        driver => "WeBWorK::DB::Driver::SQL",
+        source => $database_dsn,
+        engine => $database_storage_engine,
+        params => { %sqlParams,
+            non_native => 1,
+        },
+    },
 	password => {
 		record => "WeBWorK::DB::Record::Password",
 		schema => "WeBWorK::DB::Schema::NewSQL::Std",
@@ -375,7 +395,26 @@ $dbLayouts{sql_single} = {
 			tableOverride => "${courseName}_global_user_achievement"
 		},
 	},
-
+    lti_resource_link => {
+        record => "WeBWorK::DB::Record::LTIResourceLink",
+        schema => "WeBWorK::DB::Schema::NewSQL::Std",
+        driver => "WeBWorK::DB::Driver::SQL",
+        source => $database_dsn,
+        engine => $database_storage_engine,
+        params => { %sqlParams,
+            tableOverride => "${courseName}_lti_resource_link"
+        },
+    },
+    lti_user => {
+        record => "WeBWorK::DB::Record::LTIUser",
+        schema => "WeBWorK::DB::Schema::NewSQL::Std",
+        driver => "WeBWorK::DB::Driver::SQL",
+        source => $database_dsn,
+        engine => $database_storage_engine,
+        params => { %sqlParams,
+            tableOverride => "${courseName}_lti_user"
+        },
+    }
 };
 
 # include ("conf/database.conf");  # uncomment to provide local overrides

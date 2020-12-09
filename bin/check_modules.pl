@@ -91,6 +91,7 @@ my @modulesList = qw(
 	Net::IP
 	Net::LDAPS
 	Net::OAuth
+	Net::OAuth2
 	Net::SMTP
 	Net::SSLeay
 	Opcode
@@ -123,6 +124,8 @@ my @modulesList = qw(
     XML::Simple
     App::Genpass
 	HTTP::Async
+	Crypt::JWT
+	JSON::Validator
 );
 
 my %moduleVersion = (

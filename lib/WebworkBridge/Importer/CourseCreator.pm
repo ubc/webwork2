@@ -8,22 +8,23 @@ use warnings;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
+use Data::Dumper;
 use WeBWorK::Utils qw(cryptPassword);
 use WeBWorK::Utils::CourseManagement qw(addCourse);
 
 use WebworkBridge::Importer::Error;
 
-use App::Genpass;
 use Text::CSV;
 
 # Constructor
 sub new
 {
-	my ($class, $r, $course_ref, $users_ref) = @_;
+	my ($class, $ce, $db, $courseID, $courseTitle) = @_;
 	my $self = {
-		r => $r,
-		course => $course_ref,
-		users => $users_ref
+		ce => $ce,
+		db => $db,
+		courseID => $courseID,
+		courseTitle => $courseTitle
 	};
 	bless $self, $class;
 	return $self;
@@ -32,21 +33,11 @@ sub new
 sub createCourse
 {
 	my $self = shift;
+	my $ce = $self->{ce};
+	my $db = $self->{db};
 
-	my $error = $self->runAddCourse();
-	if ($error) { return $error; }
-
-	return 0;
-}
-
-sub runAddCourse
-{
-	my $self = shift;
-	my $ce = $self->{r}->ce;
-	my $db = $self->{r}->db;
-
-	my $courseID = $self->{course}->{name};
-	my $courseTitle = $self->{course}->{title};
+	my $courseID = $self->{courseID};
+	my $courseTitle = $self->{courseTitle};
 
 	my $ce2 = new WeBWorK::CourseEnvironment({
 		%WeBWorK::SeedCE,
@@ -64,29 +55,6 @@ sub runAddCourse
 		$optional_arguments{courseTitle} = $courseTitle;
 	}
 
-	my $genpass = App::Genpass->new(length=>16);
-	my @classlist;
-	my @users = @{$self->{users}};
-	foreach my $user (@users)
-	{
-		my $User = $db->newUser(
-			user_id       => $user->{'loginid'},
-			first_name    => $user->{'firstname'},
-			last_name     => $user->{'lastname'},
-			student_id    => $user->{'studentid'},
-			email_address => $user->{email} ? $user->{email} : "",
-			status        => ($user->{'permission'} > $ce->{userRoles}{student}) ? "P" : "C",
-		);
-		my $Password = $db->newPassword(
-			user_id  => $user->{'loginid'},
-			password => cryptPassword($genpass->generate),
-		);
-		my $PermissionLevel = $db->newPermissionLevel(
-			user_id    => $user->{'loginid'},
-			permission => $user->{'permission'},
-		);
-		push @classlist, [ $User, $Password, $PermissionLevel];
-	}
 	# add admin
 	my $AdminUser = $db->newUser(
 		user_id       => "admin",
@@ -104,7 +72,7 @@ sub runAddCourse
 		user_id    => "admin",
 		permission => $ce->{userRoles}{professor},
 	);
-	push @classlist, [ $AdminUser, $AdminPassword, $AdminPermissionLevel];
+	my @classlist = [ $AdminUser, $AdminPassword, $AdminPermissionLevel];
 
 	eval {
 		addCourse(

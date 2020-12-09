@@ -117,6 +117,8 @@ RUN apt-get update \
        libmoox-options-perl \
        libnet-https-nb-perl \
        libhttp-async-perl \
+       libcrypt-jwt-perl \
+       libjson-validator-perl \
        libmoose-perl \
        make \
        netpbm \
