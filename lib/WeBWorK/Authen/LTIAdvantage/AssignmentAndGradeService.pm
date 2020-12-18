@@ -489,10 +489,25 @@ sub _performAssignmentAndGradeRequests {
 					);
 					next;
 				}
+				# Canvas Unpublished Assignment
+				if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}') {
+					$extralog->logAGSRequest(
+						"Could not update grade for unpublished Canvas assignment. " .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content
+					);
+					debug(
+						"Could not update grade for unpublished Canvas assignment. " .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content
+					);
+					next;
+				}
 				$self->{error} = "Assignment and Grades Service (LineItem Score POST) request failed. " .
 					"\nStatus: " . $res->status_line .
 					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content;
+					"\nRequest Content: " . $res->request->content .
+					"\nResponse: " . $res->content;
 				debug($self->{error});
 				$extralog->logAGSRequest($self->{error});
 			}

@@ -1886,7 +1886,7 @@ authentication.
 sub url_authen_args {
 	my ($self) = @_;
 
-	return $self->url_args("user", "effectiveUser", "key", "theme");
+	return $self->url_args("effectiveUser", "theme");
 }
 
 =item url_state_args()
@@ -2021,9 +2021,7 @@ sub systemLink {
 
 	my $authen = exists $options{authen} ? $options{authen} : 1;
 	if ($authen) {
-		$params{user}          = undef unless exists $params{user};
 		$params{effectiveUser} = undef unless exists $params{effectiveUser};
-		$params{key}           = undef unless exists $params{key};
 		$params{theme}         = undef unless exists $params{theme};
 	}
 

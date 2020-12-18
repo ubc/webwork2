@@ -225,7 +225,7 @@ sub body {
 
 
 		# preserve the form data posted to the requested URI
-		my @fields_to_print = grep { not m/^(user|passwd|key|force_passwd_authen)$/ } $r->param;
+		my @fields_to_print = grep { not m/^(passwd|force_passwd_authen)$/ } $r->param;
 
 		#FIXME:  This next line can be removed in time.  MEG 1/27/2005
 		# warn "Error in filtering fields : |", join("|",@fields_to_print),"|" if grep {m/user/} @fields_to_print;
@@ -292,9 +292,6 @@ sub body {
 		if (@allowedGuestUsers) {
 #			print CGI::start_form({-method=>"POST", -action=>$r->uri});
 
-			# preserve the form data posted to the requested URI
-			my @fields_to_print = grep { not m/^(user|passwd|key|force_passwd_authen)$/ } $r->param;
-#			print $self->hidden_fields(@fields_to_print);
 			print CGI::br();
 			print CGI::p($r->maketext("_GUEST_LOGIN_MESSAGE", CGI::b($r->maketext("Guest Login"))));
 			print CGI::input({-type=>"submit", -name=>"login_practice_user", -value=>$r->maketext("Guest Login")});

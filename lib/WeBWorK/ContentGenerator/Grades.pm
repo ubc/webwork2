@@ -243,8 +243,8 @@ sub displayStudentStats {
 #########################################################################################
 	my $fullName = join("", $studentRecord->first_name," ", $studentRecord->last_name);
 	my $effectiveUser = $studentRecord->user_id();
-	my $act_as_student_url = "$root/$courseName/?user=".$r->param("user").
-			"&effectiveUser=$effectiveUser&key=".$r->param("key");
+	my $act_as_student_url = "$root/$courseName/?effectiveUser=$effectiveUser";
+
 
 	
 	# FIXME: why is the following not "print CGI::h3($fullName);"?  Hmm.
@@ -285,8 +285,7 @@ sub displayStudentStats {
 	my $bestGatewayScore = 0;
 	
 	foreach my $setName (@allSetIDs)   {
-		my $act_as_student_set_url = "$root/$courseName/$setName/?user=".$r->param("user").
-			"&effectiveUser=$effectiveUser&key=".$r->param("key");
+		my $act_as_student_set_url = "$root/$courseName/$setName/?effectiveUser=$effectiveUser";
 		my $set = $setsByID{ $setName };
 		my $setID = $set->set_id();  #FIXME   setName and setID should be the same
 

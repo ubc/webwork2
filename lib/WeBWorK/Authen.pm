@@ -370,87 +370,22 @@ sub get_credentials {
 		$self->{error} = $r->maketext("No guest logins are available. Please try again in a few minutes.");
 		return 0;
 	}
-	
+
 	my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
-
-	if (defined $cookieUser and defined $r->param("user") ) {
-		if ($cookieUser ne $r->param("user")) {
-			#croak ("cookieUser = $cookieUser and paramUser = ". $r->param("user") . " are different.");
-			$self->maybe_kill_cookie; # use parameter "user" rather than cookie "user";
-		}
-# I don't understand this next segment.
-# If both key and $cookieKey exist then why not just ignore the cookieKey?
-
-# 		if (defined $cookieKey and defined $r->param("key")) {
-# 			$self -> {user_id} = $cookieUser;
-# 			$self -> {password} = $r->param("passwd");
-# 			$self -> {login_type} = "normal";
-# 			$self -> {credential_source} = "params_and_cookie";
-# 			$self -> {session_key} = $cookieKey;
-# 			$self -> {cookie_timestamp} = $cookieTimeStamp;
-# 			if ($cookieKey ne $r->param("key")) {
-# 				warn ("cookieKey = $cookieKey and param key = " . $r -> param("key") . " are different, perhaps"
-# 					 ." because you opened several windows for the same site and then backed up from a newer one to an older one."
-# 					 ."  Avoid doing so.");
-# 			$self -> {credential_source} = "conflicting_params_and_cookie";
-# 			}
-# 			debug("params and cookie user '", $self->{user_id}, "' credential_source = '", $self->{credential_source},
-# 				"' params and cookie session key = '", $self->{session_key}, "' cookie_timestamp '", $self->{cookieTimeStamp}, "'");
-# 			return 1;
-# 		} els
-
-# Use session key for verification
-# else   use cookieKey for verification
-# else    use cookie user name but use password provided by request.
-
-		if (defined $r -> param("key")) {
-			$self->{user_id} = $r->param("user");
-			$self->{session_key} = $r->param("key");
-			$self->{password} = $r->param("passwd");
-			$self->{login_type} = "normal";
-			$self->{credential_source} = "params";
-			$self->{user_id}     = trim($self->{user_id});
-			$self->{password}     = trim($self->{password});
-			debug("params user '", $self->{user_id}, "' key '", $self->{session_key}, "'");
-			return 1;
-		} elsif (defined $cookieKey) {
-			$self->{user_id} = $cookieUser;
-			$self->{session_key} = $cookieKey;
-			$self->{cookie_timestamp} = $cookieTimeStamp;
-			$self->{login_type} = "normal";
-			$self->{credential_source} = "cookie";
-			$self->{user_id}     = trim($self->{user_id});
-			debug("cookie user '", $self->{user_id}, "' key '", $self->{session_key}, "' cookie_timestamp '", $self->{cookieTimeStamp}, "'");
-			return 1;
-		} else {
-			$self -> {user_id} = $cookieUser;
-			$self -> {session_key} = $cookieKey; # will be undefined
-			$self -> {password} = $r->param("passwd");
-			$self -> {cookie_timestamp} = $cookieTimeStamp;
-			$self -> {login_type} = "normal";
-			$self -> {credential_source} = "params_and_cookie";
-			$self->{user_id}     = trim($self->{user_id});
-			$self->{password}    = trim($self->{password});
-			debug("params and cookie user '", $self->{user_id}, "' params and cookie session key = '",
-				 $self->{session_key}, "' cookie_timestamp '", $self->{cookieTimeStamp}, "'");
-			return 1;
-		}	
-	}
-	# at least the user ID is available in request parameters
-	if (defined $r->param("user")) {
+	# this unfortunately still needs to be here for the webwork client to work
+	if (defined $r->param("key")) {
 		$self->{user_id} = $r->param("user");
 		$self->{session_key} = $r->param("key");
 		$self->{password} = $r->param("passwd");
 		$self->{login_type} = "normal";
 		$self->{credential_source} = "params";
-		$self->{user_id}      = trim($self->{user_id});
+		$self->{user_id}     = trim($self->{user_id});
 		$self->{password}     = trim($self->{password});
 		debug("params user '", $self->{user_id}, "' key '", $self->{session_key}, "'");
-		debug("params password '", $self->{password}, "' key '", $self->{session_key}, "'");
 		return 1;
-	}
-	
-	if (defined $cookieUser) {
+
+	# normal session auth variables
+	} elsif (defined $cookieUser) {
 		$self->{user_id} = $cookieUser;
 		$self->{session_key} = $cookieKey;
 		$self->{cookie_timestamp} = $cookieTimeStamp;
@@ -458,6 +393,18 @@ sub get_credentials {
 		$self->{credential_source} = "cookie";
 		$self->{user_id}     = trim($self->{user_id});
 		debug("cookie user '", $self->{user_id}, "' key '", $self->{session_key}, "' cookie_timestamp '", $self->{cookieTimeStamp}, "'");
+		return 1;
+
+	# login auth variables
+	} elsif (defined $r->param("user")) {
+		$self->{user_id} = $r->param("user");
+		$self->{session_key} = undef;
+		$self->{password} = $r->param("passwd");
+		$self->{login_type} = "normal";
+		$self->{credential_source} = "params";
+		$self->{user_id}     = trim($self->{user_id});
+		$self->{password}     = trim($self->{password});
+		debug("params user '", $self->{user_id}, "' key '", $self->{session_key}, "'");
 		return 1;
 	}
 }

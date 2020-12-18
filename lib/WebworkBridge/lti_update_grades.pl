@@ -72,7 +72,7 @@ foreach my $course_id (@course_ids) {
 		my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($tmp_ce, $tmp_db);
 		$assignment_and_grade_service->pushAllAssignmentGrades();
 		if ($assignment_and_grade_service->{error}) {
-			die "There was an issue fetching updating class grades. ".$assignment_and_grade_service->{error};
+			die "There was an issue updating class grades. ".$assignment_and_grade_service->{error};
 		}
 	};
 	if ($@) {

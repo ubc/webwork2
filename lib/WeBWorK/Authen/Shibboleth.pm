@@ -73,7 +73,8 @@ sub get_credentials {
 		#    failure.
 		$self->{external_auth} = 1;
 
-		if ( $r->param("user") && ! $r->param("force_passwd_authen") ) {
+		my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
+		if ( $cookieUser && ! $r->param("force_passwd_authen") ) {
 			return $self->SUPER::get_credentials( @_ );
 		}
 
@@ -137,7 +138,7 @@ sub get_credentials {
 	}
 }
 
-sub site_checkPassword {
+sub checkPassword {
 	my ( $self, $userID, $clearTextPassword ) = @_;
 
 	if ( $self->{r}->ce->{shiboff}  || $self->{r}->param('bypassShib') ) {
@@ -146,40 +147,6 @@ sub site_checkPassword {
 		# this is easy; if we're here at all, we've authenticated
 		# through shib
 		return 1;
-	}
-}
-
-# disable cookie functionality
-sub maybe_send_cookie {
-	my ($self, @args) = @_;
-	if ( $self->{r}->ce->{shiboff} ) {
-		return $self->SUPER::maybe_send_cookie( @_ );
-	} else {
-		# nothing to do here
-	}
-}
-sub fetchCookie {
-	my ($self, @args) = @_;
-	if ( $self->{r}->ce->{shiboff} ) {
-		return $self->SUPER::fetchCookie( @_ );
-	} else {
-		# nothing to do here
-	}
-}
-sub sendCookie {
-	my ($self, @args) = @_;
-	if ( $self->{r}->ce->{shiboff} ) {
-		return $self->SUPER::sendCookie( @_ );
-	} else {
-		# nothing to do here
-	}
-}
-sub killCookie {
-	my ($self, @args) = @_;
-	if ( $self->{r}->ce->{shiboff} ) {
-		return $self->SUPER::killCookie( @_ );
-	} else {
-		# nothing to do here
 	}
 }
 
@@ -194,35 +161,6 @@ sub forget_verification {
 	} else {
 		$self->{was_verified} = 0;
 		$self->{redirect} = $r->ce->{shibboleth}{logout_script};
-	}
-}
-
-# returns ($sessionExists, $keyMatches, $timestampValid)
-# if $updateTimestamp is true, the timestamp on a valid session is updated
-# override function: allow shib to handle the session time out
-sub check_session {
-	my ($self, $userID, $possibleKey, $updateTimestamp) = @_;
-	my $ce = $self->{r}->ce;
-	my $db = $self->{r}->db;
-
-	if ( $ce->{shiboff} ) {
-		return $self->SUPER::check_session( @_ );
-	} else {
-		my $Key = $db->getKey($userID); # checked
-		return 0 unless defined $Key;
-
-		my $keyMatches = (defined $possibleKey and $possibleKey eq $Key->key);
-		my $timestampValid = (time <= $Key->timestamp()+$ce->{sessionKeyTimeout});
-		if ($ce->{shibboleth}{manage_session_timeout}) {
-			# always valid to allow shib to take control of timeout
-			$timestampValid = 1;
-		}
-
-		if ($keyMatches and $timestampValid and $updateTimestamp) {
-			$Key->timestamp(time);
-			$db->putKey($Key);
-		}
-		return (1, $keyMatches, $timestampValid);
 	}
 }
 
