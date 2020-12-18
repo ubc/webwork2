@@ -29,7 +29,7 @@ use warnings;
 use WeBWorK::CGI;
 use WeBWorK::Debug;
 use WeBWorK::ContentGenerator::Grades;
-use WeBWorK::Utils qw(jitar_id_to_seq jitar_problem_adjusted_status wwRound);
+use WeBWorK::Utils qw(jitar_id_to_seq jitar_problem_adjusted_status wwRound writeLog);
 #use WeBWorK::Utils qw(readDirectory list2hash max sortByName);
 use WeBWorK::Utils::SortRecords qw/sortRecords/;
 use WeBWorK::Utils::Grades qw/list_set_versions/;
@@ -310,6 +310,7 @@ sub displaySets {
 		return lc($a->{section}) cmp lc($b->{section}) if $sort_method_name eq 'section';
 		return lc($a->{recitation}) cmp lc($b->{recitation}) if $sort_method_name eq 'recitation';
 		return lc($a->{user_id}) cmp lc($b->{user_id}) if $sort_method_name eq 'user_id';
+		return ($a->{total} eq 'n/a' ? 9**9**9 : $a->{num_of_attempts} || 0) <=> ($b->{total} eq 'n/a' ? 9**9**9 : $b->{num_of_attempts} || 0) if $sort_method_name eq 'num_of_attempts';
 		if ($sort_method_name =~/p(\d+)/) {
 			my $left  =  $b->{problemData}->{$1} ||0;
 			my $right =  $a->{problemData}->{$1} ||0;
@@ -326,6 +327,7 @@ sub displaySets {
 		section => 'section',
 		recitation => 'recitation',
 		user_id => 'login name',
+		num_of_attempts => '# of attempts',
 	);				
 
 # get versioning information
@@ -348,6 +350,80 @@ sub displaySets {
 		$showColumns{'login'} = ($ret && defined($r->param('show_login'))) ? $r->param('show_login') : 0;
 		$showBestOnly = ($ret && defined($r->param('show_best_only'))) ? $r->param('show_best_only') : 0;
 	}
+
+    # if instructor wanted to do batch grading for missing submissions
+    my $recordAsOther = $authz->hasPermissions( $user, "record_answers_when_acting_as_student" );
+    my $recordVersionsAsOther = $authz->hasPermissions( $user, "record_set_version_answers_when_acting_as_student" );
+    if ( $setIsVersioned && ( $recordAsOther || $recordVersionsAsOther ) && $r->param( 'batch_grade_not_submitted' ) ) {
+        my @studentSetToSubmit;
+        @studentSetToSubmit = get_student_quiz_not_submitted( $ce, $db, $setName, $setIsVersioned );
+        foreach my $pair ( @studentSetToSubmit ) {
+            my ( $userid, $setNameVersion ) = @{$pair};
+            my ( $setN, $vNum ) = ( $setNameVersion =~ /(.+),v(\d+)$/ );
+
+            #########################################
+            # We can't just get the scores from saved version using problem id.
+            # Strangely, webwork decided to store scores/answers in the order of how questions are displayed instead of matching the problem id.
+            # That means if you select db records from the *_past_answer table and order by "problem_id",
+            # the "scores" and "answer_string" values are actually ordered by how the questions were displayed to stduent.
+            # Meanwhile the "source_file" etc values are ordered by "problem_id" correctly according to the set template.
+            # So if you look at a particular db row from table *_past_answer,
+            # the "scores" and "answer_string" are not actually for that particular "source_file" problem.
+            # Why?  Sigh...
+            # So here we are just going to duplicate the code from GatewayQuiz.pm to find out which score/answer
+            # is for which problem.
+            #
+            # PS Also, this logic will cause the foreach-loop below to die in a horriable way
+            # if problems are not numbered consecutively from one.
+            # But don't worry, since in this case students won't be able to start the quiz anyway.
+            # The same bug will cause webwork thinks "One or more of the problems in this set have not been assigned to you."
+            # and prevent students to start the quiz.
+            my @problemNumbers = $db->listProblemVersions( $userid, $setN, $vNum );
+            my @probOrder = ( 0 .. $#problemNumbers );
+            my $set = $db->getMergedSetVersion( $userid, $setN, $vNum );
+            if ( $set->problem_randorder ) {
+                my @newOrder = ();
+                my $pgrand = PGrandom->new();
+                $pgrand->srand( $set->psvn );
+                while ( @probOrder ) {
+                    my $i = int($pgrand->rand(scalar(@probOrder)));
+                    push( @newOrder, $probOrder[$i] );
+                    splice(@probOrder, $i, 1);
+                }
+                @probOrder = @newOrder;
+            }
+            #########################################
+
+            my @problems = $db->getAllProblemVersions( $userid, $setN, $vNum );
+            foreach my $i ( 0 .. $#problems ) {
+                my $problem = $problems[$i];
+                my ($pastAnswerIndex) = grep { $probOrder[$_] ~~ ( $problem->problem_id - 1 ) } 0 .. $#probOrder;
+                my $lastSavedProblemIndex = $db->latestProblemPastAnswer( $self->{ce}->{courseName}, $userid, $setNameVersion, $pastAnswerIndex+1 );
+                my $lastSavedProblem = $db->getPastAnswer( $lastSavedProblemIndex );
+
+                $problem->attempted( 1 );
+                # FIXME instead of copying score from saved draft, a better way is to grade the answer saved in *_problem_user.
+                # but there seems to be no function to do that. the sub ProblemUtil::create_ans_str_from_responses requires
+                # $self->{formFields}->{$response_id} as parameter...
+                my $numericScores = 0.0;
+                # scores are stored as text in *past_answer table. if the problem has multiple answers, one digit for each answer.
+                $numericScores += $_  for split//, $lastSavedProblem->scores;
+                $problem->status( wwRound( 2, $numericScores / length $lastSavedProblem->scores ) );
+                # FIXME this is probably not the correct way to determine whether the answer is correct or not
+                if ( int( $numericScores ) >= length $lastSavedProblem->scores ) {
+                    $problem->num_correct( $problem->num_correct + 1 );
+                } else {
+                    $problem->num_incorrect( $problem->num_incorrect + 1 );
+                }
+
+                $db->putProblemVersion( $problem );
+                writeLog( $self->{ce}, "batch_grading",
+                    $userid, $setNameVersion, $problem->problem_id, $problem->status, $problem->num_correct, $problem->num_incorrect
+                );
+            }
+            # TODO grade submission via LTI
+        }
+    }
 
 ###############################################################
 #  Print tables
@@ -652,6 +728,7 @@ sub displaySets {
 		                                  problemData    => {%h_problemData},
 						  date           => $dateOfTest,
 						  testtime       => $testTime,
+						  num_of_attempts=> $num_of_attempts,
 					      }; 
 			
 			# keep track of best score
@@ -876,6 +953,7 @@ sub displaySets {
 		if ( $showColumns{ 'recit' } );
 	    push( @columnHdrs, CGI::a({"href"=>$self->systemLink($setStatsPage,params=>{primary_sort=>'user_id', %params})},$r->maketext('Login Name')) )
 		if ( $showColumns{ 'login' } );
+	    push( @columnHdrs, CGI::a({"href"=>$self->systemLink($setStatsPage,params=>{primary_sort=>'num_of_attempts', %params})},$r->maketext('# of Attempts')) );
 
 	    print CGI::start_table({-class=>"progress-table", -border=>5,style=>'font-size:smaller'}),
 	        CGI::Tr(CGI::td(  {-align=>'left'},
@@ -890,7 +968,7 @@ sub displaySets {
     #    (the total number of columns is two more than this; we want the 
     #    number that missing record information should span)
 
-	my $numCol = 1;
+	my $numCol = 2;
 	$numCol++ if $showColumns{'date'};
 	$numCol++ if $showColumns{'testtime'};
 	$numCol++ if $showColumns{'problems'};
@@ -947,6 +1025,7 @@ sub displaySets {
 				push(@cols, $self->nbsp($rec->{recitation})) 
 				    if ($showColumns{'recit'});
 				push(@cols, $rec->{user_id}) if ($showColumns{'login'});
+				push(@cols, $rec->{num_of_attempts});
 				print CGI::Tr( CGI::td( [ @cols ] ) );
 			} else {
 				my @cols = ( CGI::td( $fullName ),
@@ -968,6 +1047,25 @@ sub displaySets {
 	}
 
 	print CGI::end_table();
+
+    # allow users, if permitted, to do batch grading for students that haven't submitted their quizzes for grading
+    my $recordAsOther = $authz->hasPermissions( $user, "record_answers_when_acting_as_student" );
+    my $recordVersionsAsOther = $authz->hasPermissions( $user, "record_set_version_answers_when_acting_as_student" );
+    if ( $setIsVersioned && ( $recordAsOther || $recordVersionsAsOther ) ) {
+        print CGI::start_div( {'id'=>'screen-options-wrap'} );
+        print CGI::start_form( {'method' => 'post', 'id'=>'sp-gateway-form',
+            'action' => $self->systemLink($urlpath,authen=>0),'name' => 'StudentProgress'} );
+        print CGI::br();
+        print CGI::p( {},$r->maketext( 'Grade saved drafts for students who have not submitted their answers for grading.' ) );
+        print CGI::p( {},$r->maketext( 'Only use this function when all students have finished this quiz.' ) );
+        print CGI::br();
+        print $self->hidden_authen_fields();
+        print CGI::hidden(-name=>'batch_grade_not_submitted', -value=>'1');
+        print CGI::submit( -value=>$r->maketext( 'Grade saved drafts' ) );
+        print CGI::br();
+        print CGI::end_form();
+        print CGI::end_div();
+    }
 
 	return "";
 }
@@ -1010,6 +1108,50 @@ sub displaySets {
 #            $num_of_attempts, 
 #            $num_of_problems) = grade_set(...);
 #########################
+
+##
+## get_student_quiz_not_submitted
+##
+## Returns an array of (student ID, set name with version) in which the set has started but not submitted before the dealine.
+## Only include those with deadline < current time.
+##
+sub get_student_quiz_not_submitted {
+    my ( $ce, $db, $setName, $setIsVersioned ) = @_;
+    my @result = ();
+    my @userIDs = $db->listSetUsers( $setName );
+
+    foreach my $studentId ( @userIDs ) {
+        my ( $ra_allSetVersionNames, $notAssignedSet ) = list_set_versions( $db, $studentId, $setName, $setIsVersioned );
+        next if $notAssignedSet;
+        my @allSetVersionNames = @{$ra_allSetVersionNames};
+        foreach my $setNameVersion ( @allSetVersionNames ) {
+            my ( $setN, $vNum ) = ( $setNameVersion =~ /(.+),v(\d+)$/ );
+
+            # see if student has submitted the quiz. if so, can skip
+            my $attempted = 0;
+            my @problemRecords = $db->getAllMergedProblemVersions( $studentId, $setN, $vNum );
+            foreach my $theProblemRecord ( @problemRecords ) {
+                if ( $theProblemRecord->attempted ) {
+                    $attempted = 1;
+                    last;
+                }
+            }
+            next if $attempted;
+
+            # see if we have passed the submission deadline. skip if student can still submit the set themselves
+            my $timeNow = time();
+            my $grace = $ce->{gatewayGracePeriod};
+            my $theSet = $db->getMergedSetVersion( $studentId, $setN, $vNum );
+            next if ( $theSet->due_date() + $grace > $timeNow );
+
+            my @pair;
+            @pair = ( $studentId, $setNameVersion );
+            push( @result, \@pair );
+        }
+    }
+
+    @result
+}
 
 sub grade_set {
 
