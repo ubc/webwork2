@@ -58,7 +58,7 @@ use Data::Dumper;
 # checking or cookie management.
 
 sub get_credentials {
-	my ($self) = @_;
+	my $self = shift;
 	my $r = $self->{r};
 	my $ce = $r->ce;
 	my $db = $r->db;
@@ -111,8 +111,7 @@ sub get_credentials {
 								$self->{session_key} = $Key->key;
 							}
 						}
-						$self->{password}      = "youwouldneverpickthispassword";
-						$self->{login_type}    = "normal";
+						$self->{login_type} = "normal";
 						$self->{credential_source} = "params";
 						$self->{password} = 1;
 						return 1;
@@ -139,10 +138,10 @@ sub get_credentials {
 }
 
 sub checkPassword {
-	my ( $self, $userID, $clearTextPassword ) = @_;
+	my ($self, @args) = @_;
 
-	if ( $self->{r}->ce->{shiboff}  || $self->{r}->param('bypassShib') ) {
-		return $self->SUPER::checkPassword( @_ );
+	if ( $self->{r}->ce->{shiboff} || $self->{r}->param('bypassShib') ) {
+		return $self->SUPER::checkPassword( @args );
 	} else {
 		# this is easy; if we're here at all, we've authenticated
 		# through shib
