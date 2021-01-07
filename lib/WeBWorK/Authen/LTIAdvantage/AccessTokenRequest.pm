@@ -176,7 +176,11 @@ sub getAccessToken {
 			debug("Rate limit Exceeded, sleep for $sleep_seconds seconds");
 			sleep $sleep_seconds; # wait reties + 3 seconds to try again
 		} else {
-			$self->{error} = "LTI Access Token Request failed. ". $response->message . " \n" .$response->content;
+			$self->{error} = "LTI Access Token Request failed. " .
+				"\nStatus: " . $response->status_line .
+				"\nRequest URI: " . $response->request->uri .
+				"\nRequest Content: " . $response->request->content .
+				"\nResponse: " . $response->content;
 			$extralog->logAccessTokenRequest($self->{error});
 			debug($self->{error});
 			return 0;

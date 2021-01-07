@@ -206,7 +206,11 @@ sub getNamesAndRole {
 			}
 			last;
 		} else {
-			$self->{error} = "Names And Roles Service request failed. " . $res->status_line;
+			$self->{error} = "Names And Roles Service request failed. " .
+				"\nStatus: " . $res->status_line .
+				"\nRequest URI: " . $res->request->uri .
+				"\nRequest Content: " . $res->request->content .
+				"\nResponse: " . $res->content;
 			$extralog->logNRPSRequest($self->{error});
 			debug($self->{error});
 			return 0;

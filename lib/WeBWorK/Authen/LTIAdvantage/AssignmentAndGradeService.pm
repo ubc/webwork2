@@ -328,7 +328,11 @@ sub _performAssignmentAndGradeRequests {
 				$extralog->logAGSRequest("Assignment and Grades Service (LineItems POST) request failed, unable to create new line item for resource link id: $resource_link_id");
 				next;
 			} else {
-				$self->{error} = "Assignment and Grades Service (LineItems POST) request failed. " . $res->status_line;
+				$self->{error} = "Assignment and Grades Service (LineItems POST) request failed. " .
+					"\nStatus: " . $res->status_line .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content .
+					"\nResponse: " . $res->content;
 				$extralog->logAGSRequest($self->{error});
 				debug($self->{error});
 				next;
@@ -348,7 +352,11 @@ sub _performAssignmentAndGradeRequests {
 				$extralog->logAGSRequest("Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
 				debug("Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
 			} else {
-				$self->{error} = "Assignment and Grades Service (LineItem GET) request failed. " . $res->status_line;
+				$self->{error} = "Assignment and Grades Service (LineItem GET) request failed. " .
+					"\nStatus: " . $res->status_line .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content .
+					"\nResponse: " . $res->content;
 				$extralog->logAGSRequest($self->{error});
 				debug($self->{error});
 				next;
@@ -402,7 +410,11 @@ sub _performAssignmentAndGradeRequests {
 					}
 					last;
 				} else {
-					$self->{error} = "Assignment and Grades Service (LineItem Result GET) request failed." . $res->status_line;
+					$self->{error} = "Assignment and Grades Service (LineItem Result GET) request failed. " .
+						"\nStatus: " . $res->status_line .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content .
+						"\nResponse: " . $res->content;
 					$extralog->logAGSRequest($self->{error});
 					debug($self->{error});
 					$request_error = 1;
