@@ -264,6 +264,7 @@ RUN cd $APP_ROOT/webwork2/conf \
       PerlPassEnv WEBWORK_SMTP_SERVER\n\
       PerlPassEnv WEBWORK_SMTP_SENDER\n\
       PerlPassEnv WEBWORK_TIMEZONE\n\
+      PerlPassEnv R_HOST\n\
       \n<Perl>/' /etc/apache2/conf-enabled/webwork.conf
 
 # install odbc for shib sp

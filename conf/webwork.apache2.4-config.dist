@@ -103,6 +103,7 @@ print "webwork.apache2-config:  The webwork url on this site is ", $ce->{server_
 print "webwork.apache2-config:  The webwork smtp server address is ", $ce->{mail}{smtpServer},"\n";
 print "webwork.apache2-config:     The webwork smtp server port is $ce->{mail}->{smtpPort}\n";
 print "webwork.apache2-config:     The webwork smtp server protocol is ", ($ce->{mail}->{tls_allow})?"'ssl'":"'not ssl'","\n";
+print "webwork.apache2-config:  Rserve host is ", $ENV{R_HOST}, "\n";
 
 # check compatibility of sendmail protocols and ports
 if (exists(($ce->{mail}->{smtpPort})) )  { # port not chosen automatically
