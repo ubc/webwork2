@@ -33,6 +33,8 @@ use JSON;
 use Date::Format;
 use Date::Parse;
 
+use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
+
 sub verify_normal_user {
 	my $self = shift;
 	my $ret = $self->SUPER::verify_normal_user(@_);
@@ -289,7 +291,7 @@ sub authenticate {
 	}
 
 	# validate nonce
-	my %cookies = WeBWorK::Cookie->fetch();
+	my %cookies = WeBWorK::Cookie->fetch( MP2 ? $r : () );
 	my $cookie = $cookies{$r->param("state")};
 	if (!$cookie) {
 		$self->{log_error} = "Could not find LTI launch cookie: ".$r->param("state");
