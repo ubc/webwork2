@@ -352,6 +352,22 @@ sub _performAssignmentAndGradeRequests {
 				$extralog->logAGSRequest("Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
 				debug("Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
 			} else {
+				# expected errors
+				# Canvas course upcoming or concluded (not within start and end dates)
+				# https://community.canvaslms.com/t5/Developers-Group/LTI-Advantage-Lineitems-get-and-grade-sync-posts-for-a-course/m-p/412234#M6580
+				if ($res->status_line eq '404 Not Found' && $res->content eq '{"errors":[{"message":"The specified resource does not exist."}]}') {
+					$extralog->logAGSRequest(
+						"Could not update grade for concluded or upcoming Canvas Course. " .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content
+					);
+					debug(
+						"Could not update grade for concluded or upcoming Canvas Course. " .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content
+					);
+					next;
+				}
 				$self->{error} = "Assignment and Grades Service (LineItem GET) request failed. " .
 					"\nStatus: " . $res->status_line .
 					"\nRequest URI: " . $res->request->uri .
