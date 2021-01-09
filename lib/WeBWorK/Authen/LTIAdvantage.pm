@@ -32,6 +32,7 @@ use mod_perl;
 use JSON;
 use Date::Format;
 use Date::Parse;
+use URI::Escape;
 
 use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
 
@@ -291,9 +292,27 @@ sub authenticate {
 	}
 
 	# validate nonce
-	my %cookies = WeBWorK::Cookie->fetch( MP2 ? $r : () );
-	my $cookie = $cookies{$r->param("state")};
-	if (!$cookie) {
+	my $cookie_value = undef;
+	if (MP2) {
+		my $jar = undef;
+ 		eval {
+       		$jar = $r->jar; #table of cookies
+  		};
+  		if (ref $@ and $@->isa("APR::Request::Error") ) {
+			debug("Error parsing cookies, will use a partial result");
+     		$jar = $@->jar; # table of successfully parsed cookies
+  		};
+		if ($jar) {
+			$cookie_value = uri_unescape($jar->get($r->param("state")));
+		};
+	} else {
+		my %cookies = WeBWorK::Cookie->fetch();
+		my $cookie = $cookies{$r->param("state")};
+		if ($cookie) {
+			$cookie_value = $cookie->value;
+		}
+	}
+	if (!$cookie_value) {
 		$self->{log_error} = "Could not find LTI launch cookie: ".$r->param("state");
 		$self->{error} = "Could not find LTI launch cookie: ".$r->param("state");
 		debug($self->{log_error});
@@ -302,10 +321,9 @@ sub authenticate {
 
 	my $platform_id = $parser->get_param("iss");
 	my $nonce = $parser->get_param("nonce");
-	my $expected_nonce = $cookie->value;
-	if (!defined($expected_nonce) || $expected_nonce ne $nonce) {
-		$self->{log_error} = "Invalid nonce provided. Expected: $expected_nonce Got: $nonce";
-		$self->{error} = "Invalid nonce provided. Expected: $expected_nonce Got: $nonce";
+	if ($cookie_value ne $nonce) {
+		$self->{log_error} = "Invalid nonce provided. Expected: $cookie_value Got: $nonce";
+		$self->{error} = "Invalid nonce provided. Expected: $cookie_value Got: $nonce";
 		debug($self->{log_error});
 		return 0;
 	}
