@@ -141,6 +141,14 @@ sub updateUser
 	my $course_id = $ce->{courseName}; # the course we're updating
 	my $id = $oldInfo->user_id();
 
+	my $new_status = "C";
+	if ($newInfo->{'permission'} == $ce->{userRoles}{professor} ||
+		$newInfo->{'permission'} == $ce->{userRoles}{ta} ||
+		$newInfo->{'permission'} == $ce->{userRoles}{admin})
+	{
+		$new_status = "P";
+	}
+
 	# Do the simple updates first since they can be batched
 	my $update = 0;
 	# Update student id
@@ -169,6 +177,11 @@ sub updateUser
 		$oldInfo->last_name($newInfo->{'lastname'});
 		$update = 1;
 	}
+	# Update status
+	if ($oldInfo->status() ne $new_status) {
+		$oldInfo->status($new_status);
+		$update = 1;
+	}
 	# Batch update info
 	if ($update) {
 		$db->putUser($oldInfo);
@@ -177,20 +190,6 @@ sub updateUser
 	if ($newInfo->{'permission'} != $permission->permission()) {
 		$permission->permission($newInfo->{'permission'});
 		$db->putPermissionLevel($permission);
-	}
-
-	# Update status
-	if ($oldInfo->status() eq "D") {
-		# this person dropped the course but re-registered
-		if ($permission->permission() <= $ce->{userRoles}{student}) {
-			$oldInfo->status("C");
-			$db->putUser($oldInfo);
-			$self->addlog("Student $id rejoined $course_id");
-		} else {
-			$oldInfo->status("P");
-			$db->putUser($oldInfo);
-			$self->addlog("Teaching staff $id rejoined $course_id");
-		}
 	}
 
 	# assign all visible homeworks to user
