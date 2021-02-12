@@ -1750,7 +1750,7 @@ sub body {
 		}
 
 		my $caliper_sensor = Caliper::Sensor->new($self->{ce});
-		if ($caliper_sensor->caliperEnabled()) {
+		if ($caliper_sensor->caliperEnabled() && defined($answer_log)) {
 			my $events = [];
 
 			my $startTime = $r->param('startTime');
