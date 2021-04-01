@@ -47,6 +47,12 @@ my $ce = WeBWorK::CourseEnvironment->new({
 });
 my $db = new WeBWorK::DB($ce->{dbLayout});
 
+# set env var SINGLE_COURSE_SYNC to a Webwork course ID to make this script
+# update only that course. We run this script in a docker container, so can
+# adjust env vars every run. This is to help troubleshoot single course
+# updates.
+my $singleCourseSync = $ENV{'SINGLE_COURSE_SYNC'};
+
 # LTI Update
 
 my @lti_contexts = $db->getAllLTIContextsByAutomaticUpdates(1);
@@ -61,6 +67,10 @@ foreach my $lti_context (@lti_contexts) {
 	}
 }
 my @course_ids = keys %{$course_hash};
+# ignore all other course IDs if SINGLE_COURSE_SYNC env var is set
+if (defined $singleCourseSync) {
+    @course_ids = ($singleCourseSync);
+}
 
 foreach my $course_id (@course_ids) {
 	my $tmp_ce = WeBWorK::CourseEnvironment->new({
