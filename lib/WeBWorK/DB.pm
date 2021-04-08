@@ -2490,9 +2490,10 @@ sub getLTIResourceLinks {
 	return $self->{lti_resource_link}->gets(@toolResourceLinkIDs);
 }
 
-sub getAllLTIResourceLinks {
+sub getAllValidLTIResourceLinks {
 	my ( $self ) = shift->checkArgs(\@_);
-	return $self->{lti_resource_link}->get_records_where();
+	my $where = [is_valid_eq => 1];
+	return $self->{lti_resource_link}->get_records_where($where);
 }
 
 ################################################################################

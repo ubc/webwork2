@@ -155,6 +155,12 @@ sub where_user_id_eq_set_id_eq {
 	return {user_id=>$user_id,set_id=>$set_id};
 }
 
+# can be used for lti_resource_links
+sub where_is_valid_eq {
+    my ($self, $flags, $valid) = @_;
+    return {is_valid=>$valid};
+}
+
 # can be used for lti_contexts
 sub where_course_id_eq {
     my ($self, $flags, $course_id) = @_;

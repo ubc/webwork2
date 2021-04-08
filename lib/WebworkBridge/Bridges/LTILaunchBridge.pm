@@ -361,6 +361,7 @@ sub _updateLTISettings()
 			$lti_resource_link->scope_result_score("");
 		}
 
+		$lti_resource_link->is_valid(1);
 		if($exists) {
 			$db->putLTIResourceLink($lti_resource_link);
 		} else {

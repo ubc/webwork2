@@ -38,7 +38,10 @@ BEGIN {
 		scope_lineitem => { type=>"TINYBLOB" },
 		scope_lineitem_read_only => { type=>"TINYBLOB" },
 		scope_result_readonly => { type=>"TINYBLOB" },
-		scope_result_score => { type=>"TINYBLOB" }
+		scope_result_score => { type=>"TINYBLOB" },
+
+		# resource link is valid or not
+		is_valid => { type=>"TINYINT DEFAULT 1" }
 	);
 }
 

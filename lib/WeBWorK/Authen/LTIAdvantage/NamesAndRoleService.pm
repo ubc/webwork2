@@ -65,7 +65,7 @@ sub getAllNamesAndRole {
 	my $course_id = $ce->{courseName};
 	my $extralog = WebworkBridge::ExtraLog->new($ce);
 	my @lti_contexts = $db->getLTIContextsByCourseID($course_id);
-	my @lti_resource_links = $db->getAllLTIResourceLinks();
+	my @lti_resource_links = $db->getAllValidLTIResourceLinks();
 
 	# Step 1: make a request for each context (use first resource link id)
 	my @membership_requests = ();
@@ -113,8 +113,12 @@ sub getAllNamesAndRole {
 			$membership_request->{'context_memberships_url'},
 		);
 
-		# return error instead?
-		next if (!$members || scalar(@{$members}) == 0);
+		# return error if request errored
+		if (!$members) {
+			return 0;
+		}
+		# next if membership if empty
+		next if (scalar(@{$members}) == 0);
 
 		# merge memberships. If user exists in multiple places, use first result only
 		foreach my $member (@{$members}) {
@@ -132,6 +136,7 @@ sub getNamesAndRole {
 	my ($self, $client_id, $context_id, $resource_link_id, $context_memberships_url) = @_;
 
 	my $ce = $self->{ce};
+	my $db = $self->{db};
 
 	my $extralog = WebworkBridge::ExtraLog->new($ce);
 	$extralog->logNRPSRequest("Beginning Names And Roles Service request for client: $client_id on context: $context_id with membership url: $context_memberships_url");
@@ -206,6 +211,12 @@ sub getNamesAndRole {
 			}
 			last;
 		} else {
+			# semi-expected error - Canvas assignment removed (don't use the link in the future)
+			if ( $res->content && $res->content eq '{"errors":{"type":"bad_request","message":"Invalid \'rlid\' parameter"}}' ) {
+				my $lti_resource_link = $db->getLTIResourceLink($client_id, $context_id, $resource_link_id);
+				$lti_resource_link->is_valid(0);
+				$db->putLTIResourceLink($lti_resource_link);
+			}
 			$self->{error} = "Names And Roles Service request failed. " .
 				"\nStatus: " . $res->status_line .
 				"\nRequest URI: " . $res->request->uri .

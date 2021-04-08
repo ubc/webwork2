@@ -59,7 +59,7 @@ sub pushAllAssignmentGrades {
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my @lti_resource_links = $db->getAllLTIResourceLinks();
+	my @lti_resource_links = $db->getAllValidLTIResourceLinks();
 	# ensure there are lti links to update
 	return if scalar(@lti_resource_links) == 0;
 
@@ -132,7 +132,7 @@ sub pushUserGradesOnSubmit {
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my @lti_resource_links = $db->getAllLTIResourceLinks();
+	my @lti_resource_links = $db->getAllValidLTIResourceLinks();
 	@lti_resource_links = grep { $_->set_id() eq '' || $_->set_id() eq $set_id } @lti_resource_links;
 	# ensure there are lti resource links to update
 	return if scalar(@lti_resource_links) == 0;
