@@ -1546,7 +1546,7 @@ sub output_submit_buttons{
 	my %showMeAnother = %{ $self->{showMeAnother} };
 	
 	if ($will{requestNewSeed}){
-		print WeBWorK::CGI_labeled_input(-type=>"submit", -id=>"submitAnswers_id", -input_attr=>{-name=>"requestNewSeed", -value=>$r->maketext("Request New Version"), -onclick=>"this.form.target='_self'"});
+		print WeBWorK::CGI_labeled_input(-type=>"submit", -id=>"submitAnswers_id", -input_attr=>{-name=>"requestNewSeed", -value=>$r->maketext("Request New Version"), -onclick=>"this.form.target='_self'", -formmethod=>"post"});
 		return "";
 	}
 
@@ -1558,10 +1558,10 @@ sub output_submit_buttons{
         	if ($user ne $effectiveUser) {
         		# if acting as a student, make it clear that answer submissions will
         		# apply to the student's records, not the professor's.
-        		print WeBWorK::CGI_labeled_input(-type=>"submit", -id=>"submitAnswers_id", -input_attr=>{-name=>"submitAnswers", -value=>$r->maketext("Submit Answers for [_1]", $effectiveUser)});
+        		print WeBWorK::CGI_labeled_input(-type=>"submit", -id=>"submitAnswers_id", -input_attr=>{-name=>"submitAnswers", -value=>$r->maketext("Submit Answers for [_1]", $effectiveUser), -formmethod=>"post"});
         	} else {
         		#print CGI::submit(-name=>"submitAnswers", -label=>"Submit Answers", -onclick=>"alert('submit button clicked')");
-        		print WeBWorK::CGI_labeled_input(-type=>"submit", -id=>"submitAnswers_id", -input_attr=>{-name=>"submitAnswers", -value=>$r->maketext("Submit Answers"), -onclick=>"this.form.target='_self'"});
+        		print WeBWorK::CGI_labeled_input(-type=>"submit", -id=>"submitAnswers_id", -input_attr=>{-name=>"submitAnswers", -value=>$r->maketext("Submit Answers"), -onclick=>"this.form.target='_self'", -formmethod=>"post"});
         		# FIXME  for unknown reasons the -onclick label seems to have to be there in order to allow the forms onsubmit to trigger
         		# WTF???
         	}
