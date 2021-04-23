@@ -217,7 +217,7 @@ $permissionLevels{modify_problem_sets} = "ta";
 $permissionLevels{modify_student_data} = "ta";
 $permissionLevels{modify_set_def_files} = "ta";
 $permissionLevels{manage_course_files} = "ta";
-$permissionLevels{avoid_recording_answers} = "ta";
+$permissionLevels{avoid_recording_answers} = "nobody";
 #$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
 $permissionLevels{record_answers_when_acting_as_student} = "ta";
 
