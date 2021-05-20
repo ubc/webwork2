@@ -44,7 +44,8 @@ use WeBWorK::Utils qw(readFile writeLog writeCourseLog encodeAnswers decodeAnswe
 use WeBWorK::DB::Utils qw(global2user user2global);
 use URI::Escape;
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
-use WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService;
+use LTIAdvantage::Service::AssignmentAndGradeService;
+use DelayedJob::Service;
 use WeBWorK::Utils::Tasks qw(fake_set fake_problem);
 
 use Email::Simple;
@@ -365,13 +366,18 @@ sub process_and_log_answer{
 				    }
 				  }
 				}
-				if ($self->{ce}->{bridge}{push_grades_on_submit}) {
-					my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($self->{ce}, $db);
-					$assignment_and_grade_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
-					if ($assignment_and_grade_service->{error}) {
-						$scoreRecordedMessage .= $r->maketext(" Your score was not successfully sent to the LMS");
+				if ($self->{ce}->{lti_advantage}{push_grades_on_submit}) {
+					if ($self->{ce}->{delayed_job}{enabled}) {
+						my $delayed_job_service = DelayedJob::Service->new($self->{ce});
+						$delayed_job_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
 					} else {
-						$scoreRecordedMessage .= $r->maketext(" Your score was successfully sent to the LMS");
+						my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($self->{ce}, $db);
+						$assignment_and_grade_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
+						if ($assignment_and_grade_service->{error}) {
+							$scoreRecordedMessage .= $r->maketext(" Your score was not successfully sent to the LMS");
+						} else {
+							$scoreRecordedMessage .= $r->maketext(" Your score was successfully sent to the LMS");
+						}
 					}
 				}
 

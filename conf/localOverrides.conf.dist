@@ -584,15 +584,19 @@ $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
 
 # Add in custom authen modules
 $authen{lti} = "WeBWorK::Authen::LTIAdvantage";
-$authen{vista_login} = "WeBWorK::Authen::VistaLogin2";
 # xmlrpc webservice requests will use the default auth instead of shib
 $authen{'xmlrpc'} = "WeBWorK::Authen";
 
 ################################################################################
 
+################################################################################
+# Delayed Job
+################################################################################
+
+$delayed_job{enabled} = 1;
 
 ################################################################################
-# Webwork Caliper
+# Caliper
 ################################################################################
 
 # enable/disable Caliper for install
@@ -630,20 +634,17 @@ $caliper{custom_actor_generator} = sub {
 
 
 ################################################################################
-# Webwork Bridge
+# LTI Advantage
 ################################################################################
-$bridge{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
+$lti_advantage{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
 # Set password for the admin user created for all imported courses.
-$bridge{adminuserpw} = "admin";
-$bridge{push_grades_on_submit} = 0;
-$bridge{hide_new_courses} = 1;
-# define which LTI roles will launch the membership request on launch.
-$bridge{roles_can_update} = [
-	"http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
-	"http://purl.imsglobal.org/vocab/lis/v2/membership#ContentDeveloper",
-	"http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator"
-];
-$bridge{lti_clients} = {
+$lti_advantage{adminuserpw} = "admin";
+$lti_advantage{push_grades_on_submit} = 1;
+$lti_advantage{hide_new_courses} = 1;
+$lti_advantage{auto_assign_users_to_sets} = 1;
+$lti_advantage{cron_grade_sync} = 1;
+$lti_advantage{cron_roster_sync} = 1;
+$lti_advantage{lti_clients} = {
 	'example_client_id' => {
 		# will look inside of nested object if `|` is used as seperator. Doing this allow using fields inside of claims
 		# set to $Canvas.user.sisIntegrationId in canvas
@@ -660,7 +661,7 @@ $bridge{lti_clients} = {
 	}
 };
 
-$bridge{lti_clients}{'example_client_id'}{tool_public_key} = <<'EOF';
+$lti_advantage{lti_clients}{'example_client_id'}{tool_public_key} = <<'EOF';
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6sJx68cYViPEty86G2KB
 nWh62Aoc99zguv69ni4y+augier+1IArQ5apF8j657zbk/EYUf3kRka1fGmALvQY
@@ -670,7 +671,7 @@ lQIDAQAB
 -----END PUBLIC KEY-----
 EOF
 
-$bridge{lti_clients}{'example_client_id'}{tool_private_key} = <<'EOF';
+$lti_advantage{lti_clients}{'example_client_id'}{tool_private_key} = <<'EOF';
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEA6sJx68cYViPEty86G2KBnWh62Aoc99zguv69ni4y+augier+
 1IArQ5apF8j657zbk/EYUf3kRka1fGmALvQYZ+MWjjomR64u7rofgdetgnfIOQQa
@@ -682,18 +683,12 @@ wqw0N02hAoGAbpjOnPTul04AerLoehExqsBxTw255n/k70kWizKITmuPKFLwECKV
 -----END RSA PRIVATE KEY-----
 EOF
 
-# List of Vista ids that are blacklisted from import. Note that id matching
-# is done using m//, so any occurance of the string below in an id will mark
-# that id as blacklisted.
-$bridge{vista_blacklist} = (
-    "webct_demo"
-);
 # Note that the mapped Webwork course name still goes through sanitization.
 # Please make sure they match these requirements or the courses will not match.
 # - Allowed characters in regex form: [a-zA-Z0-9_-]
 # - Max length 40 characters
-# See WeBWorK::Authen::LTIAdvantage::LTILaunchParser() for implementation
-$bridge{custom_course_title_parser} = sub {
+# See LTIAdvantage::Parser::LaunchParser() for implementation
+$lti_advantage{custom_course_title_parser} = sub {
 	my $parser = shift;
 
 	# else use term name (if available) and context_label
@@ -707,7 +702,7 @@ $bridge{custom_course_title_parser} = sub {
 	return $course_title;
 };
 
-$bridge{course_template} = "modelCourse";
+$lti_advantage{course_template} = "modelCourse";
 
 $shibboleth{login_script} = "/Shibboleth.sso/Login";
 $shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url;

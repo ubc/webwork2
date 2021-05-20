@@ -17,6 +17,7 @@ use HTTP::Async;
 use Caliper::Event;
 use Caliper::ResourceIri;
 
+#$WeBWorK::Debug::Enabled = 1;
 
 # Constructor
 sub new
@@ -54,7 +55,18 @@ sub sendEvents
 		Caliper::Event::add_defaults($r, $event_hash);
 	}
 
-	my $ce = $r->{ce};
+	if ($self->{ce}->{delayed_job}{enabled}) {
+		my $delayed_job_service = DelayedJob::Service->new($self->{ce});
+		$delayed_job_service->sendEvents($array_of_events);
+	} else {
+		$self->_sendEvents($array_of_events);
+	}
+}
+sub _sendEvents
+{
+	my ($self, $array_of_events) = @_;
+
+	my $ce = $self->{ce};
 	my $resource_iri = Caliper::ResourseIri->new($ce);
 	my $async = HTTP::Async->new;
 	$async->timeout( 5 );

@@ -21,7 +21,7 @@ services:
       MYSQL_USER: ${WEBWORK_DB_USER}
       MYSQL_PASSWORD: ${WEBWORK_DB_PASSWORD}
 
-  app:
+  app: &app
     image: webwork
 
     # Select the appropriate "build:" block:
@@ -184,6 +184,11 @@ services:
 
 #      WEBWORK_TIMEZONE: America/New_York
 #      R_HOST: r
+
+  worker:
+    <<: *app
+    command: ./webwork2/lib/DelayedJob/Run/run_all_jobs.pl
+    ports: []
 
   r:
     image: ubcctlt/rserve
