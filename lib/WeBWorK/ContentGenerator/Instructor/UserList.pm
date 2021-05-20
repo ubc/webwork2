@@ -62,6 +62,8 @@ Export users:
 	- to:
 		- existing file on server (overwrite): [ list of files ]
 		- new file on server (create): [ filename ]
+LTI:
+	- get class roster from lms
 
 =cut
 
@@ -72,10 +74,12 @@ use WeBWorK::CGI;
 use WeBWorK::File::Classlist;
 use WeBWorK::DB qw(check_user_id);
 use WeBWorK::Utils qw(readFile readDirectory cryptPassword x);
+use LTIAdvantage::Service::NamesAndRoleService;
+use LTIAdvantage::Importer::CourseUpdater;
 use constant HIDE_USERS_THRESHHOLD => 200;
 use constant EDIT_FORMS => [qw(saveEdit cancelEdit)];
 use constant PASSWORD_FORMS => [qw(savePassword cancelPassword)];
-use constant VIEW_FORMS => [qw(filter sort edit password import export add delete)];
+use constant VIEW_FORMS => [qw(filter sort edit password import export add delete lti)];
 
 # Prepare the tab titles for translation by maketext
 use constant FORM_TITLES => {
@@ -103,6 +107,7 @@ use constant FORM_PERMS => {
 		export => "modify_classlist_files",
 		add => "modify_student_data",
 		delete => "modify_student_data",
+		lti => "modify_student_data",
 };
 
 # permissions needed to view a given field
@@ -1332,6 +1337,35 @@ sub savePassword_handler {
 	$self->{passwordMode} = 0;
 	
 	return $r->maketext("New passwords saved");
+}
+
+sub lti_form {
+	my ($self, $onChange, %actionParams) = @_;
+	my $r = $self->r;
+
+	return join(" ",
+		CGI::p($r->maketext("Get the class roster from the LMS. May take a long time to complete for larger class sizes.")),
+	);
+}
+
+sub lti_handler {
+	my ($self, $genericParams, $actionParams, $tableParams) = @_;
+	my $r = $self->r;
+	my $ce    = $r->ce;
+	my $db    = $r->db;
+
+	my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($ce, $db);
+	my $membership = $names_and_roles_service->getAllNamesAndRole();
+	unless ($membership) {
+		return $r->maketext("There was an issue fetching the class roster. [_1]", $names_and_roles_service->{error});
+	}
+	my $updater = LTIAdvantage::Importer::CourseUpdater->new($ce, $db, $membership);
+	my $ret = $updater->updateCourse();
+	if ($ret) {
+		return $r->maketext("Update class roster failed: [_1]", $ret);
+	}
+	$self->{visibleUserIDs} = [ $self->{allUserIDs} ];
+	return $r->maketext("Successfully updated class roster.");
 }
 
 
