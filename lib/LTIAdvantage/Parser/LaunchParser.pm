@@ -60,7 +60,7 @@ sub sanitizeCourseName
 	# spaces in course names and we want to keep the course name readable
 	$course =~ s/ /_/g;
 	$course =~ s/\./_/g;
-	$course =~ s/[^a-zA-Z0-9_-]//g;
+	$course =~ s/[^a-zA-Z0-9_\-]//g;
 	$course = substr($course,0,40); # needs to fit mysql table name limits
 	# max length of a mysql table name is 64 chars, however, webworks stick
 	# additional characters after the course name, so, to be safe, we'll
@@ -75,8 +75,7 @@ sub sanitizeSetName
 	# replace spaces with underscores cause the addcourse script can't handle
 	# spaces in course names and we want to keep the course name readable
 	$set_id =~ s/ /_/g;
-	$set_id =~ s/\./_/g;
-	$set_id =~ s/[^a-zA-Z0-9_-]//g;
+	$set_id =~ s/[^a-zA-Z0-9_\-\.]//g;
 	return $set_id;
 }
 
