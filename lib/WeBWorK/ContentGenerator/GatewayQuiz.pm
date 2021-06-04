@@ -41,7 +41,8 @@ use WeBWorK::Utils::Tasks qw(fake_set fake_set_version fake_problem);
 use WeBWorK::Debug;
 use WeBWorK::ContentGenerator::Instructor qw(assignSetVersionToUser);
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
-use WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService;
+use LTIAdvantage::Service::AssignmentAndGradeService;
+use DelayedJob::Service;
 use PGrandom;
 
 use Caliper::Sensor;
@@ -1651,13 +1652,19 @@ sub body {
 		    $LTIGradeResult = $grader->submit_set_grade($effectiveUser, $setName);
 		  }
 		}
-		if ($submitAnswers && $will{recordAnswers} && $self->{ce}->{bridge}{push_grades_on_submit}) {
-			my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($self->{ce}, $db);
-			$assignment_and_grade_service->pushUserGradesOnSubmit($effectiveUser, $setName);
-			if ($assignment_and_grade_service->{error}) {
-				$LTIGradeResult = -1;
-			} else {
+		if ($submitAnswers && $will{recordAnswers} && $self->{ce}->{lti_advantage}{push_grades_on_submit}) {
+			if ($self->{ce}->{delayed_job}{enabled}) {
+				my $delayed_job_service = DelayedJob::Service->new($self->{ce});
+				$delayed_job_service->pushUserGradesOnSubmit($effectiveUser, $setName);
 				$LTIGradeResult = 1;
+			} else {
+				my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($self->{ce}, $db);
+				$assignment_and_grade_service->pushUserGradesOnSubmit($effectiveUser, $setName);
+				if ($assignment_and_grade_service->{error}) {
+					$LTIGradeResult = -1;
+				} else {
+					$LTIGradeResult = 1;
+				}
 			}
 		}
 

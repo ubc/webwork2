@@ -167,12 +167,6 @@ sub where_course_id_eq {
     return {course_id=>$course_id};
 }
 
-# can be used for lti_contexts
-sub where_automatic_updates_eq {
-    my ($self, $flags, $automatic_update) = @_;
-    return {automatic_updates=>$automatic_update};
-}
-
 # added where clauses for locations and set_locations
 
 sub where_location_id_eq {

@@ -74,6 +74,9 @@ Delete sets:
 	- visible
 	- selected
 
+LTI:
+	- send grades to lms
+
 =cut
 
 # FIXME: rather than having two types of boolean modes $editMode and $exportMode
@@ -85,6 +88,7 @@ use warnings;
 use WeBWorK::CGI;
 use WeBWorK::Debug;
 use WeBWorK::Utils qw(timeToSec readFile listFilesRecursive cryptPassword sortByName jitar_id_to_seq seq_to_jitar_id x);
+use LTIAdvantage::Service::AssignmentAndGradeService;
 
 use WeBWorK::Utils::DatePickerScripts;
 
@@ -94,7 +98,7 @@ use constant DEFAULT_ENABLED_REDUCED_SCORING_STATE => 0;
 use constant ONE_WEEK => 60*60*24*7;  
 
 use constant EDIT_FORMS => [qw(saveEdit cancelEdit)];
-use constant VIEW_FORMS => [qw(filter sort edit publish import export score create delete)];
+use constant VIEW_FORMS => [qw(filter sort edit publish import export score create delete lti)];
 use constant EXPORT_FORMS => [qw(saveExport cancelExport)];
 
 use constant VIEW_FIELD_ORDER => [ qw( set_id problems users visible enable_reduced_scoring open_date reduced_scoring_date due_date answer_date) ];
@@ -112,6 +116,7 @@ use constant FORM_PERMS => {
 		score => "score_sets",
 		create => "create_and_delete_problem_sets",
 		delete => "create_and_delete_problem_sets",
+		lti => "create_and_delete_problem_sets",
 };
 
 # permissions needed to view a given field
@@ -1622,6 +1627,30 @@ sub duplicate_handler {
 	return CGI::div({class => "ResultsWithError"}, $r->maketext("Failed to duplicate set: [_1]", $@)) if $@;
 	
 	return $r->maketext("Success");
+}
+
+sub lti_form {
+	my ($self, $onChange, %actionParams) = @_;
+	my $r = $self->r;
+
+	return join(" ",
+		CGI::p($r->maketext("Send all set grades to the LMS. May take a long time to complete for larger class sizes and/or with many sets.")),
+	);
+}
+
+sub lti_handler {
+	my ($self, $genericParams, $actionParams, $tableParams) = @_;
+	my $r = $self->r;
+	my $ce    = $r->ce;
+	my $db    = $r->db;
+
+	my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
+	$assignment_and_grade_service->pushAllAssignmentGrades();
+
+	if ($assignment_and_grade_service->{error}) {
+		return $r->maketext("There was an issue pushing the class grades. [_1]", $assignment_and_grade_service->{error});
+	}
+	return $r->maketext("Successfully updated class grades.");
 }
 
 ################################################################################
