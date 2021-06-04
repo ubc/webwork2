@@ -8,7 +8,7 @@ use WeBWorK::Debug;
 use Data::Dumper;
 
 sub max_retries {
-	return 3;
+	return 1;
 }
 
 sub retry_delay {

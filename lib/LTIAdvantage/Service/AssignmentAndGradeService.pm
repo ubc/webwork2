@@ -98,6 +98,7 @@ sub pushAllAssignmentGrades {
 
 		my $course_total_right = 0;
 		my $course_total = 0;
+		my $latest_timestamp = 0;
 
 		foreach my $set ( @sets ) {
 			# go through each assigned set
@@ -106,11 +107,14 @@ sub pushAllAssignmentGrades {
 				$course_total_right += $grade_record->{total_right};
 				$course_total += $grade_record->{total};
 				$grades->{$grade_record->{set_id}} = $grade_record;
+				if ($latest_timestamp < $grade_record->{timestamp}) {
+					$latest_timestamp = $grade_record->{timestamp};
+				}
 			}
 		}
 
 		# pass back course grade
-		my $course_grade_record = $self->_getCourseGradeRecord($user_id, $course_total, $course_total_right);
+		my $course_grade_record = $self->_getCourseGradeRecord($user_id, $course_total, $course_total_right, $latest_timestamp);
 		$grades->{'/--course_overall--/'} = $course_grade_record;
 		$user_grades->{$user_id} = $grades;
 	}
@@ -158,6 +162,7 @@ sub pushUserGradesOnSubmit {
 
 	my $course_total_right = 0;
 	my $course_total = 0;
+	my $latest_timestamp = 0;
 
 	foreach my $set ( @sets ) {
 		# go through each assigned set
@@ -168,11 +173,14 @@ sub pushUserGradesOnSubmit {
 			if ($set->set_id() eq $set_id) {
 				$user_grades->{$user_id}->{$set_id} = $grade_record;
 			}
+			if ($latest_timestamp < $grade_record->{timestamp}) {
+				$latest_timestamp = $grade_record->{timestamp};
+			}
 		}
 	}
 
 	# pass back course grade
-	my $course_grade_record = $self->_getCourseGradeRecord($user_id, $course_total, $course_total_right);
+	my $course_grade_record = $self->_getCourseGradeRecord($user_id, $course_total, $course_total_right, $latest_timestamp);
 	$user_grades->{$user_id}->{'/--course_overall--/'} = $course_grade_record;
 
 
@@ -228,7 +236,7 @@ sub _generate_requests {
 					grade => $grade_record->{grade},
 					activity_progress => $grade_record->{activity_progress},
 					grading_progress => $grade_record->{grading_progress},
-					timestamp => $grade_record->{timestamp}
+					timestamp => $grade_record->{timestamp},
 				};
 				push(@grades_to_update, $lti_grade_record);
 			}
@@ -483,7 +491,7 @@ sub _performAssignmentAndGradeRequests {
 				userId => $lti_user_id,
 				scoreGiven => $grade,
 				scoreMaximum => 1.0,
-				timestamp =>  $grade_to_update->{timestamp},
+				timestamp => formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z"),
 				activityProgress => $grade_to_update->{activity_progress},
 				gradingProgress => $grade_to_update->{grading_progress}
 			};
@@ -584,12 +592,11 @@ sub _getGradeRecord
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my $timestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z");
 	my $activity_progress = 'Initialized';
 	# Note: Canvas won't display grades unless `FullyGraded` is sent
 	my $grading_progress = 'NotReady';
 
-	my ($status, $total_right, $total) = $self->grade_set($db, $set, $user_id, $isVersioned);
+	my ($timestamp, $status, $total_right, $total) = $self->grade_set($set, $user_id, $isVersioned);
 	if (between($set->open_date, $set->due_date)) {
 		$grading_progress = 'FullyGraded';
 		if ($status == 1) {
@@ -618,11 +625,10 @@ sub _getGradeRecord
 
 sub _getCourseGradeRecord
 {
-	my ($self, $user_id, $course_total, $course_total_right) = @_;
+	my ($self, $user_id, $course_total, $course_total_right, $latest_timestamp) = @_;
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my $timestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z");
 	# no way to know when the course is completed in Webwork by itself
 	my $activity_progress = 'InProgress';
 	# Note: Canvas won't display grades unless `FullyGraded` is sent
@@ -633,7 +639,7 @@ sub _getCourseGradeRecord
 		user_id => $user_id,
 		activity_progress => $activity_progress,
 		grading_progress => $grading_progress,
-		timestamp => $timestamp,
+		timestamp => $latest_timestamp,
 		total_right => $course_total_right,
 		total => $course_total,
 		grade => $self->getGrade($course_total_right, $course_total),
@@ -671,23 +677,38 @@ sub getRawGrade
 # total - total number of points possible
 sub grade_set
 {
-	my ($self, $db, $set, $studentName, $setIsVersioned) = @_;
+	my ($self, $set, $studentName, $setIsVersioned) = @_;
+	my $ce = $self->{ce};
+	my $db = $self->{db};
 
-	my $setID = $set->set_id();
+	my $set_id = $set->set_id();
 	my $total_right = 0;
 	my $total = 0;
 	my $status = 0;
+	my $timestamp = 0; #formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z");
 
 	my @problemRecords;
 	if ( $setIsVersioned ) {
 		# use versioned problems instead (assume that each version has the same number of problems.
-		@problemRecords = $db->getAllMergedProblemVersions( $studentName, $setID, $set->version_id );
+		@problemRecords = $db->getAllMergedProblemVersions( $studentName, $set_id, $set->version_id() );
 	} else {
-		@problemRecords = $db->getAllMergedUserProblems( $studentName, $setID );
+		@problemRecords = $db->getAllMergedUserProblems( $studentName, $set_id );
 	}
 
 	foreach my $problemRecord (@problemRecords) {
 		next unless (defined($problemRecord) );
+		my $last_answer_id = $db->latestProblemPastAnswer(
+			$ce->{courseName},
+			$problemRecord->user_id,
+			($setIsVersioned ? $set_id.",v".$set->version_id() : $set_id),
+			$problemRecord->problem_id
+		);
+		if ($last_answer_id) {
+			my $last_answer = $db->getPastAnswer($last_answer_id);
+			if ($last_answer->timestamp > $timestamp) {
+				$timestamp = $last_answer->timestamp;
+			}
+		}
 
 		$status 		  = $problemRecord->status || 0;
 		# sanity check that the status (grade) is between 0 and 1
@@ -697,8 +718,12 @@ sub grade_set
 		$total           += $probValue;
 		$total_right 	 += $status * $probValue if $valid_status;
 	}
+	# default to current time if there is no timestamp
+	if ($timestamp eq 0) {
+		$timestamp = time();
+	}
 
-	return ($status, $total_right, $total);
+	return ($timestamp, $status, $total_right, $total);
 }
 
 1;
