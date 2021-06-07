@@ -6,16 +6,15 @@ use strict;
 use warnings;
 
 use Data::Dumper;
-use URI::Escape qw(uri_escape);
+use URI::Escape;
 use CGI;
-
+use WeBWorK::Utils qw(before after between formatDateTime);
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 
 use LTIAdvantage::Importer::Error;
 use LTIAdvantage::Parser::LaunchParser;
-
 use WeBWorK::Authen::LTIAdvantage;
 use LTIAdvantage::Service::NamesAndRoleService;
 
@@ -136,20 +135,33 @@ sub run
 
 		# direct the student directly to a homework assignment or quiz if needed
 		my $redir = $r->uri . $course_id;
+		my $status_message = "";
 
 		if ($self->getSetId()) {
-			my $set = $db->getGlobalSet($self->getSetId());
+			my %user = $parser->get_user_info();
+			my $user_id = $user{'loginid'};
+			my $set = $db->getMergedSet($user_id, $self->getSetId());
+
 			if ($set && defined( $set->assignment_type() ) ) {
-				if ( $set->assignment_type() eq 'proctored_gateway' ) {
-					$redir .= "/proctored_quiz_mode/" . $self->getSetId();
+				my @allVersionIds = $db->listSetVersions($user_id , $self->getSetId());
+				my $latest_version = (@allVersionIds ? $allVersionIds[-1] : 0);
+
+				if (before($set->open_date)) {
+					my $display_name = $self->getSetId();
+					$display_name =~ s/_/ /g;
+					$status_message = CGI::div(
+						{class=>"ResultsWithoutError"},
+						$display_name." will open on " . formatDateTime($set->open_date, undef, $tmpce->{studentDateDisplayFormat})
+					);
+				} elsif ( $set->assignment_type() eq 'proctored_gateway' ) {
+					$redir .= "/proctored_quiz_mode/" . $self->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} elsif ( $set->assignment_type() eq 'gateway' ) {
-					$redir .= "/quiz_mode/" . $self->getSetId();
+					$redir .= "/quiz_mode/" . $self->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} else {
 					$redir .= "/" . $self->getSetId();
 				}
 			}
 		}
-		$redir .= "?lti=1";
 		if (-e $tmpce->{courseDirs}->{root}) {
 			# course exists
 			$self->_updateLTISettings();
@@ -170,14 +182,15 @@ sub run
 			# ensure current user can access even if membership fails
 			$self->_updateLaunchUser();
 
-			my $message = "The course was successfully imported into Webwork.";
-			$redir .= "&status_message=".uri_escape(CGI::div({class=>"ResultsWithoutError"}, $message));
+			$status_message = CGI::div(
+				{class=>"ResultsWithoutError"},
+				"The course was successfully imported into Webwork."
+			);
 		}
-
 		# ensure authentification module is used
 		$self->{useAuthenModule} = 1;
 		$self->{useRedirect} = 1;
-		$self->{redirect} = $redir;
+		$self->{redirect} = $redir."?lti=1&status_message=".uri_escape_utf8($status_message);
 	}
 
 	return 0;
