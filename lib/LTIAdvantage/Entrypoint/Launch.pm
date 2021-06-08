@@ -136,6 +136,26 @@ sub run
 		# direct the student directly to a homework assignment or quiz if needed
 		my $redir = $r->uri . $course_id;
 		my $status_message = "";
+		unless (-e $tmpce->{courseDirs}->{root}) {
+			# course does not exist
+			debug("Course does not exist, try LTI import.");
+
+			$ret = $self->createCourse();
+			if ($ret) {
+				debug("createCourse error: ". $ret);
+				my $error_message = CGI::h2("LTI Launch Failed");
+				$error_message .= CGI::p("Unfortunately, import failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:");
+				$error_message .= CGI::div({class=>"ResultsWithError"}, CGI::pre($ret) );
+				return $error_message;
+			}
+
+			$status_message .= CGI::div(
+				{class=>"ResultsWithoutError"},
+				"The course was successfully imported into Webwork."
+			);
+		}
+		$self->_updateLTISettings();
+		$self->_updateLaunchUser();
 
 		if ($self->getSetId()) {
 			my %user = $parser->get_user_info();
@@ -149,7 +169,7 @@ sub run
 				if (before($set->open_date)) {
 					my $display_name = $self->getSetId();
 					$display_name =~ s/_/ /g;
-					$status_message = CGI::div(
+					$status_message .= CGI::div(
 						{class=>"ResultsWithoutError"},
 						$display_name." will open on " . formatDateTime($set->open_date, undef, $tmpce->{studentDateDisplayFormat})
 					);
@@ -161,31 +181,6 @@ sub run
 					$redir .= "/" . $self->getSetId();
 				}
 			}
-		}
-		if (-e $tmpce->{courseDirs}->{root}) {
-			# course exists
-			$self->_updateLTISettings();
-			$self->_updateLaunchUser();
-		} else {
-			# course does not exist
-			debug("Course does not exist, try LTI import.");
-
-			$ret = $self->createCourse();
-			if ($ret) {
-				debug("createCourse error: ". $ret);
-				my $error_message = CGI::h2("LTI Launch Failed");
-				$error_message .= CGI::p("Unfortunately, import failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:");
-				$error_message .= CGI::div({class=>"ResultsWithError"}, CGI::pre($ret) );
-				return $error_message;
-			}
-
-			# ensure current user can access even if membership fails
-			$self->_updateLaunchUser();
-
-			$status_message = CGI::div(
-				{class=>"ResultsWithoutError"},
-				"The course was successfully imported into Webwork."
-			);
 		}
 		# ensure authentification module is used
 		$self->{useAuthenModule} = 1;
