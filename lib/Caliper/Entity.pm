@@ -197,14 +197,18 @@ sub problem
 	my $resource_iri = Caliper::ResourseIri->new($ce);
 
 	my $problem = $db->getGlobalProblem($set_id, $problem_id);
+	my $unblessed_tags = undef;
+	my $keywords = [];
 
-	my $templateDir = $ce->{courseDirs}->{templates};
-	my $tags = WeBWorK::Utils::Tags->new($templateDir.'/'.$problem->source_file());
-	my $keywords = $tags->{'keywords'};
-	$_ =~ s/(^[\s"']+)|([\s"']+$)//g for @$keywords;
+	unless ( $problem->source_file() =~ /^group:(.+)$/ ) {
+		my $templateDir = $ce->{courseDirs}->{templates};
+		my $tags = WeBWorK::Utils::Tags->new($templateDir.'/'.$problem->source_file());
+		$keywords = $tags->{'keywords'};
+		$_ =~ s/(^[\s"']+)|([\s"']+$)//g for @$keywords;
 
-	my %tags_ref = %$tags;
-	my $unblessed_tags = \%tags_ref;
+		my %tags_ref = %$tags;
+		$unblessed_tags = \%tags_ref;
+	}
 
 	return {
 		'id' => $resource_iri->problem($set_id, $problem_id),
@@ -236,14 +240,18 @@ sub problem_user
 	my $problem_user = $version_id ?
 		$db->getMergedProblemVersion($user_id, $set_id, $version_id, $problem_id) :
 		$db->getMergedProblem($user_id, $set_id, $problem_id);
+	my $unblessed_tags = undef;
+	my $keywords = [];
 
-	my $templateDir = $ce->{courseDirs}->{templates};
-	my $tags = WeBWorK::Utils::Tags->new($templateDir.'/'.$problem_user->source_file());
-	my $keywords = $tags->{'keywords'};
-	$_ =~ s/(^[\s"']+)|([\s"']+$)//g for @$keywords;
+	unless ( $problem_user->source_file() =~ /^group:(.+)$/ ) {
+		my $templateDir = $ce->{courseDirs}->{templates};
+		my $tags = WeBWorK::Utils::Tags->new($templateDir.'/'.$problem_user->source_file());
+		$keywords = $tags->{'keywords'};
+		$_ =~ s/(^[\s"']+)|([\s"']+$)//g for @$keywords;
 
-	my %tags_ref = %$tags;
-	my $unblessed_tags = \%tags_ref;
+		my %tags_ref = %$tags;
+		$unblessed_tags = \%tags_ref;
+	}
 
 	my $correct_answers = [];
 	foreach my $ans_id (@{$pg->{flags}->{ANSWER_ENTRY_ORDER}//[]} ) {

@@ -99,7 +99,7 @@ sub _sendEvents
 		if (!$response->is_success) {
 			debug("Caliper event post failed. Error Message: " . $response->message);
 			debug($response->content);
-			$self->log_error("Caliper event post failed. Error Message: ". $response->message . "\nResponse Content: ". $response->content);
+			$self->log_error("Caliper event post failed. Error Message: ". $response->message . "\nResponse Content: ". $response->content . "\nRequest Payload: ". $response->request->content);
 		} else {
 			debug("Caliper event post success. Success Message: " . $response->message);
 			debug($response->content);
