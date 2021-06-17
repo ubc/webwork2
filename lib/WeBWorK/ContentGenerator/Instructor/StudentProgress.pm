@@ -397,25 +397,30 @@ sub displaySets {
             my @problems = $db->getAllProblemVersions( $userid, $setN, $vNum );
             foreach my $i ( 0 .. $#problems ) {
                 my $problem = $problems[$i];
+                $problem->attempted( 1 );
+
                 my ($pastAnswerIndex) = grep { $probOrder[$_] ~~ ( $problem->problem_id - 1 ) } 0 .. $#probOrder;
                 my $lastSavedProblemIndex = $db->latestProblemPastAnswer( $self->{ce}->{courseName}, $userid, $setNameVersion, $pastAnswerIndex+1 );
-                my $lastSavedProblem = $db->getPastAnswer( $lastSavedProblemIndex );
+                if ($lastSavedProblemIndex) {
+                    my $lastSavedProblem = $db->getPastAnswer( $lastSavedProblemIndex );
 
-                $problem->attempted( 1 );
-                # FIXME instead of copying score from saved draft, a better way is to grade the answer saved in *_problem_user.
-                # but there seems to be no function to do that. the sub ProblemUtil::create_ans_str_from_responses requires
-                # $self->{formFields}->{$response_id} as parameter...
-                my $numericScores = 0.0;
-                # scores are stored as text in *past_answer table. if the problem has multiple answers, one digit for each answer.
-                $numericScores += $_  for split//, $lastSavedProblem->scores;
-                $problem->status( wwRound( 2, $numericScores / length $lastSavedProblem->scores ) );
-                # FIXME this is probably not the correct way to determine whether the answer is correct or not
-                if ( int( $numericScores ) >= length $lastSavedProblem->scores ) {
-                    $problem->num_correct( $problem->num_correct + 1 );
+                    # FIXME instead of copying score from saved draft, a better way is to grade the answer saved in *_problem_user.
+                    # but there seems to be no function to do that. the sub ProblemUtil::create_ans_str_from_responses requires
+                    # $self->{formFields}->{$response_id} as parameter...
+                    my $numericScores = 0.0;
+                    # scores are stored as text in *past_answer table. if the problem has multiple answers, one digit for each answer.
+                    $numericScores += $_  for split//, $lastSavedProblem->scores;
+                    $problem->status( wwRound( 2, $numericScores / length $lastSavedProblem->scores ) );
+                    # FIXME this is probably not the correct way to determine whether the answer is correct or not
+                    if ( int( $numericScores ) >= length $lastSavedProblem->scores ) {
+                        $problem->num_correct( $problem->num_correct + 1 );
+                    } else {
+                        $problem->num_incorrect( $problem->num_incorrect + 1 );
+                    }
                 } else {
+                    $problem->status( 0.0 );
                     $problem->num_incorrect( $problem->num_incorrect + 1 );
                 }
-
                 $db->putProblemVersion( $problem );
                 writeLog( $self->{ce}, "batch_grading",
                     $userid, $setNameVersion, $problem->problem_id, $problem->status, $problem->num_correct, $problem->num_incorrect
