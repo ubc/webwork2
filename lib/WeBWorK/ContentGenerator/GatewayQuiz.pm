@@ -2393,13 +2393,16 @@ EOF
 		}
 
 		print CGI::p( CGI::submit( -name=>"previewAnswers",
-					   -label=>$r->maketext("Preview Test") ),
+					   -label=>$r->maketext("Preview Test"),
+					   -formmethod=>"post" ),
 			      ($can{recordAnswersNextTime} ?
 			       CGI::submit( -name=>"submitAnswers",
-					    -label=>$r->maketext("Grade Test") ) : " "),
+					    -label=>$r->maketext("Grade Test"),
+					    -formmethod=>"post" ) : " "),
 			      ($can{checkAnswersNextTime} && ! $can{recordAnswersNextTime} ?
 			       CGI::submit( -name=>"checkAnswers",
-					    -label=>$r->maketext("Check Test") ) : " "),
+					    -label=>$r->maketext("Check Test"),
+					    -formmethod=>"post" ) : " "),
 			      ($numProbPerPage && $numPages > 1 &&
 			       $can{recordAnswersNextTime} ? CGI::br() .
 			       CGI::em($r->maketext("Note: grading the test grades all problems, not just those on this page.")) : " ") );
