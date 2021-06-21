@@ -133,6 +133,7 @@ RUN apt-get update \
 	libdancer-perl \
 	libdancer-plugin-database-perl \
 	libdbd-mysql-perl \
+	libdbd-mariadb-perl \
 	libemail-address-xs-perl \
 	libexception-class-perl \
 	libextutils-xsbuilder-perl \
@@ -197,6 +198,7 @@ RUN apt-get update \
 	libnet-https-nb-perl \
 	libhttp-async-perl \
 	libtheschwartz-perl \
+	libdata-objectdriver-perl \
 	libcrypt-jwt-perl \
 	libjson-validator-perl \
 	make \
@@ -312,7 +314,10 @@ RUN cd $APP_ROOT/webwork2/conf \
     && sed -i -e 's/^<Perl>$/\
 	PerlPassEnv WEBWORK_URL\n\
 	PerlPassEnv WEBWORK_ROOT_URL\n\
-	PerlPassEnv WEBWORK_DB_DSN\n\
+	PerlPassEnv WEBWORK_DB_DRIVER\n\
+	PerlPassEnv WEBWORK_DB_NAME\n\
+	PerlPassEnv WEBWORK_DB_HOST\n\
+	PerlPassEnv WEBWORK_DB_PORT\n\
 	PerlPassEnv WEBWORK_DB_USER\n\
 	PerlPassEnv WEBWORK_DB_PASSWORD\n\
 	PerlPassEnv WEBWORK_SMTP_SERVER\n\

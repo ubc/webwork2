@@ -139,15 +139,12 @@ services:
       APACHE_RUN_GROUP: www-data
 
       # Standard database environment variables needed by WeBWorK:
+
+      # Select which DBD driver to use
+      WEBWORK_DB_DRIVER: MariaDB
       WEBWORK_DB_HOST: db
       WEBWORK_DB_PORT: 3306
       WEBWORK_DB_NAME: webwork
-      WEBWORK_DB_DSN: DBI:mysql:webwork:db:3306
-      # We currently need to put the same data in the WEBWORK_DB_DSN line above
-      # as we cannot use the following form, as it would be done before the values
-      # needed are available.
-      # NO GOOD # WEBWORK_DB_DSN: DBI:mysql${WEBWORK_DB_NAME}:${WEBWORK_DB_HOST}:${WEBWORK_DB_PORT}
-
 
       # These are set in the .env file and import values from there
       WEBWORK_DB_PASSWORD: ${WEBWORK_DB_PASSWORD}
