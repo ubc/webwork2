@@ -20,6 +20,9 @@ services:
       MYSQL_DATABASE: webwork
       MYSQL_USER: ${WEBWORK_DB_USER}
       MYSQL_PASSWORD: ${WEBWORK_DB_PASSWORD}
+    ports:
+      # For a personal machine
+      - "13306:3306"
 
   app: &app
     image: webwork
@@ -185,7 +188,8 @@ services:
   worker:
     <<: *app
     command: ./webwork2/lib/DelayedJob/Run/run_all_jobs.pl
-    ports: []
+    ports:
+    - "8081:80"
 
   r:
     image: ubcctlt/rserve

@@ -117,7 +117,7 @@ sub get_credentials {
 	my $version = $parser->get_claim("version");
 
 	my $dirname = dirname(__FILE__);
-	my $schema = $dirname."/LTIAdvantage/Schema/1.3.0/LtiResourceLinkRequest.json";
+	my $schema = $dirname."/LTIAdvantage/schema/1.3.0/LtiResourceLinkRequest.json";
 	if ($version ne "1.3.0") {
 		# for future, load different schemas as needed
 		# $schema = $dirname."/LTIAdvantage/Schema/1.3.0/LtiResourceLinkRequest.json";
