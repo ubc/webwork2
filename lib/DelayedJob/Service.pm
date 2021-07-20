@@ -98,13 +98,13 @@ sub getClassMembership {
 }
 
 sub sendEvents {
-	my ($self, $array_of_events) = @_;
+	my ($self, $json_array_of_events) = @_;
 	my $job = TheSchwartz::Job->new(
 		funcname => 'DelayedJob::SendCaliperEvent',
 		priority => 0,
 		arg => {
 			courseName => $self->{ce}->{courseName},
-			array_of_events => $array_of_events
+			json_array_of_events => $json_array_of_events
 		},
 	);
 	debug("Delayed Job sendEvents");

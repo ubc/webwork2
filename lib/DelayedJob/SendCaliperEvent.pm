@@ -10,6 +10,7 @@ use WeBWorK::Debug;
 use Data::Dumper;
 use TheSchwartz::Job;
 use Caliper::Sensor;
+use JSON;
 
 sub work {
     my $class = shift;
@@ -21,7 +22,8 @@ sub work {
 		webwork_dir => $ENV{WEBWORK_ROOT},
 		courseName => $courseName,
 	});
-	my $array_of_events = $args->{array_of_events};
+	my $json_array_of_events = $args->{json_array_of_events};
+	my $array_of_events = JSON->new->decode($json_array_of_events);
 
 	print "Sending Caliper events for course_id: $courseName\n";
 	my $caliper_sensor = Caliper::Sensor->new($ce);

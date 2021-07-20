@@ -56,8 +56,9 @@ sub sendEvents
 	}
 
 	if ($self->{ce}->{delayed_job}{enabled}) {
+		my $json_array_of_events = JSON->new->canonical->encode($array_of_events);
 		my $delayed_job_service = DelayedJob::Service->new($self->{ce});
-		$delayed_job_service->sendEvents($array_of_events);
+		$delayed_job_service->sendEvents($json_array_of_events);
 	} else {
 		$self->_sendEvents($array_of_events);
 	}
