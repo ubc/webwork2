@@ -48,13 +48,17 @@ services:
       - db
       - r
 
+    networks:
+      - default
+      - docker_canvas_bridge
+
     volumes:
 
       # ======================================================================
 
       # If you are using locally modified webwork2 files, then
       # either mount them from the webwork2 tree from which you start Docker:
-      #- ".:/opt/webwork/webwork2"
+      - ".:/opt/webwork/webwork2"
       # OR mount it from a fixed external location
       #- "/path_to/webwork2:/opt/webwork/webwork2"
 
@@ -200,3 +204,7 @@ services:
 volumes:
   oplVolume:
   mysql:
+
+networks:
+  docker_canvas_bridge:
+    external: true
