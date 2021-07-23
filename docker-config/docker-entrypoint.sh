@@ -192,6 +192,11 @@ if [[ "$1" =~ ^(apache2|apache2-foreground)$ ]]; then
       fi
     fi
 
+    # turn on debug
+    if [[ $DEV -eq 1 || $DEBUG -eq 1 ]]; then
+        sed -i 's/$WeBWorK::Debug::Enabled = 0;/$WeBWorK::Debug::Enabled = 1;/g' /opt/webwork/webwork2/lib/WeBWorK/Constants.pm
+        echo "Debug is ON."
+    fi
     # Fix possible permission issues
 #    echo "Fixing ownership and permissions (just in case it is needed)"
 #    cd $WEBWORK_ROOT
