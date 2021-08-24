@@ -124,6 +124,7 @@ my @modulesList = qw(
     XML::Simple
     App::Genpass
 	HTTP::Async
+	TheSchwartz
 	Crypt::JWT
 	JSON::Validator
 );

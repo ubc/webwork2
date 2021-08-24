@@ -55,7 +55,7 @@ use WeBWorK::URLPath;
 use WeBWorK::CGI;
 use WeBWorK::Utils qw(runtime_use writeTimingLogEntry);
 
-use WebworkBridge::BridgeManager;
+use LTIAdvantage::EntrypointManager;
 
 use mod_perl;
 
@@ -302,16 +302,16 @@ sub dispatch($) {
 
 	my $user_authen_module;
 
-	my $bridge = WebworkBridge::BridgeManager->new($r);
-	my $bridge_error = $bridge->run();
-	if ($bridge->useAuthenModule()) {
-		$user_authen_module = $bridge->getAuthenModule();
-		# refresh ce after running bridge ($ce might change to a different course environment when redirecting from webwork root)
+	my $entrypoint = LTIAdvantage::EntrypointManager->new($r);
+	my $entrypoint_error = $entrypoint->run();
+	if ($entrypoint->useAuthenModule()) {
+		$user_authen_module = $entrypoint->getAuthenModule();
+		# refresh ce after running entrypoint ($ce might change to a different course environment when redirecting from webwork root)
 		$ce = $r->{ce};
 	}
-	if ($bridge_error) {
-		MP2 ? $r->notes->set(error_message => $bridge_error) : $r->notes('error_message' => $bridge_error);
-		$displayModule = $bridge->getErrorDisplayModule();
+	if ($entrypoint_error) {
+		MP2 ? $r->notes->set(error_message => $entrypoint_error) : $r->notes('error_message' => $entrypoint_error);
+		$displayModule = $entrypoint->getErrorDisplayModule();
 	}
 
 	if (!defined($user_authen_module)) {
@@ -382,9 +382,9 @@ sub dispatch($) {
 				}
 			}
 
-			if ($bridge->useRedirect()) {
+			if ($entrypoint->useRedirect()) {
 				my $q = CGI->new();
-				print $q->redirect($bridge->getRedirect());
+				print $q->redirect($entrypoint->getRedirect());
 			}
 		} else {
 			debug("Bad news: authentication failed!\n");

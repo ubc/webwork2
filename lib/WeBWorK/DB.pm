@@ -2334,10 +2334,9 @@ sub getLTIContextsByCourseID {
 	return $self->{lti_contexts}->get_records_where($where);
 }
 
-sub getAllLTIContextsByAutomaticUpdates {
-	my ($self, $automaticUpdates) = shift->checkArgs(\@_, qw/automaticUpdates/);
-	my $where = [automatic_updates_eq => $automaticUpdates];
-	return $self->{lti_contexts}->get_records_where($where);
+sub getAllLTIContexts {
+	my ( $self ) = shift->checkArgs(\@_);
+	return $self->{lti_contexts}->get_records_where();
 }
 
 ################################################################################

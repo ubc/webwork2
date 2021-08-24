@@ -142,7 +142,7 @@ sub initialize {
 	
 	my $user               = $r->param("user");
 	my $effectiveUser      = $r->param("effectiveUser");
-	if ($authz->hasPermissions($user, "access_instructor_tools")) {
+	if ($authz->hasPermissions($user, "access_instructor_tools") || (defined($r->param("lti")) && $r->param("lti") eq "1")) {
 		# get result and send to message
 		my $status_message = $r->param("status_message");
 		$self->addmessage(CGI::p("$status_message")) if $status_message;

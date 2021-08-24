@@ -24,7 +24,7 @@ use Net::OAuth;
 use JSON::Validator qw(validate_json);
 use Crypt::JWT qw(decode_jwt);
 use LWP::UserAgent;
-use WeBWorK::Authen::LTIAdvantage::LTILaunchParser;
+use LTIAdvantage::Parser::LaunchParser;
 use File::Basename;
 use Data::Dumper;
 use WeBWorK::Cookie;
@@ -74,7 +74,7 @@ sub get_credentials {
 	#disable password login
 	$self->{external_auth} = 1;
 
-	my $parser = WeBWorK::Authen::LTIAdvantage::LTILaunchParser->new($ce, $r->param("id_token"));
+	my $parser = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
 	if ($parser->{error}) {
 		$self->{log_error} = "Could not parse LTI launch. Error: \n".$parser->{error};
 		$self->{error} = "Could not parse LTI launch. Error: \n".$parser->{error};
@@ -120,7 +120,7 @@ sub get_credentials {
 	my $schema = $dirname."/LTIAdvantage/schema/1.3.0/LtiResourceLinkRequest.json";
 	if ($version ne "1.3.0") {
 		# for future, load different schemas as needed
-		# $schema = $dirname."/LTIAdvantage/schema/1.3.0/LtiResourceLinkRequest.json";
+		# $schema = $dirname."/LTIAdvantage/Schema/1.3.0/LtiResourceLinkRequest.json";
 
 		# error out
 		$self->{log_error} = "Invalid LTI Version. Supported Version are: 1.3.0";
@@ -140,8 +140,8 @@ sub get_credentials {
 	}
 
 	# check if valid client
-	if (!defined($ce->{bridge}{lti_clients}{$client_id}) ||
-		!defined($ce->{bridge}{lti_clients}{$client_id}))
+	if (!defined($ce->{lti_advantage}{lti_clients}{$client_id}) ||
+		!defined($ce->{lti_advantage}{lti_clients}{$client_id}))
 	{
 		$self->{log_error} = "Unable to find a client id that matches '$client_id'.";
 		$self->{error} = "Unable to find a client id that matches '$client_id'.";
@@ -150,8 +150,8 @@ sub get_credentials {
 	}
 
 	# check if valid platform
-	if (!defined($ce->{bridge}{lti_clients}{$client_id}{platform_id}) ||
-		$ce->{bridge}{lti_clients}{$client_id}{platform_id} ne $platform_id)
+	if (!defined($ce->{lti_advantage}{lti_clients}{$client_id}{platform_id}) ||
+		$ce->{lti_advantage}{lti_clients}{$client_id}{platform_id} ne $platform_id)
 	{
 		$self->{log_error} = "Unable to find a platform id that matches '$platform_id'.";
 		$self->{error} = "Unable to find a platform id that matches '$platform_id'.";
@@ -160,8 +160,8 @@ sub get_credentials {
 	}
 
 	# check if public key
-	if (!defined($ce->{bridge}{lti_clients}{$client_id}) ||
-		!defined($ce->{bridge}{lti_clients}{$client_id}{platform_security_jwks_url}))
+	if (!defined($ce->{lti_advantage}{lti_clients}{$client_id}) ||
+		!defined($ce->{lti_advantage}{lti_clients}{$client_id}{platform_security_jwks_url}))
 	{
 		$self->{log_error} = "Unable to find a security jwks url for client '$client_id'.";
 		$self->{error} = "Unable to find a security jwks url for client '$client_id'.";
@@ -182,6 +182,7 @@ sub get_credentials {
     $self->{login_type} = "normal";
     $self->{credential_source} = "LTIAdvantage";
 	$self->{session_key} = undef;
+	$self->{initial_login} = 1;
 
 	# resuse session_key if possible
 	my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
@@ -200,7 +201,7 @@ sub prevent_replay {
 	my $ce = $r->ce;
 	my $db = $r->db;
 
-	my $parser = WeBWorK::Authen::LTIAdvantage::LTILaunchParser->new($ce, $r->param("id_token"));
+	my $parser = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
 	my $platform_id = $parser->get_param("iss");
 	my $nonce = $parser->get_param("nonce");
 
@@ -234,7 +235,7 @@ sub authenticate {
 		return 0;
 	}
 
-	my $parser = WeBWorK::Authen::LTIAdvantage::LTILaunchParser->new($ce, $r->param("id_token"));
+	my $parser = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
 	if ($parser->{error}) {
 		$self->{log_error} = "Could not parse LTI launch. Error: \n".$parser->{error};
 		$self->{error} = "Could not parse LTI launch. Error: \n".$parser->{error};
@@ -243,7 +244,7 @@ sub authenticate {
 	}
 
 	my $client_id = $parser->get_param("aud");
-	if (!defined($ce->{bridge}{lti_clients}{$client_id}) || !defined($ce->{bridge}{lti_clients}{$client_id}{platform_security_jwks_url})) {
+	if (!defined($ce->{lti_advantage}{lti_clients}{$client_id}) || !defined($ce->{lti_advantage}{lti_clients}{$client_id}{platform_security_jwks_url})) {
 		$self->{log_error} = "Unable to find a security jwks url for client '$client_id'.";
 		$self->{error} = "Unable to find a security jwks url for client '$client_id'.";
 		debug($self->{log_error});
@@ -254,7 +255,7 @@ sub authenticate {
 	my $ua = LWP::UserAgent->new();
 	$ua->default_header( 'Accept' => 'application/json' );
 
-	my $jwt_keys_url = $ce->{bridge}{lti_clients}{$client_id}{platform_security_jwks_url};
+	my $jwt_keys_url = $ce->{lti_advantage}{lti_clients}{$client_id}{platform_security_jwks_url};
 	my $jwt_keys = undef;
 	my $retry_count = 0;
 	while (1) {

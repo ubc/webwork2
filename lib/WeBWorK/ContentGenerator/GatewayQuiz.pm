@@ -41,7 +41,8 @@ use WeBWorK::Utils::Tasks qw(fake_set fake_set_version fake_problem);
 use WeBWorK::Debug;
 use WeBWorK::ContentGenerator::Instructor qw(assignSetVersionToUser);
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
-use WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService;
+use LTIAdvantage::Service::AssignmentAndGradeService;
+use DelayedJob::Service;
 use PGrandom;
 
 use Caliper::Sensor;
@@ -1651,13 +1652,19 @@ sub body {
 		    $LTIGradeResult = $grader->submit_set_grade($effectiveUser, $setName);
 		  }
 		}
-		if ($submitAnswers && $will{recordAnswers} && $self->{ce}->{bridge}{push_grades_on_submit}) {
-			my $assignment_and_grade_service = WeBWorK::Authen::LTIAdvantage::AssignmentAndGradeService->new($self->{ce}, $db);
-			$assignment_and_grade_service->pushUserGradesOnSubmit($effectiveUser, $setName);
-			if ($assignment_and_grade_service->{error}) {
-				$LTIGradeResult = -1;
-			} else {
+		if ($submitAnswers && $will{recordAnswers} && $self->{ce}->{lti_advantage}{push_grades_on_submit}) {
+			if ($self->{ce}->{delayed_job}{enabled}) {
+				my $delayed_job_service = DelayedJob::Service->new($self->{ce});
+				$delayed_job_service->pushUserGradesOnSubmit($effectiveUser, $setName);
 				$LTIGradeResult = 1;
+			} else {
+				my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($self->{ce}, $db);
+				$assignment_and_grade_service->pushUserGradesOnSubmit($effectiveUser, $setName);
+				if ($assignment_and_grade_service->{error}) {
+					$LTIGradeResult = -1;
+				} else {
+					$LTIGradeResult = 1;
+				}
 			}
 		}
 
@@ -2340,24 +2347,25 @@ sub body {
 			my $autosaveScript=<<"EOF";
 \$(document).ready(function() {
 	if (\$(document).find('.gwPreview').length) {
+		const form = \$("form[name='gwquiz']");
+		document.gwquiz.previewHack.value = "1";
+
+		let previous_form_data = form.serialize();
 		setInterval(function() {
-			document.gwquiz.previewHack.value=1;
-			var form = \$("form[name='gwquiz']");
-			\$.ajax({
-				type: "POST",
-				url: form.attr('action'),
-				data: form.serialize(), // serializes form data.
-				success: function(data) {
-					var today = new Date();
-					var date = today.toDateString();
-					var _hours = today.getHours();
-					var _minutes = today.getMinutes();
-					var _seconds = today.getSeconds();
-					var time = (_hours < 10? "0" : "") + _hours + ":" + (_minutes < 10? "0" : "") + _minutes + ":" + (_seconds < 10? "0" : "") + _seconds;
-					var dateTime = date+' '+time;
-					\$("#autosaveStatus").text('Attempted to auto-save at ' + dateTime);
-				}
-			});
+			const form_data = form.serialize();
+			// only autosave if the form has changed
+			if (previous_form_data != form_data) {
+				\$.ajax({
+					type: "POST",
+					url: form.attr('action'),
+					data: form_data,
+					success: function(data) {
+						previous_form_data = form_data;
+						const today = new Date();
+						\$("#autosaveStatus").text('Attempted to auto-save at ' + today.toDateString() + ' ' + today.toLocaleTimeString());
+					}
+				});
+			}
 		}, 180000 + Math.floor((Math.random() * 60000))); // add some randomness to avoid rush of autosave if students started the test at the same time
 	}
 });
@@ -2385,13 +2393,16 @@ EOF
 		}
 
 		print CGI::p( CGI::submit( -name=>"previewAnswers",
-					   -label=>$r->maketext("Preview Test") ),
+					   -label=>$r->maketext("Preview Test"),
+					   -formmethod=>"post" ),
 			      ($can{recordAnswersNextTime} ?
 			       CGI::submit( -name=>"submitAnswers",
-					    -label=>$r->maketext("Grade Test") ) : " "),
+					    -label=>$r->maketext("Grade Test"),
+					    -formmethod=>"post" ) : " "),
 			      ($can{checkAnswersNextTime} && ! $can{recordAnswersNextTime} ?
 			       CGI::submit( -name=>"checkAnswers",
-					    -label=>$r->maketext("Check Test") ) : " "),
+					    -label=>$r->maketext("Check Test"),
+					    -formmethod=>"post" ) : " "),
 			      ($numProbPerPage && $numPages > 1 &&
 			       $can{recordAnswersNextTime} ? CGI::br() .
 			       CGI::em($r->maketext("Note: grading the test grades all problems, not just those on this page.")) : " ") );

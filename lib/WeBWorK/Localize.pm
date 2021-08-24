@@ -430,6 +430,23 @@ my $ConfigStrings = [
 		},
 
 	],
+	[x('LTI'),
+		{ var => 'lti_advantage{auto_assign_users_to_sets}',
+		  doc => x('Automatically assign users to sets'),
+		  doc2 => x('By default, users are automatically assigned to all sets when they launch into WeBWorK from the LMS or when the class roster is synced.'),
+		  type => 'boolean'
+		},
+		{ var => 'lti_advantage{cron_grade_sync}',
+		  doc => x('Automatically send student grades to LMS via cron job'),
+		  doc2 => x('By default, student grades are automatically sent to the LRS via a cron job.'),
+		  type => 'boolean'
+		},
+		{ var => 'lti_advantage{cron_roster_sync}',
+		  doc => x('Automatically get roster from LMS via cron job'),
+		  doc2 => x('By default, class roster is automatically fetched from the LMS via a cron job.'),
+		  type => 'boolean'
+		},
+	],
 ];
 	
 package WeBWorK::Localize::I18N;

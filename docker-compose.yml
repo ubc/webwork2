@@ -20,8 +20,11 @@ services:
       MYSQL_DATABASE: webwork
       MYSQL_USER: ${WEBWORK_DB_USER}
       MYSQL_PASSWORD: ${WEBWORK_DB_PASSWORD}
+    ports:
+      # For a personal machine
+      - "13306:3306"
 
-  app:
+  app: &app
     image: webwork
 
     # Select the appropriate "build:" block:
@@ -45,13 +48,17 @@ services:
       - db
       - r
 
+    networks:
+      - default
+      - docker_canvas_bridge
+
     volumes:
 
       # ======================================================================
 
       # If you are using locally modified webwork2 files, then
       # either mount them from the webwork2 tree from which you start Docker:
-      #- ".:/opt/webwork/webwork2"
+      - ".:/opt/webwork/webwork2"
       # OR mount it from a fixed external location
       #- "/path_to/webwork2:/opt/webwork/webwork2"
 
@@ -139,15 +146,12 @@ services:
       APACHE_RUN_GROUP: www-data
 
       # Standard database environment variables needed by WeBWorK:
+
+      # Select which DBD driver to use
+      WEBWORK_DB_DRIVER: MariaDB
       WEBWORK_DB_HOST: db
       WEBWORK_DB_PORT: 3306
       WEBWORK_DB_NAME: webwork
-      WEBWORK_DB_DSN: DBI:mysql:webwork:db:3306
-      # We currently need to put the same data in the WEBWORK_DB_DSN line above
-      # as we cannot use the following form, as it would be done before the values
-      # needed are available.
-      # NO GOOD # WEBWORK_DB_DSN: DBI:mysql${WEBWORK_DB_NAME}:${WEBWORK_DB_HOST}:${WEBWORK_DB_PORT}
-
 
       # These are set in the .env file and import values from there
       WEBWORK_DB_PASSWORD: ${WEBWORK_DB_PASSWORD}
@@ -185,6 +189,12 @@ services:
 #      WEBWORK_TIMEZONE: America/New_York
 #      R_HOST: r
 
+  worker:
+    <<: *app
+    command: ./webwork2/lib/DelayedJob/Run/run_all_jobs.pl
+    ports:
+    - "8081:80"
+
   r:
     image: ubcctlt/rserve
 #    # The R server need not be available from outside the local Docker network.
@@ -194,3 +204,7 @@ services:
 volumes:
   oplVolume:
   mysql:
+
+networks:
+  docker_canvas_bridge:
+    external: true
