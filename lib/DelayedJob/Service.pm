@@ -28,7 +28,8 @@ sub new
         {
             RaiseError => 1,
             PrintError => 0,
-			AutoCommit => 1,
+            AutoCommit => 1,
+            mariadb_auto_reconnect => 1,
         },
 	);
 	my $driver = Data::ObjectDriver::Driver::DBI->new(dbh => $dbh);
