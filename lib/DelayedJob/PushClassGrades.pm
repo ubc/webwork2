@@ -32,7 +32,7 @@ sub work {
         $job->debug($error_msg);
         $job->failed($error_msg);
     } else {
-        $job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName";
+        $job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName");
             $job->completed();
         }
 }

@@ -25,11 +25,11 @@ sub work {
     my $json_array_of_events = $args->{json_array_of_events};
     my $array_of_events = JSON->new->decode($json_array_of_events);
 
-    $job->debug("Job: " . $job->jobid . ". "Sending Caliper events for course_id: $courseName");
-        my $caliper_sensor = Caliper::Sensor->new($ce);
-        $caliper_sensor->_sendEvents($array_of_events);
-        $job->completed();
-        $job->debug("Job: " . $job->jobid . ". Successfully sent Caliper events for course_id: $courseName");
+    $job->debug("Job: " . $job->jobid . ". Sending Caliper events for course_id: $courseName");
+    my $caliper_sensor = Caliper::Sensor->new($ce);
+    $caliper_sensor->_sendEvents($array_of_events);
+    $job->completed();
+    $job->debug("Job: " . $job->jobid . ". Successfully sent Caliper events for course_id: $courseName");
 }
 
 1;
