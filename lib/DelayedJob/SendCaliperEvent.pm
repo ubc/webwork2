@@ -18,6 +18,8 @@ sub work {
     my $args = $job->arg;
 
     my $courseName = $args->{courseName};
+    $job->debug("Job: " . $job->jobid . ". Sending Caliper events for course_id: $courseName");
+
     my $ce = WeBWorK::CourseEnvironment->new({
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
@@ -25,7 +27,6 @@ sub work {
     my $json_array_of_events = $args->{json_array_of_events};
     my $array_of_events = JSON->new->decode($json_array_of_events);
 
-    $job->debug("Job: " . $job->jobid . ". Sending Caliper events for course_id: $courseName");
     my $caliper_sensor = Caliper::Sensor->new($ce);
     $caliper_sensor->_sendEvents($array_of_events);
     $job->completed();

@@ -18,13 +18,15 @@ sub work {
     my $args = $job->arg;
 
     my $courseName = $args->{courseName};
+
+    $job->debug("Job: " . $job->jobid . ". Fetching Course LTI Names and Roles for course_id: $courseName");
+
     my $ce = WeBWorK::CourseEnvironment->new({
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
     my $db = new WeBWorK::DB($ce->{dbLayout});
 
-    $job->debug("Job: " . $job->jobid . ". Fetching Course LTI Names and Roles for course_id: $courseName");
     my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($ce, $db);
     my $membership = $names_and_roles_service->getAllNamesAndRole();
     unless ($membership) {

@@ -17,13 +17,15 @@ sub work {
     my $args = $job->arg;
 
     my $courseName = $args->{courseName};
+
+    $job->debug("Job: " . $job->jobid . ". Sending Course LTI Assignment and Grades for course_id: $courseName");
+
     my $ce = WeBWorK::CourseEnvironment->new({
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
     my $db = new WeBWorK::DB($ce->{dbLayout});
 
-    $job->debug("Job: " . $job->jobid . ". Sending Course LTI Assignment and Grades for course_id: $courseName");
     my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
     $assignment_and_grade_service->pushAllAssignmentGrades();
 

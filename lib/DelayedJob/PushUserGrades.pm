@@ -27,6 +27,7 @@ sub work {
     my $set_id = $args->{set_id};
 
     $job->debug("Job: " . $job->jobid . ". Sending User LTI Assignment and Grades for course_id: $courseName user_id: $user_id set_id: $set_id");
+
     my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
     $assignment_and_grade_service->pushUserGradesOnSubmit($user_id, $set_id);
 
