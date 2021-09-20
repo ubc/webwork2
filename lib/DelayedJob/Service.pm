@@ -35,7 +35,11 @@ sub new
 	my $driver = Data::ObjectDriver::Driver::DBI->new(dbh => $dbh);
 	my $client = TheSchwartz->new(
 		databases => [{ driver => $driver }],
-		verbose => 1,
+		verbose => sub {
+			my $msg = shift;
+			$msg =~ s/\s+$//;
+			print STDERR scalar localtime() . ": $msg\n";
+		},
 		prioritize => 1
 	);
 	$client->can_do('DelayedJob::GetClassMembership');
