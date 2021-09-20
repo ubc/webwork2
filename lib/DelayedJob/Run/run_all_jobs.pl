@@ -17,7 +17,7 @@ use warnings;
 
 BEGIN
 {
-	die "WEBWORK_ROOT not found in environment.\n" unless exists $ENV{WEBWORK_ROOT};
+    die "WEBWORK_ROOT not found in environment.\n" unless exists $ENV{WEBWORK_ROOT};
 }
 
 use lib "$ENV{WEBWORK_ROOT}/lib";
@@ -32,16 +32,16 @@ my $man = 0;
 my $help = 0;
 
 GetOptions (
-	'help|?' => \$help,
-	man => \$man
+    'help|?' => \$help,
+    man => \$man
 );
 
 pod2usage(1) if $help;
 
 # bring up a minimal course environment
 my $ce = WeBWorK::CourseEnvironment->new({
-	webwork_dir => $ENV{WEBWORK_ROOT},
-});
+        webwork_dir => $ENV{WEBWORK_ROOT},
+    });
 
 my $delayed_job_service = DelayedJob::Service->new($ce);
 $delayed_job_service->work();

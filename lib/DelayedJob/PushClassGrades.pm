@@ -14,27 +14,27 @@ use LTIAdvantage::Service::AssignmentAndGradeService;
 sub work {
     my $class = shift;
     my TheSchwartz::Job $job = shift;
-	my $args = $job->arg;
+    my $args = $job->arg;
 
-	my $courseName = $args->{courseName};
-	my $ce = WeBWorK::CourseEnvironment->new({
-		webwork_dir => $ENV{WEBWORK_ROOT},
-		courseName => $courseName,
-	});
-	my $db = new WeBWorK::DB($ce->{dbLayout});
+    my $courseName = $args->{courseName};
+    my $ce = WeBWorK::CourseEnvironment->new({
+            webwork_dir => $ENV{WEBWORK_ROOT},
+            courseName => $courseName,
+        });
+    my $db = new WeBWorK::DB($ce->{dbLayout});
 
-	$job->debug("Job: " . $job->jobid . ". Sending Course LTI Assignment and Grades for course_id: $courseName");
-	my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
-	$assignment_and_grade_service->pushAllAssignmentGrades();
+    $job->debug("Job: " . $job->jobid . ". Sending Course LTI Assignment and Grades for course_id: $courseName");
+    my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
+    $assignment_and_grade_service->pushAllAssignmentGrades();
 
-	if ($assignment_and_grade_service->{error}) {
-		my $error_msg = "There was an issue pushing the class grades for course_id: $courseName. ".$assignment_and_grade_service->{error};
-		$job->debug($error_msg);
-		$job->failed($error_msg);
-	} else {
-		$job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName";
-		$job->completed();
-	}
+    if ($assignment_and_grade_service->{error}) {
+        my $error_msg = "There was an issue pushing the class grades for course_id: $courseName. ".$assignment_and_grade_service->{error};
+        $job->debug($error_msg);
+        $job->failed($error_msg);
+    } else {
+        $job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName";
+            $job->completed();
+        }
 }
 
 1;
