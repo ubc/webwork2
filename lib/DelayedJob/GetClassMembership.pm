@@ -24,13 +24,12 @@ sub work {
 	});
 	my $db = new WeBWorK::DB($ce->{dbLayout});
 
-	print "Fetching Course LTI Names and Roles for course_id: $courseName\n";
+	$job->debug("Job: " . $job->jobid . ". Fetching Course LTI Names and Roles for course_id: $courseName");
 	my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($ce, $db);
 	my $membership = $names_and_roles_service->getAllNamesAndRole();
 	unless ($membership) {
 		my $error_msg = "There was an issue fetching the class roster for course_id: $courseName. ".$names_and_roles_service->{error};
-		debug($error_msg);
-		print $error_msg."\n";
+		$job->debug($error_msg);
 		$job->failed($error_msg);
 		return;
 	}
@@ -38,12 +37,11 @@ sub work {
 	my $ret = $updater->updateCourse();
 	if ($ret) {
 		my $error_msg = "Update Class Roster failed for course_id: $courseName: $ret";
-		debug($error_msg);
-		print $error_msg."\n";
+		$job->debug($error_msg);
 		$job->failed($error_msg);
 		return;
 	}
-	print "Successfully fetched LTI Names and Roles for course_id: $courseName\n";
+	$job->debug("Job: " . $job->jobid . ". Successfully fetched LTI Names and Roles for course_id: $courseName");
 	$job->completed();
 }
 

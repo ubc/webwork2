@@ -23,17 +23,16 @@ sub work {
 	});
 	my $db = new WeBWorK::DB($ce->{dbLayout});
 
-	print "Sending Course LTI Assignment and Grades for course_id: $courseName\n";
+	$job->debug("Job: " . $job->jobid . ". Sending Course LTI Assignment and Grades for course_id: $courseName");
 	my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
 	$assignment_and_grade_service->pushAllAssignmentGrades();
 
 	if ($assignment_and_grade_service->{error}) {
 		my $error_msg = "There was an issue pushing the class grades for course_id: $courseName. ".$assignment_and_grade_service->{error};
-		debug($error_msg);
-		print $error_msg."\n";
+		$job->debug($error_msg);
 		$job->failed($error_msg);
 	} else {
-		print "Successfully sent LTI Assignment and Grades for course_id: $courseName\n";
+		$job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName";
 		$job->completed();
 	}
 }

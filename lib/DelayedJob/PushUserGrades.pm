@@ -26,17 +26,16 @@ sub work {
 	my $user_id = $args->{user_id};
 	my $set_id = $args->{set_id};
 
-	print "Sending User LTI Assignment and Grades for course_id: $courseName user_id: $user_id set_id: $set_id\n";
+	$job->debug("Job: " . $job->jobid . ". Sending User LTI Assignment and Grades for course_id: $courseName user_id: $user_id set_id: $set_id");
 	my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
 	$assignment_and_grade_service->pushUserGradesOnSubmit($user_id, $set_id);
 
 	if ($assignment_and_grade_service->{error}) {
 		my $error_msg = "There was an issue pushing the user grades for course_id: $courseName user_id: $user_id set_id: $set_id. ".$assignment_and_grade_service->{error};
-		debug($error_msg);
-		print $error_msg."\n";
+		$job->debug($error_msg);
 		$job->failed($error_msg);
 	} else {
-		print "Successfully sent LTI Assignment and Grades for course_id: $courseName user_id: $user_id set_id: $set_id\n";
+		$job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName user_id: $user_id set_id: $set_id");
 		$job->completed();
 	}
 }
