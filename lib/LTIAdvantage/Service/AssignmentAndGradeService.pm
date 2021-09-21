@@ -392,7 +392,8 @@ sub _performAssignmentAndGradeRequests {
 		if ($lti_resource_link->scope_result_readonly()) {
 
 			my $lti_results = {};
-			my $lineitem_results_url = "$lineitem_url/results";
+                        my $request_filter = scalar @grades_to_update > 1 ? "" : "?user_id=$grades_to_update[0]->{lti_user_id}";
+                        my $lineitem_results_url = "$lineitem_url/results".$request_filter;
 			my $request_error = 0;
 			while (1) {
 				my $ua = LWP::UserAgent->new();
