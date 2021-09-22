@@ -488,13 +488,27 @@ sub _performAssignmentAndGradeRequests {
 			$extralog->logAGSRequest("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
 			debug("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
 
+            # LTI AGS spec technically requires subsecond precision. But since
+            # the original timestamp is a unix timestamp with only second
+            # precision, I've just stuck .000 to it.
+            my $iso8601Datetime = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
 			my $params = {
 				userId => $lti_user_id,
 				scoreGiven => $grade,
 				scoreMaximum => 1.0,
-				timestamp => formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z"),
+				timestamp => $iso8601Datetime,
 				activityProgress => $grade_to_update->{activity_progress},
-				gradingProgress => $grade_to_update->{grading_progress}
+				gradingProgress => $grade_to_update->{grading_progress},
+                # Canvas specific LTI extension
+                "https://canvas.instructure.com/lti/submission" => {
+                    # Canvas does not use 'timestamp' to set submission time,
+                    # submission time gets set to the time Canvas receives the
+                    # score. This means that if grade sync gets delayed, Canvas
+                    # will wrongly mark students as being late. We can override
+                    # this by using 'submitted_at' to set submission time to
+                    # the actual time the student submitted.
+                    submitted_at => $iso8601Datetime
+                }
 			};
 			my $json_payload = JSON->new->canonical->encode($params);
 
