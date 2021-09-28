@@ -15,7 +15,7 @@ use JSON;
 sub work {
     my $class = shift;
     my TheSchwartz::Job $job = shift;
-    my $args = $job->arg;
+    my $args = decode_json($job->arg);
 
     my $courseName = $args->{courseName};
     $job->debug("Job: " . $job->jobid . ". Sending Caliper events for course_id: $courseName");
@@ -24,8 +24,7 @@ sub work {
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
-    my $json_array_of_events = $args->{json_array_of_events};
-    my $array_of_events = JSON->new->decode($json_array_of_events);
+    my $array_of_events = $args->{json_array_of_events};
 
     my $caliper_sensor = Caliper::Sensor->new($ce);
     $caliper_sensor->_sendEvents($array_of_events);

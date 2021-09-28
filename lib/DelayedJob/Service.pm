@@ -14,6 +14,7 @@ use DelayedJob::GetClassMembership;
 use DelayedJob::PushClassGrades;
 use DelayedJob::PushUserGrades;
 use DelayedJob::SendCaliperEvent;
+use JSON;
 
 #$WeBWorK::Debug::Enabled = 1;
 
@@ -104,16 +105,14 @@ sub getClassMembership {
 
 sub sendEvents {
     my ($self, $json_array_of_events) = @_;
+    my $args = { courseName => $self->{ce}->{courseName},
+                 json_array_of_events => $json_array_of_events };
+    $args = encode_json($args);
     my $job = TheSchwartz::Job->new(
         funcname => 'DelayedJob::SendCaliperEvent',
         priority => 0,
-        arg => {
-            courseName => $self->{ce}->{courseName},
-            json_array_of_events => $json_array_of_events
-        },
+        arg => $args,
     );
-    debug("Delayed Job sendEvents");
-    debug(Dumper($job));
     $self->{client}->insert($job);
 }
 
