@@ -491,12 +491,18 @@ sub _performAssignmentAndGradeRequests {
             # LTI AGS spec technically requires subsecond precision. But since
             # the original timestamp is a unix timestamp with only second
             # precision, I've just stuck .000 to it.
-            my $iso8601Datetime = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
+            my $nowTimestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
+            my $submittedTimestamp = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
 			my $params = {
 				userId => $lti_user_id,
 				scoreGiven => $grade,
 				scoreMaximum => 1.0,
-				timestamp => $iso8601Datetime,
+                # We used to set this timestamp to the student's assignment
+                # submit time. This caused a situtation where if instructor
+                # updates Canvas assignment configuration *after* the student's
+                # submit time, Canvas will reject the grade sync. We set it to
+                # the current time to avoid this scenario.
+				timestamp => $nowTimestamp,
 				activityProgress => $grade_to_update->{activity_progress},
 				gradingProgress => $grade_to_update->{grading_progress},
                 # Canvas specific LTI extension
@@ -507,7 +513,7 @@ sub _performAssignmentAndGradeRequests {
                     # will wrongly mark students as being late. We can override
                     # this by using 'submitted_at' to set submission time to
                     # the actual time the student submitted.
-                    submitted_at => $iso8601Datetime
+                    submitted_at => $submittedTimestamp
                 }
 			};
 			my $json_payload = JSON->new->canonical->encode($params);
