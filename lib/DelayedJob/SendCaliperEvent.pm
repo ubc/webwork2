@@ -24,7 +24,7 @@ sub work {
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
-    my $array_of_events = $args->{json_array_of_events};
+    my $array_of_events = decode_json($args->{json_array_of_events});
 
     my $caliper_sensor = Caliper::Sensor->new($ce);
     $caliper_sensor->_sendEvents($array_of_events);
