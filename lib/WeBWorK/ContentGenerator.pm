@@ -865,53 +865,17 @@ sub links {
 					if (defined $problemID) {
 					    print CGI::start_li();
 					    print CGI::start_ul();
-<<<<<<< HEAD
-					    print CGI::li(&$makelink("${pfx}PGProblemEditor", text=>$r->maketext("[_1] (old editor)", $prettyProblemID), urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor1"))
-							if $ce->{showeditors}->{pgproblemeditor1};
-					    print CGI::li(&$makelink("${pfx}PGProblemEditor2", text=>"$prettyProblemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor2"))
-							if $ce->{showeditors}->{pgproblemeditor2};;
-
-					    print CGI::li(&$makelink("${pfx}PGProblemEditor3", text=>"--$prettyProblemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor3"))
-						if $ce->{showeditors}->{pgproblemeditor3};;
-
-					    print CGI::li(&$makelink("${pfx}SimplePGEditor", text=>"$prettyProblemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"Simple_Editor"))
-						if $ce->{showeditors}->{simplepgeditor};;
-					    print CGI::end_ul();
-					    print CGI::end_li();
-					}
-					if (defined $problemID) {
-					    print CGI::start_li();
-						print CGI::start_ul();
-						print CGI::li(&$makelink("${pfx}SimplePGEditor", text=>"----$prettyProblemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"Simple_Editor"))
-							if $ce->{showeditors}->{simplepgeditor};;
-						print CGI::end_ul();
-					    print CGI::end_li();
-					}
-=======
 						print CGI::li(&$makelink("${pfx}PGProblemEditor", text=>"$prettyProblemID", urlpath_args=>{%args,setID=>$setID,problemID=>$problemID}, systemlink_args=>\%systemlink_args, target=>"WW_Editor"));
 					    print CGI::end_ul();
 					    print CGI::end_li();
 					}
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
 
 					print CGI::end_ul();
 				    print CGI::end_li();
 				}
 
-<<<<<<< HEAD
-				print CGI::li(&$makelink("${pfx}SetMaker", text=>$r->maketext("Library Browser"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
-					if $ce->{showeditors}->{librarybrowser1};
-				print CGI::li(&$makelink("${pfx}SetMaker2", text=>$r->maketext("Library Browser 2"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
-					if $ce->{showeditors}->{librarybrowser2};
-				print CGI::li(&$makelink("${pfx}SetMaker3", text=>$r->maketext("Library Browser 3"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
-					if $ce->{showeditors}->{librarybrowser3};
-				print CGI::li(&$makelink("${pfx}SetMakernojs", text=>$r->maketext("Orig. Lib. Browser"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args))
-					if $ce->{showeditors}->{librarybrowsernojs};
-#print CGI::li(&$makelink("${pfx}Compare", text=>"Compare", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
-=======
 				print CGI::li(&$makelink("${pfx}SetMaker", text=>$r->maketext("Library Browser"), urlpath_args=>{%args}, systemlink_args=>\%systemlink_args));
 
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
 				print CGI::start_li(); # Stats
 				print &$makelink("${pfx}Stats", urlpath_args=>{%args}, systemlink_args=>\%systemlink_args);
 				if ($userID ne $eUserID or defined $setID) {
@@ -1037,7 +1001,7 @@ sub loginstatus {
 			params=>$extraStopActingParams);
 		my $logoutURL = $self->systemLink($urlpath->newFromModule(__PACKAGE__ . "::Logout", $r, courseID => $courseID));
 
-<<<<<<< HEAD
+		my $signOutIcon = CGI::i({ class=> "icon fas fa-sign-out-alt", aria_hidden => "true", data_alt => "signout" }, "");
 		# added by compass
 		my $user = $db->getUser ($userID);
 		my $name = $user->first_name . " " . $user->last_name;
@@ -1045,29 +1009,19 @@ sub loginstatus {
 
 		if ($eUserID eq $userID) {
 			# changed by Compass
-			print $r->maketext("Logged in as [_1].", HTML::Entities::encode_entities($name)) . CGI::a({href=>$logoutURL}, $r->maketext("Log Out"));
+			print $r->maketext("Logged in as [_1].", HTML::Entities::encode_entities($name)) .
+				CGI::a({ href => $logoutURL, class => "btn btn-small" }, $r->maketext("Log Out") . " " . $signOutIcon);
 			# end
 		} else {
 			# added and changed by compass
 			my $euser = $db->getUser($eUserID);
 			my $ename = $euser->first_name . " " . $euser->last_name;
-			print $r->maketext("Logged in as [_1].", HTML::Entities::encode_entities($name)) . CGI::a({href=>$logoutURL}, $r->maketext("Log Out"));
-			print CGI::br();
-			print $r->maketext("Acting as [_1].", HTML::Entities::encode_entities($ename)) . CGI::a({href=>$stopActingURL}, $r->maketext("Stop Acting"));
-			# end
-=======
-		my $signOutIcon = CGI::i({ class=> "icon fas fa-sign-out-alt", aria_hidden => "true", data_alt => "signout" }, "");
-
-		if ($eUserID eq $userID) {
-			print $r->maketext("Logged in as [_1].", HTML::Entities::encode_entities($userID)) .
-				CGI::a({ href => $logoutURL, class => "btn btn-small" }, $r->maketext("Log Out") . " " . $signOutIcon);
-		} else {
-			print $r->maketext("Logged in as [_1].", HTML::Entities::encode_entities($userID)) .
+			print $r->maketext("Logged in as [_1].", HTML::Entities::encode_entities($name)) .
 				CGI::a({ href => $logoutURL, class => "btn btn-small" }, $r->maketext("Log Out") . " " . $signOutIcon);
 			print CGI::br();
-			print $r->maketext("Acting as [_1].", HTML::Entities::encode_entities($eUserID)) .
+			print $r->maketext("Acting as [_1].", HTML::Entities::encode_entities($ename)) .
 				CGI::a({ href => $stopActingURL, class => "btn btn-small" }, $r->maketext("Stop Acting") . " " . $signOutIcon);
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
+			# end
 		}
 	} else {
 		# commented by Compass
@@ -1760,11 +1714,6 @@ sub feedbackMacro_form {
 	my ($self, $feedbackFormURL, %params) = @_;
 	my $r = $self->r;
 	my $ce = $r->ce;
-<<<<<<< HEAD
-	my $urlpath = $r->urlpath;
-	my $courseID = $urlpath->arg("courseID");
-=======
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
 
 	# feedback form url
 	my $feedbackName = $r->maketext($ce->{feedback_button_name}) || $r->maketext("Email instructor");
@@ -1914,10 +1863,6 @@ authentication.
 
 sub url_authen_args {
 	my ($self) = @_;
-<<<<<<< HEAD
-
-	return $self->url_args("effectiveUser", "theme");
-=======
 	my $ce = $self->r->ce;
 
 	# When cookie based session management is in use, there should be no need
@@ -1928,7 +1873,6 @@ sub url_authen_args {
 	} else {
 		return $self->url_args("user", "effectiveUser", "key", "theme");
 	}
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
 }
 
 =item url_state_args()
@@ -2063,8 +2007,6 @@ sub systemLink {
 
 	my $authen = exists $options{authen} ? $options{authen} : 1;
 	if ($authen) {
-<<<<<<< HEAD
-=======
 
 		# When cookie based session management is in use, there should be no need
 		# to reveal the user and key in the URL. Putting it there makes session
@@ -2078,22 +2020,17 @@ sub systemLink {
 			$params{key}           = undef unless exists $params{key};
 		}
 
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
 		$params{effectiveUser} = undef unless exists $params{effectiveUser};
 		$params{theme}         = undef unless exists $params{theme};
 	}
 
 	my $url;
 
-<<<<<<< HEAD
     # Changed by Compass, to fix the incorrect links in the email
     # when using a load balancer and SSL off-loading
     # Not sure why server_root_url is not used
     #$url = $r->ce->{apache_root_url} if $options{use_abs_url};
     $url = $r->ce->{server_root_url};
-=======
-	$url = $r->ce->{apache_root_url} if $options{use_abs_url};
->>>>>>> b9b4e45b771b5e250eb275f3aa2c88337203d879
 	$url .= $r->location . $urlpath->path;
 	my $first = 1;
 

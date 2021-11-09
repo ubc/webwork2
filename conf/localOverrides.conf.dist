@@ -514,6 +514,10 @@ $authen{user_module} = {
 # the WeBWorK::Constants file.
 # This will print extensive debug messages for all courses.
 
+# ubc custom, some params from authen_LTI.conf.dist that are used by the
+# ContentGenerator modules in error messages so needs to be defined
+$LMS_name = 'Canvas';
+$LMS_url = 'https://canvas.ubc.ca/';
 
 
 ################################################################################
@@ -640,9 +644,6 @@ $authen{user_module} = {
 #$webworkDirs{texinputs_common} = "$webworkDirs{root}/conf/snippets/hardcopyThemes/common";
 
 ################################################################################
-
-
-################################################################################
 # Webwork Caliper
 ################################################################################
 
@@ -681,6 +682,8 @@ $caliper{custom_actor_generator} = sub {
 
 
 ################################################################################
+# Status System
+################################################################################
 
 # Modify the Proctor status to Professor status and allow course access.
 # Users marked as "Enrolled" or "Teaching" can be modified during course
@@ -711,6 +714,7 @@ $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
 $authen{lti} = "WeBWorK::Authen::LTIAdvantage";
 # xmlrpc webservice requests will use the default auth instead of shib
 $authen{'xmlrpc'} = "WeBWorK::Authen";
+
 
 ################################################################################
 # Delayed Job
@@ -830,6 +834,9 @@ push @{$pg{modules}},
    [qw( Moose )],
    [qw( Class::MOP )];
 
-$pg{specialPGEnvironmentVars}{Rserve} = {host => $ENV{"R_HOST}"}};
+$pg{specialPGEnvironmentVars}{Rserve} = {host => $ENV{"R_HOST"}};
+
+# By default, only require proctor password when starting proctored quiz
+$options{proctorOnlyNeededWhenStarting} = 1;
 
 1; #final line of the file to reassure perl that it was read properly.
