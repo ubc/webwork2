@@ -144,6 +144,7 @@ sub updateUser
 	my $new_status = "C";
 	if ($newInfo->{'permission'} == $ce->{userRoles}{professor} ||
 		$newInfo->{'permission'} == $ce->{userRoles}{ta} ||
+		$newInfo->{'permission'} == $ce->{userRoles}{designer} ||
 		$newInfo->{'permission'} == $ce->{userRoles}{admin})
 	{
 		$new_status = "P";

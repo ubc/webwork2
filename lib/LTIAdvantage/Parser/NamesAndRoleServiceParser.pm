@@ -207,7 +207,7 @@ sub get_permissions {
 	} elsif ($is_instructor && !$is_ta) {
 		return $ce->{userRoles}{professor};
 	} elsif ($is_content_developer) {
-		return $ce->{userRoles}{professor};
+		return $ce->{userRoles}{designer};
 	} elsif ($is_ta) {
 		return $ce->{userRoles}{ta};
 	} elsif ($is_student) {

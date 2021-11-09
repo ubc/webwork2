@@ -218,14 +218,32 @@ $permissionLevels{dont_log_past_answers} = "professor";
 $permissionLevels{record_answers_when_acting_as_student} = "ta";
 
 # custom ubc settings
+#
+# Adding a "designer" role by request. Designers were previously mapped to
+# "professor" and there were concerns that this is too much access. So it was
+# suggested that we have a role that can create content but doesn't have
+# grading power.
+$userRoles{designer} = 4;
+
+$permissionLevels{view_hidden_work} = "designer";
+$permissionLevels{view_multiple_sets} = "designer";
+$permissionLevels{view_unopened_sets} = "designer";
+$permissionLevels{view_hidden_sets} = "designer";
+$permissionLevels{view_answers} = "designer";
+$permissionLevels{view_ip_restricted_sets} = "designer";
+$permissionLevels{access_instructor_tools} = "designer";
+$permissionLevels{view_problem_debugging_info} = "designer";
+$permissionLevels{create_and_delete_problem_sets} = "designer";
+$permissionLevels{modify_problem_sets} = "designer";
+$permissionLevels{modify_student_data} = "designer";
+$permissionLevels{modify_set_def_files} = "designer";
+$permissionLevels{manage_course_files} = "designer";
+# required to create course by LTI launch, TAs & Designers sometimes need this
+$permissionLevels{create_and_delete_courses} = "designer";
+
 $permissionLevels{become_student} = "ta";
 $permissionLevels{send_email} = "ta";
-$permissionLevels{create_and_delete_problem_sets} = "ta";
 $permissionLevels{assign_problem_sets} = "ta";
-$permissionLevels{modify_problem_sets} = "ta";
-$permissionLevels{modify_student_data} = "ta";
-$permissionLevels{modify_set_def_files} = "ta";
-$permissionLevels{manage_course_files} = "ta";
 $permissionLevels{avoid_recording_answers} = "nobody";
 
 ################################################################################
