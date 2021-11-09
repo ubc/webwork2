@@ -17,7 +17,6 @@ use HTTP::Async;
 use Caliper::Event;
 use Caliper::ResourceIri;
 
-#$WeBWorK::Debug::Enabled = 1;
 
 # Constructor
 sub new

@@ -118,7 +118,7 @@ sub debug {
 		$finalMessage .= "\n" unless $finalMessage =~ m/\n$/;
 
 		if ($WeBWorK::Debug::Logfile ne "") {
-			if (open my $fh, ">>", $Logfile) {
+			if (open my $fh, ">>:encoding(UTF-8)", $Logfile) {
 				print $fh $finalMessage;
 				close $fh;
 			} else {

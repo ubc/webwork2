@@ -50,7 +50,6 @@ use strict;
 use warnings;
 use CGI qw/:standard/;
 use WeBWorK::Debug;
-use Data::Dumper;
 
 # this is similar to the method in the base class, except that Shibboleth
 # ensures that we don't get to the address without a login.  this means
@@ -65,13 +64,14 @@ sub get_credentials {
 
 	if ( $ce->{shiboff} || $r->param('bypassShib')) {
 		return $self->SUPER::get_credentials( @_ );
-	} else {
-		debug("Shib is on!");
+	}
 
-		# set external auth parameter so that Login.pm knows
-		#    not to rely on internal logins if there's a check_user
-		#    failure.
-		$self->{external_auth} = 1;
+	debug("Shib is on!");
+
+	# set external auth parameter so that Login.pm knows
+	#    not to rely on internal logins if there's a check_user
+	#    failure.
+	$self->{external_auth} = 1;
 
 		my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
 		if ( $cookieUser && ! $r->param("force_passwd_authen") ) {
@@ -134,7 +134,6 @@ sub get_credentials {
 		$self->{redirect} = $go_to;
 		print $q->redirect($go_to);
 		return 0;
-	}
 }
 
 sub checkPassword {
