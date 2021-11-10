@@ -47,12 +47,13 @@ RUN apt-get update \
        apache2 \
        curl \
        dvipng \
+       dvisvgm \
        gcc \
        libapache2-request-perl \
+       libarchive-zip-perl \
+       libcgi-pm-perl \
        libcrypt-ssleay-perl \
        libdatetime-perl \
-       libdancer-perl \
-       libdancer-plugin-database-perl \
        libdbd-mysql-perl \
        libdbd-mariadb-perl \
        libemail-address-xs-perl \
@@ -73,6 +74,8 @@ RUN apt-get update \
        libpath-class-perl \
        libphp-serialization-perl \
        libxml-simple-perl \
+       libnet-https-nb-perl \
+       libhttp-async-perl \
        libsoap-lite-perl \
        libsql-abstract-perl \
        libstring-shellquote-perl \
@@ -115,15 +118,19 @@ RUN apt-get update \
        libuniversal-isa-perl \
        libtest-fatal-perl \
        libjson-xs-perl \
-       libmoox-options-perl \
-       libnet-https-nb-perl \
-       libhttp-async-perl \
+       # TheSchwartz used by DelayedJob
 	   libtheschwartz-perl \
+       # Crypt::JWT used by LTIAdvantage
        libcrypt-jwt-perl \
+       # JSON::Validator used by LTIAdvantage
        libjson-validator-perl \
+       libjson-maybexs-perl \
+       libcpanel-json-xs-perl \
        libmoose-perl \
        make \
        netpbm \
+       patch \
+       pdf2svg \
        preview-latex-style \
        texlive \
        texlive-latex-extra \
@@ -145,7 +152,10 @@ RUN apt-get update \
        fonts-linuxlibertine \
        lmodern \
        zip \
+       iputils-ping \
+       imagemagick \
        jq \
+       npm \
        unixodbc \
        libapache2-mod-shib \
        gettext \
@@ -218,7 +228,18 @@ RUN echo "PATH=$PATH:$APP_ROOT/webwork2/bin" >> /root/.bashrc \
 
 # ==================================================================
 
+# Install npm packages, split out from phase 5 for caching reasons
+
+WORKDIR $WEBWORK_ROOT/htdocs
+RUN npm install
+WORKDIR /
+
+# ==================================================================
+
 # Phase 6 - install additional Perl modules from CPAN (not packaged for Ubuntu or outdated in Ubuntu)
+
+# App::Genpass - used by LTIAdvantage's CourseUpdater
+# Data::ObjectDriver - used by DelayedJob
 
 RUN cpanm install Statistics::R::IO App::Genpass Data::ObjectDriver \
     && rm -fr ./cpanm /root/.cpanm /tmp/*
