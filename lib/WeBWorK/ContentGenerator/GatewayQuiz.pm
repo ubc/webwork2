@@ -1546,7 +1546,15 @@ sub body {
 		my $answer_log = $self->{ce}->{courseFiles}->{logs}->{'answer_log'};
 
 		# This is modified from process_and_log_answer in ProblemUtil.pm
-		if (defined($answer_log) && $submitAnswers) {
+		if (defined($answer_log)) {
+
+			# ubc customization, we want to log all answers (such as previews)
+			# for troubleshooting and academic integrity investigations.
+			# Webwork used to log all answers but changed to logging only
+			# submits in webwork 2.16.
+			my $answerType = $submitAnswers ? '' : 'preview |';
+			if ($previewAnswers eq 'autosave') { $answerType = 'autosave|'; }
+
 			foreach my $i (0 .. $#problems) {
 				# Begin problem loop for passed answers.
 				next unless ref($pg_results[$probOrder[$i]]);
@@ -1563,7 +1571,7 @@ sub body {
 
 				# Write to courseLog
 				writeCourseLog($self->{ce}, "answer_log",
-					join("", '|', $problems[$i]->user_id, '|', $setVName, '|', ($i+1), '|', $scores,
+					join("", '|', $problems[$i]->user_id, '|', $setVName, '|', ($i+1), '|', $answerType, $scores,
 						"\t$timeNow\t", "$past_answers_string"));
 
 				# Add to PastAnswer db
@@ -1574,7 +1582,7 @@ sub body {
 				$pastAnswer->problem_id($problems[$i]->problem_id);
 				$pastAnswer->timestamp($timeNow);
 				$pastAnswer->scores($scores);
-				$pastAnswer->answer_string($past_answers_string);
+				$pastAnswer->answer_string($answerType . $past_answers_string);
 				$pastAnswer->source_file($problems[$i]->source_file);
 				$db->addPastAnswer($pastAnswer);
 			}
