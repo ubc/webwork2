@@ -711,8 +711,9 @@ $statuses{TeachingNoDrop} = {
     abbrevs => [qw/ T t teachingnodrop /],
     behaviors => [qw/ allow_course_access include_in_assignment /],
 };
-
-delete $statuses{Proctor};
+# proctored gateway quizzes will create a proctor user used just for the
+# proctor login authentication, so we need to leave it as a valid status
+$statuses{Proctor}{abbrevs} = [qw/ G g gatewayproctor /];
 
 # URL of WeBWorK Bugzilla database.
 $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";

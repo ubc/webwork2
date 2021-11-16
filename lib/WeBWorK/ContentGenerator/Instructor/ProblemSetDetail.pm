@@ -909,6 +909,8 @@ sub proctoredFieldHTML {
 		  CGI::input({ name=>"set.$setID.restricted_login_proctor_password",
 			       value=>$value,
 			       size=>10,
+				   type => "text", # fix bootstrap not styling this input
+				   class => "input-medium", # make the input wider than default
 		       }),
 		  '' ) );
 }
