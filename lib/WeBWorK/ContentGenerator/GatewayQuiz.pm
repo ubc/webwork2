@@ -2263,7 +2263,9 @@ sub body {
 
 		let previous_form_data = form.serialize();
 		setInterval(function() {
-			const form_data = form.serialize();
+			let form_data = form.serialize();
+			// add the preview button so GatewayQuiz knows this is a preview
+			form_data += '&previewAnswers=autosave';
 			// only autosave if the form has changed
 			if (previous_form_data != form_data) {
 				\$.ajax({
