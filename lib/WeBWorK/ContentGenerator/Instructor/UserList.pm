@@ -93,6 +93,7 @@ use constant FORM_TITLES => {
 	export         => x("Export"),
 	add            => x("Add"),
 	delete         => x("Delete"),
+	lti            => x("LTI"),
         savePassword   => x("Save Password"),
         cancelPassword => x("Cancel Password")
 };

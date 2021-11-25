@@ -113,7 +113,8 @@ use constant FORM_TITLES => {
 	create         => x("Create"),
 	delete         => x("Delete"),
 	saveExport     => x("Save Export"),
-	cancelExport   => x("Cancel Export")
+	cancelExport   => x("Cancel Export"),
+	lti            => x("LTI")
 };
 
 use constant VIEW_FIELD_ORDER => [ qw( set_id problems users visible enable_reduced_scoring open_date reduced_scoring_date due_date answer_date) ];

@@ -242,12 +242,12 @@ $permissionLevels{access_instructor_tools} = "designer";
 $permissionLevels{view_problem_debugging_info} = "designer";
 $permissionLevels{create_and_delete_problem_sets} = "designer";
 $permissionLevels{modify_problem_sets} = "designer";
-$permissionLevels{modify_student_data} = "designer";
 $permissionLevels{modify_set_def_files} = "designer";
 $permissionLevels{manage_course_files} = "designer";
 # required to create course by LTI launch, TAs & Designers sometimes need this
 $permissionLevels{create_and_delete_courses} = "designer";
 
+$permissionLevels{modify_student_data} = "ta";
 $permissionLevels{become_student} = "ta";
 $permissionLevels{send_email} = "ta";
 $permissionLevels{assign_problem_sets} = "ta";
@@ -262,11 +262,11 @@ $permissionLevels{avoid_recording_answers} = "nobody";
 #$options{PGCodeMirror} = 0;
 
 # This sets if mathview is available on the PG editor for use as a minimal latex equation editor
-#$options{PGMathView} = 1;
+$options{PGMathView} = 1;
 # This sets if WirisEditor is available on the PG editor for use as a minimal latex equation editor
-#$options{PGWirisEditor}= 1;
+$options{PGWirisEditor}= 1;
 # This sets if MathQuill is available on the PG editor for use as a minimal latex equation editor
-#$options{PGMathQuill}= 1;
+$options{PGMathQuill}= 1;
 
 ################################################################################
 # PG subsystem options
@@ -404,7 +404,7 @@ $problemDefaults{showMeAnother} = -1;
 ###############################################################################
 
 #$pg{specialPGEnvironmentVars}{entryAssist} = 'MathQuill';
-#$pg{specialPGEnvironmentVars}{entryAssist} = 'MathView';
+$pg{specialPGEnvironmentVars}{entryAssist} = 'MathView';
 #$pg{specialPGEnvironmentVars}{entryAssist} = 'WIRIS';
 
 ################################################################################
