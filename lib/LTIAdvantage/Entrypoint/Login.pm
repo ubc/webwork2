@@ -11,6 +11,7 @@ use Data::UUID;
 use URI;
 use Date::Format;
 
+use WeBWorK::Cookie;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
@@ -70,12 +71,13 @@ sub run
 
 	# valid until 15 minutes from now
 	my $expires = time2str("%a, %d-%h-%Y %H:%M:%S %Z", time+(15*60), "GMT");
-	my $cookie = WeBWorK::Cookie->new($r,
+	my $cookie = WeBWorK::Cookie->new(
 		-name    => $state,
  		-value   => $nonce,
 		-path    => $ce->{webworkURLRoot},
+		-samesite => $ce->{CookieSameSite},
+		-secure   => $ce->{CookieSecure},
 		-expires => $expires,
-		-secure  => 0,
 		-domain  => $r->hostname
 	);
 
