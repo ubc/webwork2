@@ -207,7 +207,7 @@ sub createCourse
 	my $parser = $self->{parser};
 
 	my $permissions = $parser->get_permissions();
-	if ($permissions < $ce->{userRoles}{ta}) {
+	if ($permissions < $ce->{userRoles}{designer}) {
 		return error("Please ask your instructor to import this course into Webworks first.", "#e011");
 	}
 
