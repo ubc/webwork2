@@ -133,12 +133,12 @@ use constant ACTION_FORM_TITLES => { # editor tabs
 
 # permissions needed to perform a given action
 use constant FORM_PERMS => {
-	view => "modify_student_data",
-	add_problem => "modify_student_data",
-	make_local_copy => "modify_student_data",
-	save => "modify_student_data",
-	save_as => "modify_student_data",
-	revert => "modify_student_data",
+	view => "modify_problem_sets",
+	add_problem => "modify_problem_sets",
+	make_local_copy => "modify_problem_sets",
+	save => "modify_problem_sets",
+	save_as => "modify_problem_sets",
+	revert => "modify_problem_sets",
 };
 
 our $BLANKPROBLEM = 'blankProblem.pg';
@@ -450,7 +450,7 @@ sub body {
 		unless $authz->hasPermissions($user, "access_instructor_tools");
 
 	return CGI::div({class=>"ResultsWithError"}, "You are not authorized to modify problems.")
-		unless $authz->hasPermissions($user, "modify_student_data");
+		unless $authz->hasPermissions($user, "modify_problem_sets");
 
 	# Gathering info
 	my $editFilePath    = $self->{editFilePath}; # path to the permanent file to be edited
