@@ -298,15 +298,20 @@ else
   chmod 644 /etc/shibboleth/shibboleth2.xml
 fi
 
-# The code below allows to use
-#    docker container exec -it webwork2_app_1 /usr/sbin/apachectl graceful
-# to restart Apache in the container in a "nice" way.
+# # The code below allows to use
+# #    docker container exec -it webwork2_app_1 /usr/sbin/apachectl graceful
+# # to restart Apache in the container in a "nice" way.
+#
+# trap "exit 0" SIGWINCH
+# # code added here
+# while true
+# do
+#     exec "$@" &
+#     wait $!
+# done
 
-trap "exit 0" SIGWINCH
-# code added here
-while true
-do
-    exec "$@" &
-    wait $!
-done
-
+# ubc custom - the while loop used in upstream webwork (commented block above)
+# causes our LTI grade & classlist sync scripts to execute in an infinite loop,
+# filling up the job queue with duplicate jobs. So we're reverting back to the
+# previous exec line.
+exec "$@"
