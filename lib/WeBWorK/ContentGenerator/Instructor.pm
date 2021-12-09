@@ -697,7 +697,28 @@ sub getDefList {
         $File::Find::prune = 1 if $depth >= $max_depth;
         push @found_set_defs, $_ if m|/set[^/]*\.def$|;
     };
-    find({ wanted => $get_set_defs_wanted, follow_fast=>1, no_chdir=>1}, $topdir);
+
+	# ubc custom - the follow_fast option in the original line slows down our
+	# prod servers a lot. Apparently, follow_fast "may report some files more
+	# than once" according to documentation. This may be due to some weird
+	# interaction with our NFS mount courses/ storage, but what happens is that
+	# it starts repeating the course templates dir and then seems to freeze for
+	# ~30s. This causes pages that call getDefList to be really slow.
+	#
+	# An alternative to the "follow_fast" option is "follow".  Using "follow"
+	# => 1 appeared to require "follow_skip" => 2 or we'll see an exception.
+	# "follow" and "follow_fast" seems to be equivalently slow, so looks like
+	# we want to disable it entirely.
+	#
+	# The follow options is required to look into the OPL symlinks. But since
+	# we don't seem to pick up anything in there anyways, I think we can just
+	# omit the follow option entirely. This does make the "useOPLdefFiles"
+	# config useless though, since we won't look into the library symlinks no
+	# matter what.
+	#
+	#find({ wanted => $get_set_defs_wanted, follow_fast=>1, no_chdir=>1}, $topdir);
+	find({ wanted => $get_set_defs_wanted, no_chdir=>1}, $topdir);
+	
     map { $_ =~ s|^$topdir/?|| } @found_set_defs;
     my @slashes = ();
     my @caps = ();
