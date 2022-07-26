@@ -246,11 +246,11 @@ $permissionLevels{modify_set_def_files} = "designer";
 $permissionLevels{manage_course_files} = "designer";
 # required to create course by LTI launch, TAs & Designers sometimes need this
 $permissionLevels{create_and_delete_courses} = "designer";
+$permissionLevels{assign_problem_sets} = "designer";
 
 $permissionLevels{modify_student_data} = "ta";
 $permissionLevels{become_student} = "ta";
 $permissionLevels{send_email} = "ta";
-$permissionLevels{assign_problem_sets} = "ta";
 $permissionLevels{avoid_recording_answers} = "nobody";
 
 ################################################################################
