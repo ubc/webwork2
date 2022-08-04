@@ -12,8 +12,6 @@ BEGIN {
     use Cwd;
 	use WeBWorK::PG::Local;
 
-	use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
-
 ###############################################################################
 # Configuration -- set to top webwork directory (webwork2) (set in webwork.apache2-config)
 # Configuration -- set server name
@@ -164,9 +162,9 @@ use WebworkWebservice::ProblemActions;
 =head1 SYNPOSIS
 
  	$self = $class->initiate_session($request_input, $permission_level);
- 	
- 	$class is "WebworkXMLRPC".  
- 
+
+ 	$class is "WebworkXMLRPC".
+
 Both $class and $request_input are determined by the Apache::XMLRPC::Lite module which dispatches the original
 webservice request.  The Apache::XMLRPC::Lite module in turn is called from Apache according to the dictates
 of the <xmlrpc> snippet in webwork.apache2-config.
@@ -177,7 +175,7 @@ request to WebworkWebservice routines which do the actual work.
 The $permisson_level argument is an optional string that defaults to "proctor_quiz_login".  Methods
 that require higher permission levels should set this appropriately.  This permission level will be
 checked against the user's permission level in the course.
- 	
+
 =head1 DESCRIPTION
 
 WebworkXMLRPC is the workhorse dispatcher for the WeBWorK webservice.  It was originally written
@@ -235,14 +233,14 @@ sub initiate_session {
 	my $rh_input     = $args[0];
 	my $permission = $args[1] // "proctor_quiz_login"; # usually level 2
 
-	# identify course 
+	# identify course
 	if ($UNIT_TESTS_ON) {
 		print STDERR  "WebworkWebservice.pl ".__LINE__." site_password  is " , $rh_input->{site_password},"\n";
 		print STDERR  "WebworkWebservice.pl ".__LINE__." course_password  is " , $rh_input->{course_password},"\n";
 		print STDERR  "WebworkWebservice.pl ".__LINE__." courseID  is " , $rh_input->{courseID},"\n";
 		print STDERR  "WebworkWebservice.pl ".__LINE__." userID  is " , $rh_input->{userID},"\n";
 		print STDERR  "WebworkWebservice.pl ".__LINE__." session_key  is " , $rh_input->{session_key},"\n";
-	}    
+	}
 
 
 	# create fake version of Apache::Request object
@@ -265,7 +263,7 @@ sub initiate_session {
 	};
 	$self = bless $self, $class;
 	if ($UNIT_TESTS_ON) {
-		print STDERR  "WebworkWebservice.pm ".__LINE__." initiate data:\n  "; 
+		print STDERR  "WebworkWebservice.pm ".__LINE__." initiate data:\n  ";
 		print STDERR  "class type is ", $class, "\n";
 		print STDERR  "Self has type ", ref($self), "\n";
 		print STDERR   "self has data: \n", format_hash_ref($self), "\n";
@@ -274,9 +272,9 @@ sub initiate_session {
 	}
 
 	die "Please use 'course_password' instead of 'password' as the key for submitting
-	passwords to this webservice\n" 
+	passwords to this webservice\n"
 	if exists($rh_input ->{password}) and not exists($rh_input ->{course_password});
-	#   we need to trick some of the methods within the webwork framework 
+	#   we need to trick some of the methods within the webwork framework
 	#   since we are not coming in with a standard apache request
 	#   FIXME:  can/should we change this????
 	#
@@ -322,7 +320,7 @@ sub initiate_session {
 
 	if ($UNIT_TESTS_ON) {
 		print STDERR  "WebworkWebservice.pm ".__LINE__." authentication for ",$self->{user_id}, " in course ", $self->{courseName}, " is = ", $self->{authenOK},"\n";
-		print STDERR  "WebworkWebservice.pm ".__LINE__."authorization as instructor for ", $self->{user_id}, " is ", $self->{authzOK},"\n"; 
+		print STDERR  "WebworkWebservice.pm ".__LINE__."authorization as instructor for ", $self->{user_id}, " is ", $self->{authzOK},"\n";
 		print STDERR  "WebworkWebservice.pm ".__LINE__." authentication contains ", format_hash_ref($authen),"\n";
 		print STDERR   "self has new data \n", format_hash_ref($self), "\n";
 	}
@@ -474,7 +472,7 @@ sub getLocalProblems {
 	my $class = shift;
 	my $in = shift;
 	my $self = $class->initiate_session($in, "access_instructor_tools");
-	return $self->do(WebworkWebservice::LibraryActions::getLocalProblems($self,$in));	
+	return $self->do(WebworkWebservice::LibraryActions::getLocalProblems($self,$in));
 }
 
 =item getProblemTags
@@ -877,7 +875,7 @@ sub updateSetProperties{
 
 sub updateUserSet {
 	my $class = shift;
-	my $in = shift; 
+	my $in = shift;
 	my $self = $class->initiate_session($in, "modify_student_data");
 	return $self->do(WebworkWebservice::SetActions::updateUserSet($self,$in));
 }
@@ -912,7 +910,7 @@ sub getCourseSettings {
 	my $class = shift;
 	my $in = shift;
 	my $self = $class->initiate_session($in, "modify_course_files");
-	return $self->do(WebworkWebservice::CourseActions::getCourseSettings($self,$in));	
+	return $self->do(WebworkWebservice::CourseActions::getCourseSettings($self,$in));
 }
 
 =item updateSetting
@@ -923,7 +921,7 @@ sub updateSetting {
 	my $class = shift;
 	my $in = shift;
 	my $self = $class->initiate_session($in, "access_instructor_tools");
-	return $self->do(WebworkWebservice::CourseActions::updateSetting($self,$in));	
+	return $self->do(WebworkWebservice::CourseActions::updateSetting($self,$in));
 }
 
 =item getUserProblem

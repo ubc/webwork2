@@ -1,7 +1,6 @@
 ################################################################################
-# WeBWorK Online Homework Delivery System>
-# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
-# $CVSHeader: webwork2/lib/WeBWorK/DB.pm,v 1.112 2012/06/08 22:40:00 wheeler Exp $
+# WeBWorK Online Homework Delivery System
+# Copyright &copy; 2000-2022 The WeBWorK Project, https://github.com/openwebwork
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
@@ -478,12 +477,13 @@ BEGIN {
 
 sub countUsers { return scalar shift->listUsers(@_) }
 
+# Note: This returns a list of user_ids for all users except set level proctors.
 sub listUsers {
 	my ($self) = shift->checkArgs(\@_);
 	if (wantarray) {
-		return map { @$_ } $self->{user}->get_fields_where(["user_id"]);
+		return map {@$_} $self->{user}->get_fields_where(['user_id'], { user_id => { not_like => 'set_id:%' } });
 	} else {
-		return $self->{user}->count_where;
+		return $self->{user}->count_where({ user_id => { not_like => 'set_id:%' } });
 	}
 }
 

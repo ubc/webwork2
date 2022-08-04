@@ -1,7 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2007 The WeBWorK Project, http://openwebwork.sf.net/
-# $CVSHeader: webwork2/lib/WeBWorK.pm,v 1.104 2010/05/15 18:44:26 gage Exp $
+# Copyright &copy; 2000-2022 The WeBWorK Project, https://github.com/openwebwork
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
@@ -55,23 +54,10 @@ use WeBWorK::URLPath;
 use WeBWorK::CGI;
 use WeBWorK::Utils qw(runtime_use writeTimingLogEntry);
 
+use Apache2::Upload;
+use Apache2::RequestUtil;
+
 use LTIAdvantage::EntrypointManager;
-
-use mod_perl;
-
-use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
-
-# Apache2 needs upload class
-BEGIN {
-	if (MP2) {
-		require Apache2::Upload;
-		Apache2::Upload->import();
-		require Apache2::RequestUtil;
-		Apache2::RequestUtil->import();
-	} else {
-		require "mod_perl.pm"; # should we still support apache mod_perl1?
-	}
-}
 
 use constant LOGIN_MODULE => "WeBWorK::ContentGenerator::Login";
 use constant PROCTOR_LOGIN_MODULE => "WeBWorK::ContentGenerator::LoginProctor";
@@ -251,12 +237,10 @@ sub dispatch($) {
 	$r->language_handle( WeBWorK::Localize::getLoc($language) );
 
 	my @uploads;
-	if (MP2) {
-		my $upload_table = $r->upload;
-		@uploads = values %$upload_table if defined $upload_table;
-	} else {
-		@uploads = $r->upload;
-	}
+
+	my $upload_table = $r->upload;
+	@uploads = values %$upload_table if defined $upload_table;
+
 	foreach my $u (@uploads) {
 		# make sure it's a "real" upload
 		next unless $u->filename;
@@ -310,7 +294,7 @@ sub dispatch($) {
 		$ce = $r->{ce};
 	}
 	if ($entrypoint_error) {
-		MP2 ? $r->notes->set(error_message => $entrypoint_error) : $r->notes('error_message' => $entrypoint_error);
+		$r->notes->set(error_message => $entrypoint_error);
 		$displayModule = $entrypoint->getErrorDisplayModule();
 	}
 
@@ -455,86 +439,6 @@ sub mungeParams {
 				$r->param($key => $values);
 			}
 		}
-	}
-}
-
-
-# labeled_input subroutine
-#
-# Creates a form input element with a label added to the correct place.
-# Takes in up to six parameters:
-#
-# -type (type of input element), -name (name of input element), -id (id of the input element), -value (value of the input element), -label_text (the text on the label), -label_id (the id of the label)
-#
-# If any of the parameters are not specified, they default to "none".
-#
-# UPDATE: updated lable tags so that their "for" property will point to the id of the element that they are labeling. This means that entering an id for the input element becomes essentially mandatory if you want the tag to work correctly.
-
-# DEPRECATED - see below
-
-# sub labeled_input
-# {
-	# my %param = (-type=>"none", -name=>"none", -value=>"none", -id=>"none", -label_text=>"none", -label_id=>"none", @_);
-
-	# if($param{-type} eq "text" or $param{-type} eq "password" or $param{-type} eq "file"){
-		# return CGI::label({-id=>$param{-label_id}, -for=>$param{-id}},$param{-label_text}).CGI::input({-type=>$param{-type}, -name=>$param{-name}, -value=>$param{-value}, -id=>$param{-id}}).CGI::br();
-	# }
-	# elsif($param{-type} eq "checkbox" or $param{-type} eq "radio"){
-		# return CGI::input({-type=>$param{-type}, -name=>$param{-name}, -value=>$param{-value}, -id=>$param{-id}}).CGI::label({-id=>$param{-label_id}, -for=>$param{-id}},$param{-label_text}).CGI::br();
-	# }
-	# elsif($param{-type} eq "submit" or $param{-type} eq "button" or $param{-type} eq "reset"){
-		# return CGI::input({-type=>$param{-type}, -name=>$param{-name}, -value=>$param{-value}, -id=>$param{-id}}).CGI::br();
-	# }
-	# else{
-		# return "Not a valid input type";
-	# }
-# }
-
-
-# CGI_labeled_input subroutine
-
-# A replacement to the labeled_input subroutine above, created when it was determined that the old subroutine was limited in that it did not allow for attributes other than the ones that it specified.
-
-# This subroutine rectifies that problem by taking in attributes for the input elements and label elements as hashes and simply entering them into the CGI routines, which already support attributes as hash parameters.
-
-# The way it attaches label tags is similar to the labeled_input subroutine.
-
-# This subroutine has also been expanded to be able to handle select elements.
-
-# Five parameters are taken in as a hash: -type (specifying the type of the input element), -id (specifying the id of the input element), -label_text (specifying the text to go in the label), -input_attr (a hash specifying any additional attributes for the input element, if any), and -label_attr (a hash specifying additional attributes for the label element, if any).
-
-# As before, all parameters are optional, with the scalar parameters defaulting to "none" and the hash parameters defaulting to empty.
-
-
-sub CGI_labeled_input
-{
-	my %param = (-type=>"none", -id=>"none", -label_text=>"none", -input_attr=>{}, -label_attr=>{}, @_);
-
-	$param{-input_attr}{-type} = $param{-type};
-	$param{-input_attr}{-id} = $param{-id};
-	$param{-label_attr}{-for} = $param{-id};
-
-	if($param{-type} eq "text" or $param{-type} eq "password" or $param{-type} eq "file"){
-		return CGI::label($param{-label_attr},$param{-label_text}).CGI::input($param{-input_attr});
-	}
-	elsif($param{-type} eq "checkbox" or $param{-type} eq "radio"){
-		return CGI::label($param{-label_attr},CGI::input($param{-input_attr}),$param{-label_text});
-	}
-	elsif($param{-type} eq "submit" or $param{-type} eq "button" or $param{-type} eq "reset"){
-		return CGI::input($param{-input_attr});
-	}
-	elsif($param{-type} eq "select"){
-	    if (defined $param{-input_attr}{-multiple}) {
-		return CGI::label($param{-label_attr},$param{-label_text}).CGI::scrolling_list($param{-input_attr});
-	    } else {
-		return CGI::label($param{-label_attr},$param{-label_text}).CGI::popup_menu($param{-input_attr});
-	    }
-	}
-	elsif($param{-type} eq "textarea"){
-		return CGI::label($param{-label_attr},$param{-label_text}).CGI::br().CGI::br().CGI::textarea($param{-input_attr});
-	}
-	else{
-		"Not a valid input type";
 	}
 }
 
