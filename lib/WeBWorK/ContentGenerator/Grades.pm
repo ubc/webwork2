@@ -259,7 +259,7 @@ sub displayStudentStats {
 	my $bestGatewayScore   = 0;
 
 	for my $setID (@allSetIDs) {
-		my $act_as_student_set_url = "$root/$courseName/$setName/?effectiveUser=$effectiveUser";
+		my $act_as_student_set_url = "$root/$courseName/$setID/?effectiveUser=$effectiveUser";
 		# original
 		#my $act_as_student_set_url =
 		#	"$root/$courseName/$setID/?user="

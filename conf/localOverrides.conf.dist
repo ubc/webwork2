@@ -231,14 +231,13 @@ $permissionLevels{dont_log_past_answers} = "professor";
 #$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
 $permissionLevels{record_answers_when_acting_as_student} = "ta";
 
-# custom ubc settings
-#
+### Custom UBC Settings ###
+
 # Adding a "designer" role by request. Designers were previously mapped to
 # "professor" and there were concerns that this is too much access. So it was
 # suggested that we have a role that can create content but doesn't have
 # grading power.
 $userRoles{designer} = 4;
-
 $permissionLevels{view_hidden_work} = "designer";
 $permissionLevels{view_multiple_sets} = "designer";
 $permissionLevels{view_unopened_sets} = "designer";
@@ -253,12 +252,22 @@ $permissionLevels{modify_set_def_files} = "designer";
 $permissionLevels{manage_course_files} = "designer";
 # required to create course by LTI launch, TAs & Designers sometimes need this
 $permissionLevels{create_and_delete_courses} = "designer";
+# designers sometimes need to assign problem sets (e.g. troubleshooting)
 $permissionLevels{assign_problem_sets} = "designer";
 
+# TAs are asked to do a lot of instructor tasks 
 $permissionLevels{modify_student_data} = "ta";
 $permissionLevels{become_student} = "ta";
 $permissionLevels{send_email} = "ta";
+
+# Needed to allow instructors to submit on behalf of students
 $permissionLevels{avoid_recording_answers} = "nobody";
+
+# This sets who can change their local login password. Since we're CWL or LTI
+# auth only, regular users should never need this. Only admins should be using
+# local login.
+$permissionLevels{change_password} = "admin";
+
 
 ################################################################################
 # Default settings for the problem editor pages
