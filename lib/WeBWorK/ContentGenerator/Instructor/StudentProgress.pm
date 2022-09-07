@@ -515,6 +515,8 @@ sub displaySets {
 				if (defined $set->version_last_attempt_time() && $set->version_last_attempt_time()) {
 					$testTime = ($set->version_last_attempt_time() - $set->open_date()) / 60;
 					my $timeLimit = $set->version_time_limit() / 60;
+					# time limit at 0 means use quiz close as time limit
+					$timeLimit = $set->due_date - $set->open_date if ($timeLimit == 0);
 					$testTime = $timeLimit if ($testTime > $timeLimit);
 					$testTime = sprintf("%3.1f min", $testTime);
 				} elsif (time() - $set->open_date() < $set->version_time_limit()) {
