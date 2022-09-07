@@ -1291,6 +1291,8 @@ sub grade_set {
 	# This information is also accumulated if $wantProblemDetails is true.
 	my $problem_scores             = [];
 	my $problem_incorrect_attempts = [];
+	# ubc custom - return total number of attempts
+	my $num_of_attempts            = 0;
 
 	# DBFIXME: To collect the problem records, we have to know which merge routines to call.  Should this really be an
 	# issue here?  That is, shouldn't the database deal with it invisibly by detecting what the problem types are?
@@ -1347,6 +1349,10 @@ sub grade_set {
 		if ($wantProblemDetails) {
 			push(@$problem_scores, $problemRecord->attempted ? 100 * wwRound(2, $status) : '&nbsp;.&nbsp;');
 			push(@$problem_incorrect_attempts, $problemRecord->num_incorrect || 0);
+			# ubc custom - record total number of attempts
+			my $num_correct   = $problemRecord->num_correct || 0;
+			my $num_incorrect = $problemRecord->num_incorrect   || 0;
+			$num_of_attempts  = $num_correct + $num_incorrect;
 		}
 
 		my $probValue = $problemRecord->value;
@@ -1356,7 +1362,12 @@ sub grade_set {
 	}
 
 	if (wantarray) {
-		return ($totalRight, $total, $problem_scores, $problem_incorrect_attempts);
+		# ubc custom - return total number of attempts, note that we've tacked
+		# it on at the end of the returned array. Calls that doesn't know this
+		# exist should just ignore it (hopefully), but if the number of elements
+		# change upstream, it'll break.
+		return ($totalRight, $total, $problem_scores, $problem_incorrect_attempts,
+				$num_of_attempts);
 	} else {
 		return $total ? $totalRight / $total : 0;
 	}

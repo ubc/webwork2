@@ -529,7 +529,9 @@ sub displaySets {
 			$set = $db->newUserSet(set_id => $setName) unless ref $set;
 
 			my $email = $studentRecord->email_address;
-			my ($score, $total, $problem_scores, $problem_incorrect_attempts) =
+			# ubc custom - we've added the $num_of_attempts as a return value
+			my ($score, $total, $problem_scores, $problem_incorrect_attempts,
+				$num_of_attempts) =
 				grade_set($db, $set, $studentName, $setIsVersioned, 1);
 			$score = wwRound(2, $score);
 
@@ -1007,7 +1009,7 @@ sub displaySets {
 				push(@cols, CGI::td($self->nbsp($rec->{section})))    if ($showColumns{'section'});
 				push(@cols, CGI::td($self->nbsp($rec->{recitation}))) if ($showColumns{'recit'});
 				push(@cols, CGI::td($rec->{user_id}))                 if ($showColumns{'login'});
-				push(@cols, $rec->{num_of_attempts});
+				push(@cols, CGI::td($rec->{num_of_attempts}));
 				print CGI::Tr(@cols);
 			} else {
 				my @cols = (
