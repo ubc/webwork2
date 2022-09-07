@@ -1676,9 +1676,12 @@ sub lti_handler {
 	$assignment_and_grade_service->pushAllAssignmentGrades();
 
 	if ($assignment_and_grade_service->{error}) {
-		return $r->maketext("There was an issue pushing the class grades. [_1]", $assignment_and_grade_service->{error});
+		return CGI::div(
+			{ class => 'alert alert-danger p-1 mb-0' },
+			$r->maketext("There was an issue pushing the class grades. [_1]", $assignment_and_grade_service->{error})
+		);
 	}
-	return $r->maketext("Successfully updated class grades.");
+	return CGI::div({ class => 'alert alert-success p-1 mb-0' }, $r->maketext("Successfully updated class grades."));
 }
 
 ################################################################################

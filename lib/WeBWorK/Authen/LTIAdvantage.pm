@@ -34,8 +34,6 @@ use Date::Format;
 use Date::Parse;
 use URI::Escape;
 
-use constant MP2 => ( exists $ENV{MOD_PERL_API_VERSION} and $ENV{MOD_PERL_API_VERSION} >= 2 );
-
 sub verify_normal_user {
 	my $self = shift;
 	my $ret = $self->SUPER::verify_normal_user(@_);
@@ -294,25 +292,17 @@ sub authenticate {
 
 	# validate nonce
 	my $cookie_value = undef;
-	if (MP2) {
-		my $jar = undef;
- 		eval {
-       		$jar = $r->jar; #table of cookies
-  		};
-  		if (ref $@ and $@->isa("APR::Request::Error") ) {
-			debug("Error parsing cookies, will use a partial result");
-     		$jar = $@->jar; # table of successfully parsed cookies
-  		};
-		if ($jar) {
-			$cookie_value = uri_unescape($jar->get($r->param("state")));
-		};
-	} else {
-		my %cookies = WeBWorK::Cookie->fetch();
-		my $cookie = $cookies{$r->param("state")};
-		if ($cookie) {
-			$cookie_value = $cookie->value;
-		}
-	}
+	my $jar = undef;
+	eval {
+		$jar = $r->jar; #table of cookies
+	};
+	if (ref $@ and $@->isa("APR::Request::Error") ) {
+		debug("Error parsing cookies, will use a partial result");
+		$jar = $@->jar; # table of successfully parsed cookies
+	};
+	if ($jar) {
+		$cookie_value = uri_unescape($jar->get($r->param("state")));
+	};
 	if (!$cookie_value) {
 		$self->{log_error} = "Could not find LTI launch cookie: ".$r->param("state");
 		$self->{error} = "Could not find LTI launch cookie: ".$r->param("state");
