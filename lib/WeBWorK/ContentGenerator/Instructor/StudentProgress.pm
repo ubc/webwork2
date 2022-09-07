@@ -1034,19 +1034,17 @@ sub displaySets {
 	print CGI::end_tbody(), CGI::end_table(), CGI::end_div();
 
     # allow users, if permitted, to do batch grading for students that haven't submitted their quizzes for grading
-    my $recordAsOther = $authz->hasPermissions( $user, "record_answers_when_acting_as_student" );
-    my $recordVersionsAsOther = $authz->hasPermissions( $user, "record_set_version_answers_when_acting_as_student" );
     if ( $setIsVersioned && ( $recordAsOther || $recordVersionsAsOther ) ) {
         print CGI::start_div( {'id'=>'screen-options-wrap'} );
+		print CGI::h4($r->maketext('Grade Saved Drafts'));
         print CGI::start_form( {'method' => 'post', 'id'=>'sp-gateway-form',
             'action' => $self->systemLink($urlpath,authen=>0),'name' => 'StudentProgress'} );
-        print CGI::br();
         print CGI::p( {},$r->maketext( 'Grade saved drafts for students who have not submitted their answers for grading.' ) );
-        print CGI::p( {},$r->maketext( 'Only use this function when all students have finished this quiz.' ) );
-        print CGI::br();
+        print CGI::p( {class=>'alert alert-warning'}, $r->maketext( 'Only use this function when all students have finished this quiz.' ) );
         print $self->hidden_authen_fields();
         print CGI::hidden(-name=>'batch_grade_not_submitted', -value=>'1');
-        print CGI::submit( -value=>$r->maketext( 'Grade saved drafts' ) );
+        print CGI::submit( -value=>$r->maketext( 'Grade saved drafts' ),
+						   -class=>'btn btn-primary' );
         print CGI::br();
         print CGI::end_form();
         print CGI::end_div();

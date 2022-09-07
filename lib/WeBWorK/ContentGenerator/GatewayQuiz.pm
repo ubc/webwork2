@@ -2499,8 +2499,6 @@ sub body {
 			}
 		}
 
-		$self->handle_input_colors;
-
 		# a quick hack to trigger "preview" via ajax to do an auto-save every ~3 minutes.
 		# only setup auto-save if we are not acting as someone else and are before due date.
 		if ($user eq $effectiveUser && before($set->due_date())) {

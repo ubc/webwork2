@@ -373,7 +373,7 @@ sub initialize {
 				CGI::p($r->maketext("You are not authorized to perform this action.")));
 		}
 	} else {
-		$self->addgoodmessage($r->maketext("Please select action to be performed."));
+		$self->addmessage(CGI::p($r->maketext("Please select action to be performed.")));
 	}
 }
 
