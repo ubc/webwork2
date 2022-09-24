@@ -20,7 +20,7 @@ $simple_format = <<'ENDPROBLEMTEMPLATE';
 <!-- JS Loads -->
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6" defer></script>
 <script type="text/javascript" src="/webwork2_files/js/apps/MathJaxConfig/mathjax-config.js" defer></script>
-<script type="text/javascript" src="/webwork2_files/mathjax/es5/tex-chtml.js" id="MathJax-script" defer></script>
+<script type="text/javascript" src="/webwork2_files/mathjax/es5/tex-svg.js" id="MathJax-script" defer></script>
 <script type="text/javascript" src="/webwork2_files/node_modules/jquery/dist/jquery.min.js"></script>
 <script type="text/javascript" src="/webwork2_files/node_modules/jquery-ui-dist/jquery-ui.min.js"></script>
 <script type="text/javascript" src="/webwork2_files/js/vendor/bootstrap/js/bootstrap.js"></script>

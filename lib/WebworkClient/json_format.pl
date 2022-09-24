@@ -51,7 +51,7 @@ $json_output->{head_part200_AVI} = [
 $json_output->{head_part201_AVI} = [
 	"https://polyfill.io/v3/polyfill.min.js?features=es6",
 	"/webwork2_files/js/apps/MathJaxConfig/mathjax-config.js",
-	"/webwork2_files/mathjax/es5/tex-chtml.js",
+	"/webwork2_files/mathjax/es5/tex-svg.js",
 	'$themeDir/math4/math4.js',
 ];
 
