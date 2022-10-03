@@ -242,12 +242,14 @@ sub body {
 				|| (defined($r->param('showOldAnswers')) && $EUser->showOldAnswers() ne $r->param('showOldAnswers'))
 				|| (defined($r->param('useWirisEditor')) && $EUser->useWirisEditor() ne $r->param('useWirisEditor'))
 				|| (defined($r->param('useMathQuill'))   && $EUser->useMathQuill() ne $r->param('useMathQuill'))
+				|| (defined($r->param('useMathView'))   && $EUser->useMathView() ne $r->param('useMathView'))
 				)
 			{
 				$EUser->displayMode($r->param('displayMode'));
 				$EUser->showOldAnswers($r->param('showOldAnswers'));
 				$EUser->useWirisEditor($r->param('useWirisEditor'));
 				$EUser->useMathQuill($r->param('useMathQuill'));
+				$EUser->useMathView($r->param('useMathView'));
 
 				eval { $db->putUser($EUser) };
 				if ($@) {
