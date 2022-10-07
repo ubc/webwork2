@@ -228,7 +228,7 @@ $courseFiles{problibs}    = {
 # "professor" or higher
 $permissionLevels{dont_log_past_answers} = "professor";
 
-#$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
+$permissionLevels{record_set_version_answers_when_acting_as_student} = "professor";
 $permissionLevels{record_answers_when_acting_as_student} = "ta";
 
 ### Custom UBC Settings ###
@@ -267,6 +267,9 @@ $permissionLevels{avoid_recording_answers} = "nobody";
 # auth only, regular users should never need this. Only admins should be using
 # local login.
 $permissionLevels{change_password} = "admin";
+# don't let students change their local email since it'll just get overridden
+# by LTI syncs anyway, note that non-student changes should persist
+$permissionLevels{change_email_address} = "designer";
 
 
 ################################################################################
