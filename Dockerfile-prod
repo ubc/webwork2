@@ -42,8 +42,8 @@ FROM alpine/git AS base
 ARG PG_GIT_URL=https://github.com/openwebwork/pg.git
 ARG PG_BRANCH=main
 # CUSTOM: allow customized OPL repo & branch
-ARG OPL_GIT_URL=https://github.com/openwebwork/webwork-open-problem-library.git
-ARG OPL_BRANCH=main
+ARG OPL_GIT_URL=https://github.com/ubc/webwork-open-problem-library.git
+ARG OPL_BRANCH=ubc
 
 WORKDIR /opt/base
 
@@ -57,8 +57,7 @@ RUN echo Cloning branch $PG_BRANCH branch from $PG_GIT_URL \
 
 # Optional - include OPL (also need to uncomment further below when an included OPL is desired):
 RUN echo Cloning branch $OPL_BRANCH branch from $OPL_GIT_URL \
-    && git clone --single-branch --branch ${OPL_BRANCH} --depth 1 $OPL_GIT_URL \
-    && rm -rf  webwork-open-problem-library/.git
+    && git clone --single-branch --branch ${OPL_BRANCH} --depth 1 $OPL_GIT_URL
 
 ############################### CUSTOM #############################
 # Webwork Node Stuff, separated here for caching purposes
@@ -78,7 +77,7 @@ COPY htdocs/generate-assets.js .
 COPY htdocs/third-party-assets.json .
 COPY htdocs/themes themes/
 COPY htdocs/js js/
-RUN npm ci
+RUN npm --maxsockets 2 ci
 
 ############################### CUSTOM #############################
 # PG Node Stuff, separated here for caching purposes
@@ -91,7 +90,7 @@ COPY --from=base /opt/base/pg/htdocs/package-lock.json .
 COPY --from=base /opt/base/pg/htdocs/generate-assets.js .
 COPY --from=base /opt/base/pg/htdocs/third-party-assets.json .
 COPY --from=base /opt/base/pg/htdocs/js js/
-RUN npm ci
+RUN npm --maxsockets 2 ci
 
 # ==================================================================
 # Phase 2 - set ENV variables

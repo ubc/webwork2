@@ -28,8 +28,9 @@ use WeBWorK::CourseEnvironment;
 my $ce = new WeBWorK::CourseEnvironment({ webwork_dir => $ENV{WEBWORK_ROOT} });
 
 my $rawData;
+$ENV{OPL_REPO_RELEASE_API_URL} = 'https://api.github.com/repos/ubc/webwork-open-problem-library/releases/latest' if (!defined($ENV{OPL_REPO_RELEASE_API_URL}));
 my $releaseDataFF =
-	File::Fetch->new(uri => 'https://api.github.com/repos/openwebwork/webwork-open-problem-library/releases/latest');
+	File::Fetch->new(uri => $ENV{OPL_REPO_RELEASE_API_URL});
 my $file        = $releaseDataFF->fetch(to => \$rawData) or die $releaseDataFF->error;
 my $releaseData = JSON->new->utf8->decode($rawData);
 
