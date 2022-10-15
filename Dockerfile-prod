@@ -261,6 +261,8 @@ RUN apt-get update \
        # used for shib
        libapache2-mod-shib \
        unixodbc \
+       # for envsubst
+       gettext-base \
 	&& apt-get clean \
 	&& rm -fr /var/lib/apt/lists/* /tmp/*
 
