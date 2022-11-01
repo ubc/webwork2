@@ -63,38 +63,42 @@ if [ ! -d "$APP_ROOT/libraries/webwork-open-problem-library/OpenProblemLibrary" 
   touch "$APP_ROOT/libraries/Restore_or_build_OPL_tables"
 fi
 
-if [ "$1" = 'apache2' ]; then
-    # generate conf files if not exist
-    for i in site.conf localOverrides.conf; do
-        if [ ! -f $WEBWORK_ROOT/conf/$i ]; then
-            echo "Creating a new $WEBWORK_ROOT/conf/$i"
-            cp $WEBWORK_ROOT/conf/$i.dist $WEBWORK_ROOT/conf/$i
-            if [ $i == 'site.conf' ]; then
-                sed -i -e 's/webwork_url       = '\''\/webwork2'\''/webwork_url       = $ENV{"WEBWORK_URL"}/' \
-                    -e 's/server_root_url   = '\'''\''/server_root_url   = $ENV{"WEBWORK_ROOT_URL"}/' \
-                    -e 's/^\$database_driver="MariaDB"/$database_driver = $ENV{"WEBWORK_DB_DRIVER"}/' \
-                    -e 's/^\$database_host="localhost"/$database_host = $ENV{"WEBWORK_DB_HOST"}/' \
-                    -e 's/^\$database_port="3306"/$database_port = $ENV{"WEBWORK_DB_PORT"}/' \
-                    -e 's/^\$database_name="webwork"/$database_name = $ENV{"WEBWORK_DB_NAME"}/' \
-                    -e 's/^\$database_username ="webworkWrite"/$database_username =$ENV{"WEBWORK_DB_USER"}/' \
-                    -e 's/^\$database_password ='\''passwordRW'\''/$database_password =$ENV{"WEBWORK_DB_PASSWORD"}/' \
-                    -e 's/mail{smtpServer} = '\'''\''/mail{smtpServer} = $ENV{"WEBWORK_SMTP_SERVER"}/' \
-                    -e 's/mail{smtpSender} = '\'''\''/mail{smtpSender} = $ENV{"WEBWORK_SMTP_SENDER"}/' \
-                    -e 's/siteDefaults{timezone} = "America\/New_York"/siteDefaults{timezone} = $ENV{"WEBWORK_TIMEZONE"}/' \
-                    -e 's/^# $server_userID     = '\''www-data/$server_userID     = '\''www-data/'  \
-                    -e 's/^# $server_groupID    = '\''www-data/$server_groupID    = '\''www-data/' $WEBWORK_ROOT/conf/site.conf
+# generate conf files if not exist
+# needs to be done by the worker too so cannot be inside the if apache check
+for i in site.conf localOverrides.conf; do
+    if [ ! -f $WEBWORK_ROOT/conf/$i ]; then
+        echo "Creating a new $WEBWORK_ROOT/conf/$i"
+        cp $WEBWORK_ROOT/conf/$i.dist $WEBWORK_ROOT/conf/$i
+        if [ $i == 'site.conf' ]; then
+            sed -i -e 's/webwork_url       = '\''\/webwork2'\''/webwork_url       = $ENV{"WEBWORK_URL"}/' \
+                -e 's/server_root_url   = '\'''\''/server_root_url   = $ENV{"WEBWORK_ROOT_URL"}/' \
+                -e 's/^\$database_driver="MariaDB"/$database_driver = $ENV{"WEBWORK_DB_DRIVER"}/' \
+                -e 's/^\$database_host="localhost"/$database_host = $ENV{"WEBWORK_DB_HOST"}/' \
+                -e 's/^\$database_port="3306"/$database_port = $ENV{"WEBWORK_DB_PORT"}/' \
+                -e 's/^\$database_name="webwork"/$database_name = $ENV{"WEBWORK_DB_NAME"}/' \
+                -e 's/^\$database_username ="webworkWrite"/$database_username =$ENV{"WEBWORK_DB_USER"}/' \
+                -e 's/^\$database_password ='\''passwordRW'\''/$database_password =$ENV{"WEBWORK_DB_PASSWORD"}/' \
+                -e 's/mail{smtpServer} = '\'''\''/mail{smtpServer} = $ENV{"WEBWORK_SMTP_SERVER"}/' \
+                -e 's/mail{smtpSender} = '\'''\''/mail{smtpSender} = $ENV{"WEBWORK_SMTP_SENDER"}/' \
+                -e 's/siteDefaults{timezone} = "America\/New_York"/siteDefaults{timezone} = $ENV{"WEBWORK_TIMEZONE"}/' \
+                -e 's/^# $server_userID     = '\''www-data/$server_userID     = '\''www-data/'  \
+                -e 's/^# $server_groupID    = '\''www-data/$server_groupID    = '\''www-data/' $WEBWORK_ROOT/conf/site.conf
 
-                echo "$WEBWORK_ROOT/conf/$i has been modified."
-            fi
-
-            if [ $i == 'localOverrides.conf' ]; then
-                sed -i -e 's/#$pg{specialPGEnvironmentVars}{Rserve} = {host => "r"};/$pg{specialPGEnvironmentVars}{Rserve} = {host => "r"};/' \
-                       -e 's/#$problemLibrary{showLibraryLocalStats} = 0;/$problemLibrary{showLibraryLocalStats} = 0;/' $WEBWORK_ROOT/conf/localOverrides.conf
-                echo "$WEBWORK_ROOT/conf/$i has been modified."
-            fi
+            echo "$WEBWORK_ROOT/conf/$i has been modified."
         fi
 
-    done
+        # in actual deployment, our localOverrides.conf may not be editable by
+        # the server.
+        #if [ $i == 'localOverrides.conf' ]; then
+        #    sed -i -e 's/#$pg{specialPGEnvironmentVars}{Rserve} = {host => "r"};/$pg{specialPGEnvironmentVars}{Rserve} = {host => "r"};/' \
+        #           -e 's/#$problemLibrary{showLibraryLocalStats} = 0;/$problemLibrary{showLibraryLocalStats} = 0;/' $WEBWORK_ROOT/conf/localOverrides.conf
+        #    echo "$WEBWORK_ROOT/conf/$i has been modified."
+        #fi
+    fi
+
+done
+
+if [ "$1" = 'apache2' ]; then
     # create admin course if not existing
     # check first if the admin courses directory exists then check that at
     # least one of the tables associated with the course (the admin_user table) exists
