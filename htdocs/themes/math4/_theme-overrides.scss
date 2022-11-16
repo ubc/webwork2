@@ -1,0 +1,10 @@
+/* MathView answer boxes */
+.mv-container {
+    padding: 0.5em 0.25em; /* put a little bit of space around the answer boxes */
+    .btn.codeshard-btn {
+        /* when viewing a regular hmwk, fix the MathView button floating on top
+         * of the problem nav bar when scrolling, the problem is due to a
+         * z-index 2 from bootstrap stock */
+        z-index: auto;
+    }
+}
