@@ -459,6 +459,12 @@ sub displaySets {
                     $userid, $setNameVersion, $problem->problem_id, $problem->status, $problem->num_correct, $problem->num_incorrect
                 );
             }
+			# save the set submission time, this is to reduce confusion as
+			# without the submission time, students get a "No Submission" in
+			# their homework list for the quiz version
+			$set->version_last_attempt_time( time() );
+			$set->description( $set->description . "(Graded via saved draft)");
+			$db->putSetVersion( $set );
             # TODO grade submission via LTI
         }
     }
