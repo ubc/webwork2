@@ -40,7 +40,7 @@ FROM alpine/git AS base
 # NOTE: can put tag in e.g. PG_BRANCH for repeatable builds
 # build args specifying the branches for webwork2 and pg used to build the image
 ARG PG_GIT_URL=https://github.com/openwebwork/pg.git
-ARG PG_BRANCH=main
+ARG PG_BRANCH=PG-2.17+
 # CUSTOM: allow customized OPL repo & branch
 ARG OPL_GIT_URL=https://github.com/ubc/webwork-open-problem-library.git
 ARG OPL_BRANCH=ubc
