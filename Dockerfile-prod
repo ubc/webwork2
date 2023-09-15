@@ -276,7 +276,8 @@ RUN apt-get update \
 
 # App::Genpass - used by LTIAdvantage's CourseUpdater
 # Data::ObjectDriver - used by DelayedJob
-RUN cpanm install App::Genpass Data::ObjectDriver
+# Bytes::Random::Secure::Tiny - used by LTIAdvantage for secure random string
+RUN cpanm install App::Genpass Data::ObjectDriver Bytes::Random::Secure::Tiny
 
 RUN cpanm install Statistics::R::IO \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*

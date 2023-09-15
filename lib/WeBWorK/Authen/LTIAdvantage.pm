@@ -290,34 +290,9 @@ sub authenticate {
 		return 0;
 	}
 
-	# validate nonce
-	my $cookie_value = undef;
-	my $jar = undef;
-	eval {
-		$jar = $r->jar; #table of cookies
-	};
-	if (ref $@ and $@->isa("APR::Request::Error") ) {
-		debug("Error parsing cookies, will use a partial result");
-		$jar = $@->jar; # table of successfully parsed cookies
-	};
-	if ($jar) {
-		$cookie_value = uri_unescape($jar->get($r->param("state")));
-	};
-	if (!$cookie_value) {
-		$self->{log_error} = "Could not find LTI launch cookie: ".$r->param("state");
-		$self->{error} = "Could not find LTI launch cookie: ".$r->param("state");
-		debug($self->{log_error});
-		return 0;
-	}
-
+	# validate nonce & state (stored in nonce table as one combined entry)
 	my $platform_id = $parser->get_param("iss");
-	my $nonce = $parser->get_param("nonce");
-	if ($cookie_value ne $nonce) {
-		$self->{log_error} = "Invalid nonce provided. Expected: $cookie_value Got: $nonce";
-		$self->{error} = "Invalid nonce provided. Expected: $cookie_value Got: $nonce";
-		debug($self->{log_error});
-		return 0;
-	}
+	my $nonce = $r->param("state") . $parser->get_param("nonce");
 
 	my $exists = $db->existsLTINonce($platform_id, $nonce);
 	if (!$exists) {

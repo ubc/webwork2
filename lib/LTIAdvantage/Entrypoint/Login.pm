@@ -7,7 +7,7 @@ use warnings;
 
 use Data::Dumper;
 use CGI;
-use Data::UUID;
+use Bytes::Random::Secure::Tiny;
 use URI;
 use Date::Format;
 
@@ -64,22 +64,14 @@ sub run
 	my $lti_message_hint = $r->param("lti_message_hint");
 	#my $target_link_uri = $r->param("target_link_uri");
 
-	my $ug = new Data::UUID;
-	my $nonce = $ug->create_str;
-	my $state = "state.$nonce";
-	$state =~ s/\-/\./g; # replace - with . for valid cookies
-
-	# valid until 15 minutes from now
-	my $expires = time2str("%a, %d-%h-%Y %H:%M:%S %Z", time+(15*60), "GMT");
-	my $cookie = WeBWorK::Cookie->new(
-		-name    => $state,
- 		-value   => $nonce,
-		-path    => $ce->{webworkURLRoot},
-		-samesite => $ce->{CookieSameSite},
-		-secure   => $ce->{CookieSecure},
-		-expires => $expires,
-		-domain  => $r->hostname
-	);
+	my $rng = Bytes::Random::Secure::Tiny->new;
+	# We'll generate a 64 character cryptographically secure string and split
+	# it in half, one half for state and one half for nonce. The entire 64
+	# character string should be stored as a single entry in the nonce table.
+	my $bag = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+	my $nonceKey = $rng->string_from($bag, 64);
+	my $state = substr($nonceKey, 0, 32);
+	my $nonce = substr($nonceKey, 32);
 
 	my $oidc_auth_url = "";
 	foreach my $client_id (keys %{$ce->{lti_advantage}{lti_clients}}) {
@@ -101,8 +93,7 @@ sub run
 	}
 
 	# store the nonce
-	my $lti_nonce;
-	my $exists = $db->existsLTINonce($platform_id, $nonce);
+	my $exists = $db->existsLTINonce($platform_id, $nonceKey);
 
 	if($exists) {
 		debug("Nonce already exists for $platform_id. Nonce: $nonce");
@@ -111,9 +102,9 @@ sub run
 		return $error_message;
     } else {
 		my $expires_at = time2str("%Y-%m-%d %H:%M:%S", time+(15*60), "GMT");
-        $lti_nonce = $db->newLTINonce(
+        my $lti_nonce = $db->newLTINonce(
 			platform_id => $platform_id,
-			nonce => $nonce,
+			nonce => $nonceKey,
 			expires_at => $expires_at,
 			was_used => 0
 		);
@@ -135,7 +126,7 @@ sub run
 	});
 
 	my $q = CGI->new();
-	print $q->redirect( -uri => "$full_url", -cookie => $cookie->as_string );
+	print $q->redirect($full_url);
 	return 0;
 }
 
