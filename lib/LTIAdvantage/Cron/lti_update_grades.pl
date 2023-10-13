@@ -50,7 +50,7 @@ my $db = new WeBWorK::DB($ce->{dbLayout});
 
 # LTI Update
 
-my @lti_contexts = $db->getAllLTIContexts();
+my @lti_contexts = $db->getAutoSyncLTIContexts();
 
 # get unique list of course ids from lti_contexts
 my $course_hash = {};

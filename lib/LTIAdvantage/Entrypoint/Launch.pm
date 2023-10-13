@@ -250,7 +250,8 @@ sub _updateLTISettings()
 			client_id => $client_id,
 			context_id => $context_id,
 			# course_title is only set up new for lti contexts
-			course_id => $ce->{courseName}
+			course_id => $ce->{courseName},
+			can_auto_sync => 1
 		);
 	}
 

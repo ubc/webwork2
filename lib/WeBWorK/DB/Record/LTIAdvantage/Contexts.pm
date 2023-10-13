@@ -30,7 +30,7 @@ BEGIN {
 		client_id => { type=>"TINYBLOB NOT NULL", key=>1 },
 		context_id => { type=>"TINYBLOB NOT NULL", key=>1 },
 		course_id => { type=>"TEXT" },
-
+		can_auto_sync => { type=>"BOOL NOT NULL DEFAULT 1" },
 		# names and roles provising services
 		context_memberships_url => { type=>"TINYBLOB" }
 	);

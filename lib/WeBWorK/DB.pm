@@ -2334,6 +2334,11 @@ sub getLTIContextsByCourseID {
 	return $self->{lti_contexts}->get_records_where($where);
 }
 
+sub getAutoSyncLTIContexts {
+	my ( $self ) = shift->checkArgs(\@_);
+	return $self->{lti_contexts}->get_records_where({ can_auto_sync => 1 });
+}
+
 sub getAllLTIContexts {
 	my ( $self ) = shift->checkArgs(\@_);
 	return $self->{lti_contexts}->get_records_where();
