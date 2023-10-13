@@ -818,6 +818,10 @@ $lti_advantage{custom_course_title_parser} = sub {
 
 $lti_advantage{course_template} = "modelCourse";
 
+################################################################################
+# Shibboleth
+################################################################################
+
 $shibboleth{login_script} = "/Shibboleth.sso/Login";
 $shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url;
 $shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if there is an existing shibboleth session

@@ -27,8 +27,8 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		jobid => { type=>"BIGINT UNSIGNED NOT NULL" },
-		error_time => { type=>"INTEGER UNSIGNED NOT NULL" },
+		jobid => { type=>"BIGINT UNSIGNED NOT NULL", key=>1 },
+		error_time => { type=>"INTEGER UNSIGNED NOT NULL", key=>1 },
 		funcid => { type=>"INT UNSIGNED NOT NULL DEFAULT 0" },
 		message => { type=>"TEXT NOT NULL" },
 	);

@@ -15,7 +15,7 @@ sub retry_delay {
     my $class = shift;
     my $num_failures = shift;
 
-    return $num_failures * 30;
+    return $num_failures * 30 + 1;
 }
 
 1;
