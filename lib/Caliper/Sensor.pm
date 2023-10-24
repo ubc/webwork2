@@ -17,6 +17,7 @@ use HTTP::Async;
 use Caliper::Event;
 use Caliper::ResourceIri;
 
+use Encode qw(encode);
 
 # Constructor
 sub new
@@ -84,13 +85,13 @@ sub _sendEvents
 			'data' => $event_chunk,
 		};
 
-		my $json_payload = JSON->new->canonical->encode($envelope);
+		my $json_payload = encode('UTF-8', JSON->new->canonical->encode($envelope));
 		# debug("Caliper event json_payload: " . $json_payload);
 
 		my $HTTPRequest = HTTP::Request->new('POST', $self->{host}, [
 			'Accept' => '*/*',
 			'Authorization' => 'Bearer ' . $self->{api_key},
-			'Content-Type' => 'application/json',
+			'Content-Type' => "application/json; charset='utf-8'",
 		], $json_payload);
 		$async->add($HTTPRequest);
 	}
