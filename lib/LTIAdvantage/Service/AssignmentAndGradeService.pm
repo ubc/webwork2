@@ -385,6 +385,15 @@ sub _performAssignmentAndGradeRequests {
 					debug($errorMsg);
 					next;
 				}
+				elsif ($self->handleErrorMissingResourceLink($res, $lti_resource_link)) {
+					my $errorMsg = "Could not update grade for missing Canvas LineItem. Marking this resource link as invalid." .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content .
+						"\nResponse Content: " . $res->content;
+					$extralog->logAGSRequest($errorMsg);
+					debug($errorMsg);
+					next;
+				}
 				$self->{error} = "Assignment and Grades Service (LineItem GET) request failed. " .
 					"\nStatus: " . $res->status_line .
 					"\nRequest URI: " . $res->request->uri .
@@ -770,6 +779,27 @@ sub handleErrorConcludedCourse
 										$ltiResourceLink->context_id());
 	$ltiContext->can_auto_sync(0); # set auto sync to false
 	$db->putLTIContext($ltiContext);
+	return 1;
+}
+
+# The Canvas LineItem seems to have been deleted, so we mark it as invalid.  An
+# 404 error with empty content seems to be how deleted Canvas assignments show
+# up now. There's actually an NRPS "invalid rlid parameter" error that also
+# deals with deleted assignments but doesn't seem to happen anymore. Might be a
+# consequence of the ags_improved_course_concluded_response_codes Canvas
+# feature flag. 
+sub handleErrorMissingResourceLink
+{
+	my ($self, $res, $ltiResourceLink) = @_;
+	my $isMissingResourceError = $res->status_line eq '404 Not Found' && $res->content eq '';
+	debug('++++ Checking for missing resource error');
+	if (!$isMissingResourceError) { return 0; }
+	debug('++++ After checking for missing resource error');
+
+	my $db = $self->{db};
+	$ltiResourceLink->is_valid(0);
+	$db->putLTIResourceLink($ltiResourceLink);
+	debug('++++ After marking resource link as invalid');
 	return 1;
 }
 

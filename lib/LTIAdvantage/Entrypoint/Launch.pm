@@ -300,6 +300,9 @@ sub _updateLTISettings()
 			$lti_resource_link->scope_lineitem_read_only($parser->has_ags_claim_scope("lineitem.readonly"));
 			$lti_resource_link->scope_result_readonly($parser->has_ags_claim_scope("result.readonly"));
 			$lti_resource_link->scope_result_score($parser->has_ags_claim_scope("score"));
+			# defaults to valid for new resources, for existing resources, this
+			# reactivates a deleted resource that seems have been restored
+			$lti_resource_link->is_valid(1);
 		} else {
 			$lti_resource_link->lineitems_url("");
 			$lti_resource_link->lineitem_url("");
