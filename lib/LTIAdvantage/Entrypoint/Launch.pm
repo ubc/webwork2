@@ -245,6 +245,9 @@ sub _updateLTISettings()
 
 	if($exists) {
         $lti_context = $db->getLTIContext($client_id, $context_id);
+		# turn autosync back on for courses that had it off, assuming that
+		# people launching into the course means it needs to be active again
+		$lti_context->can_auto_sync(1);
     } else {
         $lti_context = $db->newLTIContext(
 			client_id => $client_id,
@@ -306,7 +309,6 @@ sub _updateLTISettings()
 			$lti_resource_link->scope_result_score("");
 		}
 
-		$lti_resource_link->is_valid(1);
 		if($exists) {
 			$db->putLTIResourceLink($lti_resource_link);
 		} else {

@@ -376,6 +376,15 @@ sub _performAssignmentAndGradeRequests {
 					);
 					next;
 				}
+				elsif ($self->handleErrorConcludedCourse($res, $lti_resource_link)) {
+					my $errorMsg = "Could not update grade for concluded Canvas Course. Disabling autosync for this course." .
+						"\nRequest URI: " . $res->request->uri .
+						"\nRequest Content: " . $res->request->content .
+						"\nResponse Content: " . $res->content;
+					$extralog->logAGSRequest($errorMsg);
+					debug($errorMsg);
+					next;
+				}
 				$self->{error} = "Assignment and Grades Service (LineItem GET) request failed. " .
 					"\nStatus: " . $res->status_line .
 					"\nRequest URI: " . $res->request->uri .
@@ -745,6 +754,23 @@ sub grade_set
 	}
 
 	return ($timestamp, $status, $total_right, $total);
+}
+
+# Disable auto sync for concluded courses. Note that this error message requires
+# the ags_improved_course_concluded_response_codes Canvas feature flag to be
+# enabled.
+sub handleErrorConcludedCourse
+{
+	my ($self, $res, $ltiResourceLink) = @_;
+	my $isConcludedCourseError = $res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":{"type":"unprocessable_entity","message":"This course has concluded. AGS requests will no longer be accepted for this course."}}';
+	if (!$isConcludedCourseError) { return 0; }
+
+	my $db = $self->{db};
+	my $ltiContext = $db->getLTIContext($ltiResourceLink->client_id(),
+										$ltiResourceLink->context_id());
+	$ltiContext->can_auto_sync(0); # set auto sync to false
+	$db->putLTIContext($ltiContext);
+	return 1;
 }
 
 1;
