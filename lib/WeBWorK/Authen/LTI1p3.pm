@@ -14,7 +14,7 @@
 # Artistic License for more details.
 ################################################################################
 
-package WeBWorK::Authen::UBCLTIAdvantage;
+package WeBWorK::Authen::LTI1p3;
 use base qw/WeBWorK::Authen/;
 
 use strict;
@@ -24,7 +24,7 @@ use Net::OAuth;
 use JSON::Validator qw(validate_json);
 use Crypt::JWT qw(decode_jwt);
 use LWP::UserAgent;
-use UBCLTIAdvantage::Parser::LaunchParser;
+use LTIAdvantage::Parser::LaunchParser;
 use File::Basename;
 use Data::Dumper;
 use WeBWorK::Cookie;
@@ -72,7 +72,7 @@ sub get_credentials {
 	#disable password login
 	$self->{external_auth} = 1;
 
-	my $parser = UBCLTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
+	my $parser = LTI1p3::Parser::LaunchParser->new($ce, $r->param("id_token"));
 	if ($parser->{error}) {
 		$self->{log_error} = "Could not parse LTI launch. Error: \n".$parser->{error};
 		$self->{error} = "Could not parse LTI launch. Error: \n".$parser->{error};
@@ -115,10 +115,10 @@ sub get_credentials {
 	my $version = $parser->get_claim("version");
 
 	my $dirname = dirname(__FILE__);
-	my $schema = $dirname."/UBCLTIAdvantage/schema/1.3.0/LtiResourceLinkRequest.json";
+	my $schema = $dirname."/LTI1p3/schema/1.3.0/LtiResourceLinkRequest.json";
 	if ($version ne "1.3.0") {
 		# for future, load different schemas as needed
-		# $schema = $dirname."/UBCLTIAdvantage/Schema/1.3.0/LtiResourceLinkRequest.json";
+		# $schema = $dirname."/LTI1p3/Schema/1.3.0/LtiResourceLinkRequest.json";
 
 		# error out
 		$self->{log_error} = "Invalid LTI Version. Supported Version are: 1.3.0";
@@ -178,7 +178,7 @@ sub get_credentials {
 
 	$self->{user_id} = $user_id;
     $self->{login_type} = "normal";
-    $self->{credential_source} = "UBCLTIAdvantage";
+    $self->{credential_source} = "LTI1p3";
 	$self->{session_key} = undef;
 	$self->{initial_login} = 1;
 
@@ -199,7 +199,7 @@ sub prevent_replay {
 	my $ce = $r->ce;
 	my $db = $r->db;
 
-	my $parser = UBCLTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
+	my $parser = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
 	my $platform_id = $parser->get_param("iss");
 	my $nonce = $parser->get_param("nonce");
 
@@ -233,7 +233,7 @@ sub authenticate {
 		return 0;
 	}
 
-	my $parser = UBCLTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
+	my $parser = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
 	if ($parser->{error}) {
 		$self->{log_error} = "Could not parse LTI launch. Error: \n".$parser->{error};
 		$self->{error} = "Could not parse LTI launch. Error: \n".$parser->{error};
