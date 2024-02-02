@@ -74,8 +74,8 @@ use WeBWorK::CGI;
 use WeBWorK::File::Classlist;
 use WeBWorK::DB qw(check_user_id);
 use WeBWorK::Utils qw(readFile readDirectory cryptPassword x getAssetURL);
-use LTIAdvantage::Service::NamesAndRoleService;
-use LTIAdvantage::Importer::CourseUpdater;
+use LTI1p3::Service::NamesAndRoleService;
+use LTI1p3::Importer::CourseUpdater;
 use constant HIDE_USERS_THRESHHOLD => 200;
 use constant EDIT_FORMS => [qw(saveEdit cancelEdit)];
 use constant PASSWORD_FORMS => [qw(savePassword cancelPassword)];
@@ -1503,12 +1503,12 @@ sub lti_handler {
 	my $ce    = $r->ce;
 	my $db    = $r->db;
 
-	my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($ce, $db);
+	my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
 	my $membership = $names_and_roles_service->getAllNamesAndRole();
 	unless ($membership) {
 		return $r->maketext("There was an issue fetching the class roster. [_1]", $names_and_roles_service->{error});
 	}
-	my $updater = LTIAdvantage::Importer::CourseUpdater->new($ce, $db, $membership);
+	my $updater = LTI1p3::Importer::CourseUpdater->new($ce, $db, $membership);
 	my $ret = $updater->updateCourse();
 	if ($ret) {
 		return $r->maketext("Update class roster failed: [_1]", $ret);

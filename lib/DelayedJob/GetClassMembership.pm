@@ -9,8 +9,8 @@ use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
 use TheSchwartz::Job;
-use LTIAdvantage::Service::NamesAndRoleService;
-use LTIAdvantage::Importer::CourseUpdater;
+use LTI1p3::Service::NamesAndRoleService;
+use LTI1p3::Importer::CourseUpdater;
 
 sub work {
     my $class = shift;
@@ -27,7 +27,7 @@ sub work {
         });
     my $db = new WeBWorK::DB($ce->{dbLayout});
 
-    my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($ce, $db);
+    my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
     my $membership = $names_and_roles_service->getAllNamesAndRole();
     unless ($membership) {
         my $error_msg = "There was an issue fetching the class roster for course_id: $courseName. ".$names_and_roles_service->{error};
@@ -35,7 +35,7 @@ sub work {
         $job->failed($error_msg);
         return;
     }
-    my $updater = LTIAdvantage::Importer::CourseUpdater->new($ce, $db, $membership);
+    my $updater = LTI1p3::Importer::CourseUpdater->new($ce, $db, $membership);
     my $ret = $updater->updateCourse();
     if ($ret) {
         my $error_msg = "Update Class Roster failed for course_id: $courseName: $ret";

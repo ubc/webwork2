@@ -1,4 +1,4 @@
-package LTIAdvantage::Entrypoint;
+package LTI1p3::Entrypoint;
 
 ##### Library Imports #####
 use strict;
@@ -7,9 +7,9 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 
-use LTIAdvantage::Importer::Error;
-use LTIAdvantage::Importer::CourseCreator;
-use LTIAdvantage::Importer::CourseUpdater;
+use LTI1p3::Importer::Error;
+use LTI1p3::Importer::CourseCreator;
+use LTI1p3::Importer::CourseUpdater;
 
 # Constructor
 sub new
@@ -48,7 +48,7 @@ sub useAuthenModule
 sub getErrorDisplayModule
 {
 	my $self = shift;
-	return "WeBWorK::ContentGenerator::LTIAdvantageStatus";
+	return "WeBWorK::ContentGenerator::LTI1p3Status";
 }
 
 sub getAuthenModule
@@ -70,7 +70,7 @@ sub createCourse
 	my $ce = $r->ce;
 	my $db = $r->db;
 
-	my $creator = LTIAdvantage::Importer::CourseCreator->new($ce, $db, $courseID, $courseTitle);
+	my $creator = LTI1p3::Importer::CourseCreator->new($ce, $db, $courseID, $courseTitle);
 	my $ret = $creator->createCourse();
 	if ($ret)
 	{
@@ -84,7 +84,7 @@ sub updateCourse
 {
 	my ($self, $ce, $db, $users) = @_;
 
-	my $creator = LTIAdvantage::Importer::CourseUpdater->new($ce, $db, $users);
+	my $creator = LTI1p3::Importer::CourseUpdater->new($ce, $db, $users);
 	my $ret = $creator->updateCourse();
 	if ($ret)
 	{

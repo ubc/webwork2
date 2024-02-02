@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 ##### Module Creation #####
-package LTIAdvantage::Importer::Error;
+package LTI1p3::Importer::Error;
 use Exporter;
 our @ISA = ('Exporter');
 our @EXPORT = ('error');

@@ -13,11 +13,11 @@
 # Artistic License for more details.
 ################################################################################
 
-package LTIAdvantage::Service::AccessTokenRequest;
+package LTI1p3::Service::AccessTokenRequest;
 
 =head1 NAME
 
-LTIAdvantage::Service::AccessTokenRequest
+LTI1p3::Service::AccessTokenRequest
 
 =cut
 
@@ -42,7 +42,7 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
-use LTIAdvantage::ExtraLog;
+use LTI1p3::ExtraLog;
 
 # This package contains utilities for retrieving content membership from the LMS
 sub new {
@@ -116,7 +116,7 @@ sub getAccessToken {
 	my $scopes = $self->{scopes};
 	my $ce = $self->{ce};
 
-	my $extralog = LTIAdvantage::ExtraLog->new($ce);
+	my $extralog = LTI1p3::ExtraLog->new($ce);
 
 	if (!defined($ce->{lti_advantage}{lti_clients}{$client_id}))
 	{

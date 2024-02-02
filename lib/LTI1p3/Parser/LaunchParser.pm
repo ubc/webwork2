@@ -1,4 +1,4 @@
-package LTIAdvantage::Parser::LaunchParser;
+package LTI1p3::Parser::LaunchParser;
 
 use strict;
 use warnings;

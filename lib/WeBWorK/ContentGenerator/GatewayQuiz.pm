@@ -39,7 +39,7 @@ use WeBWorK::Utils::Tasks qw(fake_set fake_set_version fake_problem);
 use WeBWorK::Debug;
 use WeBWorK::ContentGenerator::Instructor qw(assignSetVersionToUser);
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
-use LTIAdvantage::Service::AssignmentAndGradeService;
+use LTI1p3::Service::AssignmentAndGradeService;
 use DelayedJob::Service;
 use WeBWorK::Utils::AttemptsTable;
 use WeBWorK::ContentGenerator::Instructor::SingleProblemGrader;

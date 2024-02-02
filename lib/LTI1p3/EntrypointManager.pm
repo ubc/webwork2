@@ -1,4 +1,4 @@
-package LTIAdvantage::EntrypointManager;
+package LTI1p3::EntrypointManager;
 
 ##### Library Imports #####
 use strict;
@@ -8,7 +8,7 @@ use WeBWorK::DB;
 use WeBWorK::Debug;
 use WeBWorK::Utils qw(runtime_use);
 
-use LTIAdvantage::Importer::Error;
+use LTI1p3::Importer::Error;
 
 # Constructor
 sub new
@@ -30,8 +30,8 @@ sub run
 	debug("Importer running.");
 
 	my @entrypoints = (
-		"LTIAdvantage::Entrypoint::Launch",
-		"LTIAdvantage::Entrypoint::Login",
+		"LTI1p3::Entrypoint::Launch",
+		"LTI1p3::Entrypoint::Login",
 	);
 
 	# find a compatible entrypoint

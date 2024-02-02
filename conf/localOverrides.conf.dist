@@ -736,7 +736,7 @@ $statuses{Proctor}{abbrevs} = [qw/ G g gatewayproctor /];
 $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
 
 # Add in custom authen modules
-$authen{lti} = "WeBWorK::Authen::LTIAdvantage";
+$authen{lti} = "WeBWorK::Authen::LTI1p3";
 # xmlrpc webservice requests will use the default auth instead of shib
 $authen{'xmlrpc'} = "WeBWorK::Authen";
 
@@ -801,7 +801,7 @@ EOF
 # Please make sure they match these requirements or the courses will not match.
 # - Allowed characters in regex form: [a-zA-Z0-9_-]
 # - Max length 40 characters
-# See LTIAdvantage::Parser::LaunchParser() for implementation
+# See LTI1p3::Parser::LaunchParser() for implementation
 $lti_advantage{custom_course_title_parser} = sub {
 	my $parser = shift;
 

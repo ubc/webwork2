@@ -57,7 +57,7 @@ use WeBWorK::Utils qw(runtime_use writeTimingLogEntry);
 use Apache2::Upload;
 use Apache2::RequestUtil;
 
-use LTIAdvantage::EntrypointManager;
+use LTI1p3::EntrypointManager;
 
 use constant LOGIN_MODULE => "WeBWorK::ContentGenerator::Login";
 use constant PROCTOR_LOGIN_MODULE => "WeBWorK::ContentGenerator::LoginProctor";
@@ -286,7 +286,7 @@ sub dispatch($) {
 
 	my $user_authen_module;
 
-	my $entrypoint = LTIAdvantage::EntrypointManager->new($r);
+	my $entrypoint = LTI1p3::EntrypointManager->new($r);
 	my $entrypoint_error = $entrypoint->run();
 	if ($entrypoint->useAuthenModule()) {
 		$user_authen_module = $entrypoint->getAuthenModule();

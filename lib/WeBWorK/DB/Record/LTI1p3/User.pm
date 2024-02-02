@@ -1,7 +1,7 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
 # Copyright © 2000-2021 The WeBWorK Project, http://openwebwork.sf.net/
-# $CVSHeader: webwork2/lib/WeBWorK/DB/Record/LTIAdvantage/Nonces.pm,v 1.47 2021/05/19 22:59:55 wheeler Exp $
+# $CVSHeader: webwork2/lib/WeBWorK/DB/Record/LTI1p3/User.pm,v 1.47 2021/05/19 22:59:55 wheeler Exp $
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
@@ -13,24 +13,23 @@
 # FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
 # Artistic License for more details.
 ################################################################################
-package WeBWorK::DB::Record::LTIAdvantage::Nonces;
+package WeBWorK::DB::Record::LTI1p3::User;
 use base WeBWorK::DB::Record;
 
 =head1 NAME
 
-WeBWorK::DB::Record::LTIAdvantage::Nonces - represent a record from the lti nonces table.
+WeBWorK::DB::Record::LTI1p3::User - represent a record from the lti resource link table.
 
 =cut
 
 use strict;
 use warnings;
-
+# TODO: add this table to eac course
 BEGIN {
 	__PACKAGE__->_fields(
-		platform_id => { type=>"TINYBLOB NOT NULL", key=>1 },
-		nonce => { type=>"TINYBLOB NOT NULL", key=>1 },
-		expires_at => { type=>"TIMESTAMP" },
-		was_used => { type=>"TINYINT" }
+		user_id       => { type=>"TINYBLOB NOT NULL", key=>1 },
+		client_id => { type=>"TINYBLOB NOT NULL", key=>1 },
+		lti_user_id   => { type=>"TINYBLOB" }
 	);
 }
 

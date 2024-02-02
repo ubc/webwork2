@@ -42,7 +42,7 @@ use WeBWorK::Utils qw(readFile writeLog writeCourseLog encodeAnswers decodeAnswe
 use WeBWorK::DB::Utils qw(global2user user2global);
 use URI::Escape;
 use WeBWorK::Authen::LTIAdvanced::SubmitGrade;
-use LTIAdvantage::Service::AssignmentAndGradeService;
+use LTI1p3::Service::AssignmentAndGradeService;
 use DelayedJob::Service;
 use WeBWorK::Utils::Tasks qw(fake_set fake_problem);
 
@@ -276,7 +276,7 @@ sub process_and_log_answer{
 						my $delayed_job_service = DelayedJob::Service->new($self->{ce});
 						$delayed_job_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
 					} else {
-						my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($self->{ce}, $db);
+						my $assignment_and_grade_service = LTI1p3::Service::AssignmentAndGradeService->new($self->{ce}, $db);
 						$assignment_and_grade_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
 						if ($assignment_and_grade_service->{error}) {
 							$scoreRecordedMessage .= $r->maketext(" Your score was not successfully sent to the LMS");

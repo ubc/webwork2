@@ -29,7 +29,7 @@ use Pod::Usage;
 use WeBWorK::Debug;
 use Data::Dumper;
 use WeBWorK::DB;
-use LTIAdvantage::Service::AssignmentAndGradeService;
+use LTI1p3::Service::AssignmentAndGradeService;
 use DelayedJob::Service;
 
 my $man = 0;
@@ -80,7 +80,7 @@ foreach my $course_id (@course_ids) {
 			my $delayed_job_service = DelayedJob::Service->new($tmp_ce);
 			$delayed_job_service->pushClassGrades();
 		} else {
-			my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($tmp_ce, $tmp_db);
+			my $assignment_and_grade_service = LTI1p3::Service::AssignmentAndGradeService->new($tmp_ce, $tmp_db);
 			$assignment_and_grade_service->pushAllAssignmentGrades();
 			if ($assignment_and_grade_service->{error}) {
 				die "There was an issue updating class grades. ".$assignment_and_grade_service->{error};

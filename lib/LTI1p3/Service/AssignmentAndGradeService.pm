@@ -13,11 +13,11 @@
 # Artistic License for more details.
 ################################################################################
 
-package LTIAdvantage::Service::AssignmentAndGradeService;
+package LTI1p3::Service::AssignmentAndGradeService;
 
 =head1 NAME
 
-LTIAdvantage::Service::AssignmentAndGradeService
+LTI1p3::Service::AssignmentAndGradeService
 
 =cut
 
@@ -36,8 +36,8 @@ use JSON;
 use HTTP::Request::Common;
 use HTTP::Async;
 
-use LTIAdvantage::Service::AccessTokenRequest;
-use LTIAdvantage::ExtraLog;
+use LTI1p3::Service::AccessTokenRequest;
+use LTI1p3::ExtraLog;
 
 #$WeBWorK::Debug::Enabled = 1;
 
@@ -258,7 +258,7 @@ sub _performAssignmentAndGradeRequests {
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my $extralog = LTIAdvantage::ExtraLog->new($ce);
+	my $extralog = LTI1p3::ExtraLog->new($ce);
 	$extralog->logAGSRequest("Beginning LTI Assignment and Grade Service requests for Course: ".$ce->{courseName});
 	debug("Beginning LTI Assignment and Grade Service requests for Course: ".$ce->{courseName});
 
@@ -285,7 +285,7 @@ sub _performAssignmentAndGradeRequests {
 			$scopes .= " https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly";
 		}
 
-		my $lti_access_token_request = LTIAdvantage::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
+		my $lti_access_token_request = LTI1p3::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
 		my $access_token = $lti_access_token_request->getAccessToken();
 		unless ($access_token) {
 			$self->{error} = "Assignment and Grades Service request failed, unable to get an access token for scopes: $scopes";

@@ -29,8 +29,8 @@ use Pod::Usage;
 use WeBWorK::Debug;
 use Data::Dumper;
 use WeBWorK::DB;
-use LTIAdvantage::Service::NamesAndRoleService;
-use LTIAdvantage::Importer::CourseUpdater;
+use LTI1p3::Service::NamesAndRoleService;
+use LTI1p3::Importer::CourseUpdater;
 use DelayedJob::Service;
 
 my $man = 0;
@@ -91,12 +91,12 @@ foreach my $course_id (@course_ids) {
 			my $delayed_job_service = DelayedJob::Service->new($tmp_ce);
 			$delayed_job_service->getClassMembership();
 		} else {
-			my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($tmp_ce, $tmp_db);
+			my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($tmp_ce, $tmp_db);
 			my $membership = $names_and_roles_service->getAllNamesAndRole();
 			unless ($membership) {
 				return "There was an issue fetching the class roster. ".$names_and_roles_service->{error};
 			}
-			my $updater = LTIAdvantage::Importer::CourseUpdater->new($tmp_ce, $tmp_db, $membership);
+			my $updater = LTI1p3::Importer::CourseUpdater->new($tmp_ce, $tmp_db, $membership);
 			my $ret = $updater->updateCourse();
 			if ($ret) {
 				die "Update Class Roster failed: $ret";

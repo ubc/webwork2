@@ -13,11 +13,11 @@
 # Artistic License for more details.
 ################################################################################
 
-package LTIAdvantage::Service::NamesAndRoleService;
+package LTI1p3::Service::NamesAndRoleService;
 
 =head1 NAME
 
-LTIAdvantage::Service::NamesAndRoleService
+LTI1p3::Service::NamesAndRoleService
 
 =cut
 
@@ -38,9 +38,9 @@ use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
 
-use LTIAdvantage::Service::AccessTokenRequest;
-use LTIAdvantage::ExtraLog;
-use LTIAdvantage::Parser::NamesAndRoleServiceParser;
+use LTI1p3::Service::AccessTokenRequest;
+use LTI1p3::ExtraLog;
+use LTI1p3::Parser::NamesAndRoleServiceParser;
 
 #$WeBWorK::Debug::Enabled = 1;
 
@@ -63,7 +63,7 @@ sub getAllNamesAndRole {
 	my $db = $self->{db};
 
 	my $course_id = $ce->{courseName};
-	my $extralog = LTIAdvantage::ExtraLog->new($ce);
+	my $extralog = LTI1p3::ExtraLog->new($ce);
 	my @lti_contexts = $db->getLTIContextsByCourseID($course_id);
 	my @lti_resource_links = $db->getAllValidLTIResourceLinks();
 
@@ -138,7 +138,7 @@ sub getNamesAndRole {
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my $extralog = LTIAdvantage::ExtraLog->new($ce);
+	my $extralog = LTI1p3::ExtraLog->new($ce);
 	$extralog->logNRPSRequest("Beginning Names And Roles Service request for client: $client_id on context: $context_id with membership url: $context_memberships_url");
 
 	if (!defined($ce->{lti_advantage}{lti_clients}{$client_id}))
@@ -149,7 +149,7 @@ sub getNamesAndRole {
 	}
 
 	my $scopes = "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly";
-	my $lti_access_token_request = LTIAdvantage::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
+	my $lti_access_token_request = LTI1p3::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
 	my $access_token = $lti_access_token_request->getAccessToken();
 	unless ($access_token) {
 		$self->{error} = "Names And Roles Service request failed, unable to get an access token for scopes: $scopes";
@@ -182,7 +182,7 @@ sub getNamesAndRole {
 			$extralog->logNRPSRequest("Names And Roles Service request successful: \n" . Dumper($data) . "\n");
 			# debug("Names And Roles Service request successful! \n" . Dumper($data). "\n");
 
-			my $parser = LTIAdvantage::Parser::NamesAndRoleServiceParser->new($client_id, $ce, $data);
+			my $parser = LTI1p3::Parser::NamesAndRoleServiceParser->new($client_id, $ce, $data);
 			my @membership = $parser->get_members();
 
 			if (scalar(@membership) == 0) {
