@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2022 The WeBWorK Project, https://github.com/openwebwork
+# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
@@ -26,7 +26,7 @@ to use: include in localOverrides.conf or course.conf
 and add /webwork2/courseName as a Shibboleth Protected
 Location or enable lazy session.
 
-if $r->ce->{shiboff} is set for a course, authentication reverts
+if $c->ce->{shiboff} is set for a course, authentication reverts
 to standard WeBWorK authentication.
 
 add the following to localOverrides.conf to setup the Shibboleth
@@ -48,7 +48,7 @@ $shibboleth{attributes} = [
 
 use strict;
 use warnings;
-use CGI qw/:standard/;
+
 use WeBWorK::Debug;
 
 # this is similar to the method in the base class, except that Shibboleth
@@ -57,13 +57,13 @@ use WeBWorK::Debug;
 # checking or cookie management.
 
 sub get_credentials {
-	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	my $db = $r->db;
+	my ($self) = @_;
+	my $c      = $self->{c};
+	my $ce     = $c->ce;
+	my $db     = $c->db;
 
-	if ( $ce->{shiboff} || $r->param('bypassShib')) {
-		return $self->SUPER::get_credentials( @_ );
+	if ($ce->{shiboff} || $c->param('bypassShib')) {
+		return $self->SUPER::get_credentials(@_);
 	}
 
 	debug("Shib is on!");
@@ -73,73 +73,70 @@ sub get_credentials {
 	#    failure.
 	$self->{external_auth} = 1;
 
-		my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
-		if ( $cookieUser && ! $r->param("force_passwd_authen") ) {
-			return $self->SUPER::get_credentials( @_ );
-		}
+	if ($c->param("user") && !$c->param("force_passwd_authen")) {
+		return $self->SUPER::get_credentials(@_);
+	}
 
-		if ( defined ($ENV{$ce->{shibboleth}{session_header}})) {
-			debug('Got shib header and looking for user_id');
-			# loop through all attributes to find the one mapped to user_id
-			foreach (@{$ce->{shibboleth}{attributes}}) {
-				my $key = $_;
-				if (defined( $ENV{$key} ) ) {
-					my $user_id;
-					# if we need hash the user_id
-					if ( defined ($ce->{shibboleth}{hash_user_id_method}) &&
-							$ce->{shibboleth}{hash_user_id_method} ne "none" &&
-							$ce->{shibboleth}{hash_user_id_method} ne "" ) {
-						use Digest;
-						my $digest  = Digest->new($ce->{shibboleth}{hash_user_id_method});
-						$digest->add($ENV{$key} . ( defined $ce->{shibboleth}{hash_user_id_salt} ? $ce->{shibboleth}{hash_user_id_salt} : ""));
-						$user_id = $digest->hexdigest;
-					} else {
-						$user_id = $ENV{$key};
-					}
+	if ( defined ($ENV{$ce->{shibboleth}{session_header}})) {
+		debug('Got shib header and looking for user_id');
+		# loop through all attributes to find the one mapped to user_id
+		foreach (@{$ce->{shibboleth}{attributes}}) {
+			my $key = $_;
+			if (defined( $ENV{$key} ) ) {
+				my $user_id;
+				# if we need hash the user_id
+				if ( defined ($ce->{shibboleth}{hash_user_id_method}) &&
+						$ce->{shibboleth}{hash_user_id_method} ne "none" &&
+						$ce->{shibboleth}{hash_user_id_method} ne "" ) {
+					use Digest;
+					my $digest  = Digest->new($ce->{shibboleth}{hash_user_id_method});
+					$digest->add($ENV{$key} . ( defined $ce->{shibboleth}{hash_user_id_salt} ? $ce->{shibboleth}{hash_user_id_salt} : ""));
+					$user_id = $digest->hexdigest;
+				} else {
+					$user_id = $ENV{$key};
+				}
 
-					# got one match, login user
-					if ($db->getUser($user_id)) {
-						debug("Got user_id $user_id from shib attribute $key");
-						$self->{user_id} = $user_id;
-						$self->{r}->param("user", $user_id);
-						$self->{session_key} = undef;
+				# got one match, login user
+				if ($db->getUser($user_id)) {
+					debug("Got user_id $user_id from shib attribute $key");
+					$self->{'user_id'} = $user_id;
+					$self->{c}->param("user", $user_id);
+					$self->{session_key} = undef;
 
-						# reuse db session_key if still valid (prevent new tab issue)
-						my $Key = $db->getKey($user_id);
-						if (defined($Key)) {
-							if (time <= $Key->timestamp()+$ce->{sessionKeyTimeout}) {
-								$self->{session_key} = $Key->key;
-							}
+					# reuse db session_key if still valid (prevent new tab issue)
+					my $Key = $db->getKey($user_id);
+					if (defined($Key)) {
+						if (time <= $Key->timestamp()+$ce->{sessionKeyTimeout}) {
+							$self->{session_key} = $Key->key;
 						}
-						$self->{login_type} = "normal";
-						$self->{credential_source} = "params";
-						$self->{password} = 1;
-						return 1;
 					}
+					$self->{login_type} = "normal";
+					$self->{credential_source} = "params";
+					$self->{password} = 1;
+					return 1;
 				}
 			}
-
-			# no match, login failed
-			if (!defined($self->{'user_id'})) {
-				$self->{log_error} = "Access Denied.";
-				$self->{error} = "Access Denied.";
-				return 0;
-			}
 		}
 
-		debug("Couldn't shib header or user_id");
-		my $q = new CGI;
-		#my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url(-path=>1);
-		my $go_to = $ce->{shibboleth}{login_script}."?target=".$q->url();
-		$self->{redirect} = $go_to;
-		print $q->redirect($go_to);
-		return 0;
+		# no match, login failed
+		if (!defined($self->{'user_id'})) {
+			$self->{log_error} = "Access Denied.";
+			$self->{error} = "Access Denied.";
+			return 0;
+		}
+	}
+
+	debug("Couldn't shib header or user_id");
+	my $go_to = $ce->{shibboleth}{login_script} . "?target=" . $c->url_for->to_abs;
+	$self->{redirect} = $go_to;
+	$c->redirect_to($go_to);
+	return 0;
 }
 
 sub checkPassword {
 	my ($self, @args) = @_;
 
-	if ( $self->{r}->ce->{shiboff} || $self->{r}->param('bypassShib') ) {
+	if ($self->{c}->ce->{shiboff} || $self->{c}->param('bypassShib')) {
 		return $self->SUPER::checkPassword( @args );
 	} else {
 		# this is easy; if we're here at all, we've authenticated
@@ -148,17 +145,83 @@ sub checkPassword {
 	}
 }
 
+# disable cookie functionality
+sub maybe_send_cookie {
+	my ($self, @args) = @_;
+	if ($self->{c}->ce->{shiboff}) {
+		return $self->SUPER::maybe_send_cookie(@_);
+	} else {
+		# nothing to do here
+	}
+}
+
+sub fetchCookie {
+	my ($self, @args) = @_;
+	if ($self->{c}->ce->{shiboff}) {
+		return $self->SUPER::fetchCookie(@_);
+	} else {
+		# nothing to do here
+	}
+}
+
+sub sendCookie {
+	my ($self, @args) = @_;
+	if ($self->{c}->ce->{shiboff}) {
+		return $self->SUPER::sendCookie(@_);
+	} else {
+		# nothing to do here
+	}
+}
+
+sub killCookie {
+	my ($self, @args) = @_;
+	if ($self->{c}->ce->{shiboff}) {
+		return $self->SUPER::killCookie(@_);
+	} else {
+		# nothing to do here
+	}
+}
+
 # this is a bit of a cheat, because it does the redirect away from the
 #   logout script or what have you, but I don't see a way around that.
 sub forget_verification {
 	my ($self, @args) = @_;
-	my $r = $self->{r};
+	my $c = $self->{c};
 
-	if ( $r->ce->{shiboff} ) {
-		return $self->SUPER::forget_verification( @_ );
+	if ($c->ce->{shiboff}) {
+		return $self->SUPER::forget_verification(@_);
 	} else {
 		$self->{was_verified} = 0;
-		$self->{redirect} = $r->ce->{shibboleth}{logout_script};
+		$self->{redirect}     = $c->ce->{shibboleth}{logout_script};
+	}
+}
+
+# returns ($sessionExists, $keyMatches, $timestampValid)
+# if $updateTimestamp is true, the timestamp on a valid session is updated
+# override function: allow shib to handle the session time out
+sub check_session {
+	my ($self, $userID, $possibleKey, $updateTimestamp) = @_;
+	my $ce = $self->{c}->ce;
+	my $db = $self->{c}->db;
+
+	if ($ce->{shiboff}) {
+		return $self->SUPER::check_session(@_);
+	} else {
+		my $Key = $db->getKey($userID);    # checked
+		return 0 unless defined $Key;
+
+		my $keyMatches     = (defined $possibleKey and $possibleKey eq $Key->key);
+		my $timestampValid = (time <= $Key->timestamp() + $ce->{sessionKeyTimeout});
+		if ($ce->{shibboleth}{manage_session_timeout}) {
+			# always valid to allow shib to take control of timeout
+			$timestampValid = 1;
+		}
+
+		if ($keyMatches and $timestampValid and $updateTimestamp) {
+			$Key->timestamp(time);
+			$db->putKey($Key);
+		}
+		return (1, $keyMatches, $timestampValid);
 	}
 }
 

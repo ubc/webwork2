@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2022 The WeBWorK Project, https://github.com/openwebwork
+# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of either: (a) the GNU General Public License as published by the
@@ -13,101 +13,86 @@
 # Artistic License for more details.
 ################################################################################
 
-
-###########################
-# Utils::LibraryLocalStats
-#
-# This is an interface for getting local statistics about library problems
-# for display 
-###########################
-
+# This is an interface for getting global and local statistics about library problems for display.
 package WeBWorK::Utils::LibraryStats;
 
-use base qw(Exporter);
 use strict;
 use warnings;
+
 use DBI;
 
-our @EXPORT    = ();
-our @EXPORT_OK = qw();
-
 sub new {
-    my $class = shift;
-    my $ce = shift;
+	my ($class, $ce) = @_;
 
-    my $dbh = DBI->connect(
-	$ce->{problemLibrary_db}->{dbsource},
-	$ce->{problemLibrary_db}->{user},
-	$ce->{problemLibrary_db}->{passwd},
-	    {
-		PrintError => 0,
-		RaiseError => 0,
-	    },
+	my $dbh = DBI->connect_cached(
+		$ce->{problemLibrary_db}{dbsource},
+		$ce->{problemLibrary_db}{user},
+		$ce->{problemLibrary_db}{passwd},
+		{
+			PrintError => 0,
+			RaiseError => 0,
+		},
 	);
 
-    my $localselectstm = $dbh->prepare("SELECT * FROM OPL_local_statistics WHERE source_file = ?");
-
-    my $globalselectstm = $dbh->prepare("SELECT * FROM OPL_global_statistics WHERE source_file = ?");
-    
-    my $self = { dbh => $dbh,
-		 localselectstm => $localselectstm,
-		 globalselectstm => $globalselectstm,
-    };
-
-    bless($self,$class);
-    return $self;
+	return bless {
+		dbh             => $dbh,
+		localselectstm  => $dbh->prepare("SELECT * FROM OPL_local_statistics WHERE source_file = ?"),
+		globalselectstm => $dbh->prepare("SELECT * FROM OPL_global_statistics WHERE source_file = ?"),
+	}, $class;
 }
 
 sub getLocalStats {
-    my $self = shift;
-    my $source_file = shift;
+	my ($self, $source_file) = @_;
 
-    my $selectstm = $self->{localselectstm};
+	my $selectstm = $self->{localselectstm};
 
-    unless ($selectstm->execute($source_file)) {
-      if ($selectstm->errstr =~ /Table .* doesn't exist/) {
-	warn "Couldn't find the OPL local statistics table.  Did you download the latest OPL and run update-OPL-statistics.pl?"
-      }
-      die $selectstm->errstr;
-    }
+	unless ($selectstm->execute($source_file)) {
+		if ($selectstm->errstr =~ /Table .* doesn't exist/) {
+			warn "Couldn't find the OPL local statistics table.  "
+				. "Did you download the latest OPL and run update-OPL-statistics.pl?";
+		}
+		die $selectstm->errstr;
+	}
 
-    my $result = $selectstm->fetchrow_arrayref();
+	my $result = $selectstm->fetchrow_arrayref();
 
-    if ($result) {
-	return {source_file => $source_file,
-		students_attempted => $$result[1],
-		average_attempts => $$result[2],
-		average_status => $$result[3],
-	};
-    } else {
-	return {source_file => $source_file};
-    }
+	if ($result) {
+		return {
+			source_file        => $source_file,
+			students_attempted => $$result[1],
+			average_attempts   => $$result[2],
+			average_status     => $$result[3],
+		};
+	} else {
+		return { source_file => $source_file };
+	}
 }
 
 sub getGlobalStats {
-    my $self = shift;
-    my $source_file = shift;
+	my ($self, $source_file) = @_;
 
-    my $selectstm = $self->{globalselectstm};
+	my $selectstm = $self->{globalselectstm};
 
-    unless ($selectstm->execute($source_file)) {
-      if ($selectstm->errstr =~ /Table .* doesn't exist/) {
-	warn "Couldn't find the OPL global statistics table.  Did you download the latest OPL and run load-OPL-global-statistics.pl?"
-      }
-      die $selectstm->errstr;
-    }
+	unless ($selectstm->execute($source_file)) {
+		if ($selectstm->errstr =~ /Table .* doesn't exist/) {
+			warn "Couldn't find the OPL global statistics table.  "
+				. "Did you download the latest OPL and run load-OPL-global-statistics.pl?";
+		}
+		die $selectstm->errstr;
+	}
 
-    my $result = $selectstm->fetchrow_arrayref();
+	my $result = $selectstm->fetchrow_arrayref();
 
-    if ($result) {
-	return {source_file => $source_file,
-		students_attempted => $$result[1],
-		average_attempts => $$result[2],
-		average_status => $$result[3],
-	};
-    } else {
-	return {source_file => $source_file};
-    }
+	if ($result) {
+		return {
+			source_file        => $source_file,
+			students_attempted => $$result[1],
+			average_attempts   => $$result[2],
+			average_status     => $$result[3],
+		};
+	} else {
+		return { source_file => $source_file };
+	}
 }
 
 1;

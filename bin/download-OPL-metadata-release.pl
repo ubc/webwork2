@@ -9,30 +9,35 @@ use warnings;
 use File::Fetch;
 use File::Copy;
 use File::Path;
+use Mojo::File;
 use JSON;
 
-my $pg_dir;
-
 BEGIN {
-	die "WEBWORK_ROOT not found in environment.\n"
-		unless exists $ENV{WEBWORK_ROOT};
-	$pg_dir = $ENV{PG_ROOT} // "$ENV{WEBWORK_ROOT}/../pg";
-	die "The pg directory must be defined in PG_ROOT" unless (-e $pg_dir);
+	use Mojo::File qw(curfile);
+	use Env qw(WEBWORK_ROOT);
+
+	$WEBWORK_ROOT = curfile->dirname->dirname;
 }
 
 use lib "$ENV{WEBWORK_ROOT}/lib";
-use lib "$pg_dir/lib";
+use lib "$ENV{WEBWORK_ROOT}/bin";
 
 use WeBWorK::CourseEnvironment;
+use Helper 'runScript';
 
-my $ce = new WeBWorK::CourseEnvironment({ webwork_dir => $ENV{WEBWORK_ROOT} });
+my $ce = WeBWorK::CourseEnvironment->new({ webwork_dir => $ENV{WEBWORK_ROOT} });
 
-my $rawData;
+# Make sure the webwork temporary directory exists and is writable before proceeding.
+die "The WeBWorK temporary directory $ce->{webworkDirs}{tmp} does not exist or is not writable."
+	if (!-d $ce->{webworkDirs}{tmp} || !-w $ce->{webworkDirs}{tmp});
+
 $ENV{OPL_REPO_RELEASE_API_URL} = 'https://api.github.com/repos/ubc/webwork-open-problem-library/releases/latest' if (!defined($ENV{OPL_REPO_RELEASE_API_URL}));
 my $releaseDataFF =
 	File::Fetch->new(uri => $ENV{OPL_REPO_RELEASE_API_URL});
-my $file        = $releaseDataFF->fetch(to => \$rawData) or die $releaseDataFF->error;
-my $releaseData = JSON->new->utf8->decode($rawData);
+my $file        = $releaseDataFF->fetch(to => $ce->{webworkDirs}{tmp}) or die $releaseDataFF->error;
+my $path        = Mojo::File->new($file);
+my $releaseData = JSON->new->utf8->decode($path->slurp);
+$path->remove;
 
 my $releaseTag = $releaseData->{tag_name};
 say "Found OPL METADATA release $releaseTag.";
@@ -43,10 +48,6 @@ for (@{ $releaseData->{assets} }) {
 }
 
 die 'Unable to determine download url for OPL metadata release.' if !$downloadURL;
-
-# Make sure the webwork temporary directory exists and is writable before proceeding.
-die "The WeBWorK temporary directory $ce->{webworkDirs}{tmp} does not exist or is not writable."
-	if (!-d $ce->{webworkDirs}{tmp} || !-w $ce->{webworkDirs}{tmp});
 
 # Download and extract the OPL metadata release.
 my $releaseDownloadFF = File::Fetch->new(uri => $downloadURL);
@@ -87,7 +88,7 @@ mkdir "$libraryDirectory/TABLE-DUMP" if !-d "$libraryDirectory/TABLE-DUMP";
 copy("$ce->{webworkDirs}{tmp}/webwork-open-problem-library/TABLE-DUMP/OPL-tables.sql", "$libraryDirectory/TABLE-DUMP");
 
 say 'Restoring OPL tables from release database dump.';
-do $ENV{WEBWORK_ROOT} . '/bin/restore-OPL-tables.pl';
+runScript("$ENV{WEBWORK_ROOT}/bin/restore-OPL-tables.pl");
 
 # Remove temporary files.
 say "Removing temporary files.";
