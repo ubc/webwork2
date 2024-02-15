@@ -1,5 +1,5 @@
-package LTIAdvantage::Entrypoint::Launch;
-use base qw(LTIAdvantage::Entrypoint);
+package LTI1p3::Entrypoint::Launch;
+use base qw(LTI1p3::Entrypoint);
 
 ##### Library Imports #####
 use strict;
@@ -12,10 +12,10 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 
-use LTIAdvantage::Importer::Error;
-use LTIAdvantage::Parser::LaunchParser;
-use WeBWorK::Authen::LTIAdvantage;
-use LTIAdvantage::Service::NamesAndRoleService;
+use LTI1p3::Importer::Error;
+use LTI1p3::Parser::LaunchParser;
+use WeBWorK::Authen::LTI1p3;
+use LTI1p3::Service::NamesAndRoleService;
 
 #$WeBWorK::Debug::Enabled = 1;
 
@@ -25,7 +25,7 @@ sub new
 	my ($class, $c) = @_;
 	my $self = $class->SUPER::new($c);
 	my $ce = $c->ce;
-	$self->{parser} = LTIAdvantage::Parser::LaunchParser->new($ce, $c->param("id_token"));
+	$self->{parser} = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
 	bless $self, $class;
 	return $self;
 }
@@ -337,7 +337,7 @@ sub _updateLaunchUser()
 
 	debug(Dumper(\%user));
 
-	my $updater = LTIAdvantage::Importer::CourseUpdater->new($ce, $db, '');
+	my $updater = LTI1p3::Importer::CourseUpdater->new($ce, $db, '');
 	# check if user exists
 	if ($db->existsUser($user{'loginid'})) {
 		debug("Attempt to update user & assign assignments.");
@@ -366,7 +366,7 @@ sub _updateClassRoster()
 
 	# try to update course enrolment
 	if ($parser->get_nrps_claim()) {
-		my $names_and_roles_service = LTIAdvantage::Service::NamesAndRoleService->new($ce, $db);
+		my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
 		my $membership = $names_and_roles_service->getAllNamesAndRole();
 		unless ($membership) {
 			debug("There was an issue fetching the class roster. ".$names_and_roles_service->{error});
@@ -387,7 +387,7 @@ sub _verifyMessage()
 	my $self = shift;
 	my $c = $self->{c};
 	# verify that the message hasn't been tampered with
-	my $ltiauthen = WeBWorK::Authen::LTIAdvantage->new($c);
+	my $ltiauthen = WeBWorK::Authen::LTI1p3->new($c);
 	my $ret = $ltiauthen->authenticate();
 	if (!$ret) {
 		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");

@@ -375,7 +375,7 @@ $dbLayouts{sql_single} = {
 	},
 	# LTI Advantage
     lti_resource_link => {
-        record => "WeBWorK::DB::Record::LTIAdvantage::ResourceLink",
+        record => "WeBWorK::DB::Record::LTI1p3::ResourceLink",
         schema => "WeBWorK::DB::Schema::NewSQL::Std",
         driver => "WeBWorK::DB::Driver::SQL",
         source => $database_dsn,
@@ -385,7 +385,7 @@ $dbLayouts{sql_single} = {
         },
     },
     lti_user => {
-        record => "WeBWorK::DB::Record::LTIAdvantage::User",
+        record => "WeBWorK::DB::Record::LTI1p3::User",
         schema => "WeBWorK::DB::Schema::NewSQL::Std",
         driver => "WeBWorK::DB::Driver::SQL",
         source => $database_dsn,
@@ -395,7 +395,7 @@ $dbLayouts{sql_single} = {
         },
     },
     lti_contexts => {
-        record => "WeBWorK::DB::Record::LTIAdvantage::Contexts",
+        record => "WeBWorK::DB::Record::LTI1p3::Contexts",
         schema => "WeBWorK::DB::Schema::NewSQL::Std",
         driver => "WeBWorK::DB::Driver::SQL",
         source => $database_dsn,
@@ -405,7 +405,7 @@ $dbLayouts{sql_single} = {
         },
     },
     lti_nonces => {
-        record => "WeBWorK::DB::Record::LTIAdvantage::Nonces",
+        record => "WeBWorK::DB::Record::LTI1p3::Nonces",
         schema => "WeBWorK::DB::Schema::NewSQL::Std",
         driver => "WeBWorK::DB::Driver::SQL",
         source => $database_dsn,
@@ -415,7 +415,7 @@ $dbLayouts{sql_single} = {
         },
     },
     lti_access_tokens => {
-        record => "WeBWorK::DB::Record::LTIAdvantage::AccessTokens",
+        record => "WeBWorK::DB::Record::LTI1p3::AccessTokens",
         schema => "WeBWorK::DB::Schema::NewSQL::Std",
         driver => "WeBWorK::DB::Driver::SQL",
         source => $database_dsn,

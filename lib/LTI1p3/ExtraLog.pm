@@ -1,4 +1,4 @@
-package LTIAdvantage::ExtraLog;
+package LTI1p3::ExtraLog;
 
 # This is additional debug logging separate from the normal debug.
 # Meant for use on production where turning on the normal debug

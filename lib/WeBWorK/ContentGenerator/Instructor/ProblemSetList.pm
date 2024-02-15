@@ -84,7 +84,7 @@ use WeBWorK::Debug;
 use WeBWorK::Utils qw(timeToSec listFilesRecursive jitar_id_to_seq seq_to_jitar_id x
 	format_set_name_internal format_set_name_display);
 use WeBWorK::Utils::Instructor qw(assignSetToUser assignSetToAllUsers addProblemToSet);
-use LTIAdvantage::Service::AssignmentAndGradeService;
+use LTI1p3::Service::AssignmentAndGradeService;
 
 use constant HIDE_SETS_THRESHOLD                   => 500;
 use constant DEFAULT_VISIBILITY_STATE              => 1;
@@ -733,7 +733,7 @@ sub lti_handler ($c) {
 	my $db = $c->db;
 	my $ce = $c->ce;
 
-	my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
+	my $assignment_and_grade_service = LTI1p3::Service::AssignmentAndGradeService->new($ce, $db);
 	$assignment_and_grade_service->pushAllAssignmentGrades();
 
 	if ($assignment_and_grade_service->{error}) {

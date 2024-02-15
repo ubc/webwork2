@@ -1,5 +1,5 @@
-package LTIAdvantage::Entrypoint::Login;
-use base qw(LTIAdvantage::Entrypoint);
+package LTI1p3::Entrypoint::Login;
+use base qw(LTI1p3::Entrypoint);
 
 ##### Library Imports #####
 use strict;
@@ -15,8 +15,8 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 
-use LTIAdvantage::Importer::Error;
-use LTIAdvantage::Parser::LaunchParser;
+use LTI1p3::Importer::Error;
+use LTI1p3::Parser::LaunchParser;
 
 # Constructor
 sub new
@@ -24,7 +24,7 @@ sub new
 	my ($class, $c) = @_;
 	my $self = $class->SUPER::new($c);
 	my $ce = $c->ce;
-	$self->{parser} = LTIAdvantage::Parser::LaunchParser->new($ce, $c->param("id_token"));
+	$self->{parser} = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
 	bless $self, $class;
 	return $self;
 }

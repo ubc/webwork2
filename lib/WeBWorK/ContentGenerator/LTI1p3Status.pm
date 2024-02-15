@@ -1,9 +1,9 @@
-package WeBWorK::ContentGenerator::LTIAdvantageStatus;
+package WeBWorK::ContentGenerator::LTI1p3Status;
 use base qw(WeBWorK::ContentGenerator);
 
 =head1 NAME
 
-WeBWorK::ContentGenerator::LTIAdvantageStatus - LTI Advantage Status.
+WeBWorK::ContentGenerator::LTI1p3Status - LTI Advantage Status.
 
 =cut
 

@@ -50,7 +50,7 @@ use WeBWorK::Utils qw(runtime_use);
 use WeBWorK::ContentGenerator::Login;
 use WeBWorK::ContentGenerator::LoginProctor;
 
-use LTIAdvantage::EntrypointManager;
+use LTI1p3::EntrypointManager;
 
 our %SeedCE;
 
@@ -189,7 +189,7 @@ async sub dispatch ($c) {
 
 	my $user_authen_module;
 
-	my $entrypoint = LTIAdvantage::EntrypointManager->new($c);
+	my $entrypoint = LTI1p3::EntrypointManager->new($c);
 	my $entrypoint_error = $entrypoint->run();
 	if ($entrypoint->useAuthenModule()) {
 		$user_authen_module = $entrypoint->getAuthenModule();

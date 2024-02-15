@@ -1,4 +1,4 @@
-package LTIAdvantage::Importer::CourseCreator;
+package LTI1p3::Importer::CourseCreator;
 
 ##### Library Imports #####
 use strict;
@@ -12,7 +12,7 @@ use Data::Dumper;
 use WeBWorK::Utils qw(cryptPassword);
 use WeBWorK::Utils::CourseManagement qw(addCourse);
 
-use LTIAdvantage::Importer::Error;
+use LTI1p3::Importer::Error;
 
 use Text::CSV;
 

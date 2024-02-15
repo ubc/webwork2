@@ -9,7 +9,7 @@ use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
 use TheSchwartz::Job;
-use LTIAdvantage::Service::AssignmentAndGradeService;
+use LTI1p3::Service::AssignmentAndGradeService;
 
 sub work {
     my $class = shift;
@@ -26,7 +26,7 @@ sub work {
         });
     my $db = new WeBWorK::DB($ce->{dbLayout});
 
-    my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
+    my $assignment_and_grade_service = LTI1p3::Service::AssignmentAndGradeService->new($ce, $db);
     $assignment_and_grade_service->pushAllAssignmentGrades();
 
     if ($assignment_and_grade_service->{error}) {

@@ -1,4 +1,4 @@
-package LTIAdvantage::Parser::NamesAndRoleServiceParser;
+package LTI1p3::Parser::NamesAndRoleServiceParser;
 
 use strict;
 use warnings;

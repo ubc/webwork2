@@ -1,4 +1,4 @@
-package LTIAdvantage::Importer::CourseUpdater;
+package LTI1p3::Importer::CourseUpdater;
 
 ##### Library Imports #####
 use strict;

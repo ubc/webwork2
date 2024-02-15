@@ -204,9 +204,9 @@ RUN apt-get update \
 	libxml-xpath-perl \
        # TheSchwartz used by DelayedJob
 	   libtheschwartz-perl \
-       # Crypt::JWT used by LTIAdvantage
+       # Crypt::JWT used by LTI1p3
        libcrypt-jwt-perl \
-       # JSON::Validator used by LTIAdvantage
+       # JSON::Validator used by LTI1p3
        libjson-validator-perl \
        # Moose used by R integration
        libmoose-perl \
@@ -245,9 +245,9 @@ RUN apt-get update \
 RUN cpanm install Statistics::R::IO DBD::MariaDB Mojo::SQLite Perl::Tidy@20220613 \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*
 
-# App::Genpass - used by LTIAdvantage's CourseUpdater
+# App::Genpass - used by LTI1p3's CourseUpdater
 # Data::ObjectDriver - used by DelayedJob
-# Bytes::Random::Secure::Tiny - used by LTIAdvantage for secure random string
+# Bytes::Random::Secure::Tiny - used by LTI1p3 for secure random string
 RUN cpanm install App::Genpass Data::ObjectDriver Bytes::Random::Secure::Tiny \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*
 
