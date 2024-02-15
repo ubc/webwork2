@@ -21,14 +21,12 @@ use strict;
 use warnings;
 use WeBWorK::Debug;
 use Net::OAuth;
-use JSON::Validator qw(validate_json);
+use JSON::Validator;
 use Crypt::JWT qw(decode_jwt);
 use LWP::UserAgent;
 use LTI1p3::Parser::LaunchParser;
 use File::Basename;
 use Data::Dumper;
-use WeBWorK::Cookie;
-use mod_perl;
 use JSON;
 use Date::Format;
 use Date::Parse;
@@ -127,7 +125,10 @@ sub get_credentials {
 		return 0;
 	}
 
-	my @errors = validate_json($parser->{data}, $schema);
+	my $validator = JSON::Validator->new;
+	$validator->schema($schema);
+	my @errors = $validator->validate($parser->{data});
+
 	# debug(Dumper(@errors));
 	# debug(Dumper($parser->{data}));
 	if (@errors) {
