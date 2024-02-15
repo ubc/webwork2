@@ -24,7 +24,6 @@ LTIAdvantage::Service::AssignmentAndGradeService
 use strict;
 use warnings;
 use WeBWorK::Debug;
-use WeBWorK::CGI;
 use Net::OAuth;
 use HTTP::Request;
 use LWP::UserAgent;

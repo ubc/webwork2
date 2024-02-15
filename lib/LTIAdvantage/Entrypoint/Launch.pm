@@ -7,7 +7,6 @@ use warnings;
 
 use Data::Dumper;
 use URI::Escape;
-use CGI;
 use WeBWorK::Utils qw(before after between formatDateTime);
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
@@ -23,10 +22,10 @@ use LTIAdvantage::Service::NamesAndRoleService;
 # Constructor
 sub new
 {
-	my ($class, $r) = @_;
-	my $self = $class->SUPER::new($r);
-	my $ce = $r->ce;
-	$self->{parser} = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
+	my ($class, $c) = @_;
+	my $self = $class->SUPER::new($c);
+	my $ce = $c->ce;
+	$self->{parser} = LTIAdvantage::Parser::LaunchParser->new($ce, $c->param("id_token"));
 	bless $self, $class;
 	return $self;
 }
@@ -34,8 +33,8 @@ sub new
 sub accept
 {
 	my $self = shift;
-	my $r = $self->{r};
-	if ($r->param("id_token") && $r->param("state")) {
+	my $c = $self->{c};
+	if ($c->param("id_token") && $c->param("state")) {
 		return 1;
 	}
 
@@ -54,10 +53,10 @@ sub accept
 sub run
 {
 	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	$r->{db} = new WeBWorK::DB($ce->{dbLayout});
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	$c->db = new WeBWorK::DB($ce->{dbLayout});
+	my $db = $c->db;
 	my $parser = $self->{parser};
 
 	if ($parser->{error}) {
@@ -82,7 +81,7 @@ sub run
 		# check query string for set id
 		my @query_params = ('set', 'custom_set', 'homework_set', 'custom_homework_set', 'quiz_set', 'custom_quiz_set');
 		foreach my $query_param (@query_params) {
-			my $set_id_query_param = $r->param($query_param);
+			my $set_id_query_param = $c->param($query_param);
 			if ($set_id_query_param) {
 				# not perfect sanitization, but need something
 				$set_id_query_param = $parser->sanitizeSetName($set_id_query_param);
@@ -129,12 +128,12 @@ sub run
 		});
 
 		# set request ce and db to courseID
-		$r->{ce} = $tmpce;
-		$r->{db} = new WeBWorK::DB($r->ce->{dbLayout});
-		$db = $r->db;
+		$c->ce = $tmpce;
+		$c->db = new WeBWorK::DB($c->ce->{dbLayout});
+		$db = $c->db;
 
 		# direct the student directly to a homework assignment or quiz if needed
-		my $redir = $r->uri . $course_id;
+		my $redir = $c->uri . $course_id;
 		my $status_message = "";
 		unless (-e $tmpce->{courseDirs}->{root}) {
 			# course does not exist
@@ -194,16 +193,16 @@ sub run
 sub getAuthenModule
 {
 	my $self = shift;
-	my $r = $self->{r};
-	return WeBWorK::Authen::class($r->ce, "lti");
+	my $c = $self->{c};
+	return WeBWorK::Authen::class($c->ce, "lti");
 }
 
 sub createCourse
 {
 	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	my $db = $c->db;
 	my $parser = $self->{parser};
 
 	my $permissions = $parser->get_permissions();
@@ -231,9 +230,9 @@ sub createCourse
 sub _updateLTISettings()
 {
 	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	my $db = $c->db;
 	my $parser = $self->{parser};
 
 	my $client_id = $parser->get_param("aud");
@@ -327,9 +326,9 @@ sub _updateLaunchUser()
 	debug("Manage LTI Launch user account.");
 
 	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	my $db = $c->db;
 	my $parser = $self->{parser};
 
 	debug("Parsing user information.");
@@ -358,9 +357,9 @@ sub _updateLaunchUser()
 sub _updateClassRoster()
 {
 	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	my $db = $c->db;
 	my $parser = $self->{parser};
 
 	debug("Update class roster if available.");
@@ -386,9 +385,9 @@ sub _updateClassRoster()
 sub _verifyMessage()
 {
 	my $self = shift;
-	my $r = $self->{r};
+	my $c = $self->{c};
 	# verify that the message hasn't been tampered with
-	my $ltiauthen = WeBWorK::Authen::LTIAdvantage->new($r);
+	my $ltiauthen = WeBWorK::Authen::LTIAdvantage->new($c);
 	my $ret = $ltiauthen->authenticate();
 	if (!$ret) {
 		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");

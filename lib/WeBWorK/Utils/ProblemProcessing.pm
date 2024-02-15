@@ -37,6 +37,9 @@ use WeBWorK::Authen::LTIAdvantage::SubmitGrade;
 use Caliper::Sensor;
 use Caliper::Entity;
 
+use LTIAdvantage::Service::AssignmentAndGradeService;
+use DelayedJob::Service;
+
 our @EXPORT_OK = qw(
 	process_and_log_answer
 	compute_reduced_score
@@ -268,6 +271,22 @@ async sub process_and_log_answer ($c) {
 					$scoreRecordedMessage .=
 						$c->tag('br') . $c->maketext('Your score was successfully sent to the LMS.');
 				}
+
+				if ($ce->{lti_advantage}{push_grades_on_submit}) {
+					if ($ce->{delayed_job}{enabled}) {
+						my $delayed_job_service = DelayedJob::Service->new($ce);
+						$delayed_job_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
+					} else {
+						my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
+						$assignment_and_grade_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
+						if ($assignment_and_grade_service->{error}) {
+							$scoreRecordedMessage .= $c->maketext(" Your score was not successfully sent to the LMS");
+						} else {
+							$scoreRecordedMessage .= $c->maketext(" Your score was successfully sent to the LMS");
+						}
+					}
+				}
+
 			} else {
 				# The "sticky" answers get saved here when $will{recordAnswers} is false
 				$db->putUserProblem($pureProblem);

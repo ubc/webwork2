@@ -13,9 +13,9 @@ use LTIAdvantage::Importer::Error;
 # Constructor
 sub new
 {
-	my ($class, $r) = @_;
+	my ($class, $c) = @_;
 	my $self = {
-		r => $r,
+		c => $c,
 		entrypoint => undef
 	};
 	bless $self, $class;
@@ -25,7 +25,7 @@ sub new
 sub run
 {
 	my ($self) = @_;
-	my $r = $self->{r};
+	my $c = $self->{c};
 
 	debug("Importer running.");
 
@@ -40,7 +40,7 @@ sub run
 	{
 		debug("Testing entrypoint $_ for compatibility.");
 		runtime_use($_);
-		$entrypoint = $_->new($r);
+		$entrypoint = $_->new($c);
 		last if ($entrypoint->accept());
 	}
 

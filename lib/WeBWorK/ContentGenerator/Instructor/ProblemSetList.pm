@@ -110,7 +110,7 @@ use constant FORM_TITLES => {
 	delete        => x("Delete"),
 	save_export   => x("Save Export"),
 	cancel_export => x("Cancel Export"),
-	lti            => x("LTI")
+	lti            => x("Canvas Sync")
 };
 
 use constant VIEW_FIELD_ORDER =>

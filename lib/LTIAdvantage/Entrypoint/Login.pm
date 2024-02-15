@@ -11,7 +11,6 @@ use Bytes::Random::Secure::Tiny;
 use URI;
 use Date::Format;
 
-use WeBWorK::Cookie;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
@@ -22,10 +21,10 @@ use LTIAdvantage::Parser::LaunchParser;
 # Constructor
 sub new
 {
-	my ($class, $r) = @_;
-	my $self = $class->SUPER::new($r);
-	my $ce = $r->ce;
-	$self->{parser} = LTIAdvantage::Parser::LaunchParser->new($ce, $r->param("id_token"));
+	my ($class, $c) = @_;
+	my $self = $class->SUPER::new($c);
+	my $ce = $c->ce;
+	$self->{parser} = LTIAdvantage::Parser::LaunchParser->new($ce, $c->param("id_token"));
 	bless $self, $class;
 	return $self;
 }
@@ -33,8 +32,8 @@ sub new
 sub accept
 {
 	my $self = shift;
-	my $r = $self->{r};
-	if ($r->param("iss") && $r->param("login_hint") && $r->param("lti_message_hint") && $r->param("target_link_uri")) {
+	my $c = $self->{c};
+	if ($c->param("iss") && $c->param("login_hint") && $c->param("lti_message_hint") && $c->param("target_link_uri")) {
 		return 1;
 	}
 
@@ -53,16 +52,16 @@ sub accept
 sub run
 {
 	my $self = shift;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	$r->{db} = new WeBWorK::DB($ce->{dbLayout});
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	$c->db = new WeBWorK::DB($ce->{dbLayout});
+	my $db = $c->db;
 
 	# required
-	my $platform_id = $r->param("iss");
-	my $login_hint = $r->param("login_hint");
-	my $lti_message_hint = $r->param("lti_message_hint");
-	#my $target_link_uri = $r->param("target_link_uri");
+	my $platform_id = $c->param("iss");
+	my $login_hint = $c->param("login_hint");
+	my $lti_message_hint = $c->param("lti_message_hint");
+	#my $target_link_uri = $c->param("target_link_uri");
 
 	my $rng = Bytes::Random::Secure::Tiny->new;
 	# We'll generate a 64 character cryptographically secure string and split
@@ -76,7 +75,7 @@ sub run
 	my $oidc_auth_url = "";
 	foreach my $client_id (keys %{$ce->{lti_advantage}{lti_clients}}) {
 		if (defined($ce->{lti_advantage}{lti_clients}{$client_id}{platform_id}) &&
-		    defined($ce->{lti_advantage}{lti_clients}{$client_id}{oidc_auth_url}) &&
+			defined($ce->{lti_advantage}{lti_clients}{$client_id}{oidc_auth_url}) &&
 			$ce->{lti_advantage}{lti_clients}{$client_id}{platform_id} eq $platform_id)
 		{
 			$oidc_auth_url = $ce->{lti_advantage}{lti_clients}{$client_id}{oidc_auth_url};
@@ -87,9 +86,7 @@ sub run
 
 	if ($oidc_auth_url eq "") {
 		debug("Could not find a oidc_auth_url for platform $platform_id.");
-		my $error_message = CGI::h2("LTI Login Failed");
-		$error_message .= CGI::p("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error.");
-		return $error_message;
+		return $c->maketext("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error.");
 	}
 
 	# store the nonce
@@ -97,18 +94,16 @@ sub run
 
 	if($exists) {
 		debug("Nonce already exists for $platform_id. Nonce: $nonce");
-		my $error_message = CGI::h2("LTI Login Failed");
-		$error_message .= CGI::p("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error.");
-		return $error_message;
-    } else {
+		return $c->maketext("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error.");
+	} else {
 		my $expires_at = time2str("%Y-%m-%d %H:%M:%S", time+(15*60), "GMT");
-        my $lti_nonce = $db->newLTINonce(
+		my $lti_nonce = $db->newLTINonce(
 			platform_id => $platform_id,
 			nonce => $nonceKey,
 			expires_at => $expires_at,
 			was_used => 0
 		);
-        $db->addLTINonce($lti_nonce);
+		$db->addLTINonce($lti_nonce);
 	}
 
 	my $full_url = URI->new($oidc_auth_url);
@@ -117,16 +112,15 @@ sub run
 		'response_type' => 'id_token',  # OIDC response is always an id token
 		'response_mode' => 'form_post',  # OIDC response is always a form post
 		'prompt' => 'none',  # Don't prompt user on redirect
-		'client_id' => $r->param("client_id"),  # Registered client id
-		'redirect_uri' => $r->param("target_link_uri"),  # URL to return to after login
+		'client_id' => $c->param("client_id"),  # Registered client id
+		'redirect_uri' => $c->param("target_link_uri"),  # URL to return to after login
 		'state' => $state,  # State to identify browser session
 		'nonce' => $nonce,  # Prevent replay attacks
 		'login_hint' => $login_hint,  # Login hint to identify platform session
 		'lti_message_hint' => $lti_message_hint  # LTI message hint to identify LTI context within the platform
 	});
 
-	my $q = CGI->new();
-	print $q->redirect($full_url);
+	$c->redirect_to($full_url);
 	return 0;
 }
 

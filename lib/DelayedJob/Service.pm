@@ -104,8 +104,8 @@ sub getClassMembership {
 }
 
 sub sendEvents {
-    my ($self, $json_array_of_events) = @_;
-    my $args = { courseName => $self->{ce}->{courseName},
+    my ($self, $c, $json_array_of_events) = @_;
+    my $args = { courseName => $c->ce->{courseName},
                  json_array_of_events => $json_array_of_events };
     $args = encode_json($args);
     my $job = TheSchwartz::Job->new(

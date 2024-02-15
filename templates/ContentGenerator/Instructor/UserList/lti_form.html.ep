@@ -1,0 +1,3 @@
+<p>
+<%= maketext("Get the class roster from Canvas. May take a long time to complete for larger class sizes."); =%>
+</p>

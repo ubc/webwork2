@@ -14,9 +14,9 @@ use LTIAdvantage::Importer::CourseUpdater;
 # Constructor
 sub new
 {
-	my ($class, $r) = @_;
+	my ($class, $c) = @_;
 	my $self = {
-		r => $r,
+		c => $c,
 		useAuthenModule => 0,
 		setId => 0,
 		useRedirect => 0,
@@ -66,9 +66,9 @@ sub getSetId
 sub createCourse
 {
 	my ($self, $courseID, $courseTitle) = @_;
-	my $r = $self->{r};
-	my $ce = $r->ce;
-	my $db = $r->db;
+	my $c = $self->{c};
+	my $ce = $c->ce;
+	my $db = $c->db;
 
 	my $creator = LTIAdvantage::Importer::CourseCreator->new($ce, $db, $courseID, $courseTitle);
 	my $ret = $creator->createCourse();

@@ -90,7 +90,7 @@ use constant FORM_TITLES => {
 	delete          => x('Delete'),
 	save_password   => x('Save Password'),
 	cancel_password => x('Cancel Password'),
-	lti            => x("LTI"),
+	lti            => x('Canvas Sync'),
 };
 
 # permissions needed to perform a given action
@@ -598,7 +598,7 @@ sub lti_handler ($c) {
 	if ($ret) {
 		return $c->maketext("Update class roster failed: [_1]", $ret);
 	}
-	$self->{visibleUserIDs} = [ $self->{allUserIDs} ];
+	$c->{visibleUserIDs} = [ $c->{allUserIDs} ];
 	return $c->maketext("Successfully updated class roster.");
 }
 

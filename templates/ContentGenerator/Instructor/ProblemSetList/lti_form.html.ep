@@ -1,0 +1,3 @@
+<p>
+<%= maketext("Send all set grades to Canvas. May take a long time to complete for larger class sizes and/or with many sets."); =%>
+</p>

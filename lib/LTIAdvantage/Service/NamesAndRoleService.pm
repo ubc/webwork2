@@ -25,7 +25,6 @@ LTIAdvantage::Service::NamesAndRoleService
 use strict;
 use warnings;
 use WeBWorK::Debug;
-use WeBWorK::CGI;
 use WeBWorK::Utils qw(grade_set grade_gateway grade_all_sets wwRound);
 use Net::OAuth;
 use HTTP::Request;

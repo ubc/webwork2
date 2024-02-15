@@ -189,16 +189,16 @@ async sub dispatch ($c) {
 
 	my $user_authen_module;
 
-	my $entrypoint = LTIAdvantage::EntrypointManager->new($r);
+	my $entrypoint = LTIAdvantage::EntrypointManager->new($c);
 	my $entrypoint_error = $entrypoint->run();
 	if ($entrypoint->useAuthenModule()) {
 		$user_authen_module = $entrypoint->getAuthenModule();
 		# refresh ce after running entrypoint ($ce might change to a different course environment when redirecting from webwork root)
-		$ce = $r->{ce};
+		$ce = $c->ce;
 	}
 	if ($entrypoint_error) {
-		$r->notes->set(error_message => $entrypoint_error);
 		$displayModule = $entrypoint->getErrorDisplayModule();
+		return (0, $entrypoint_error);
 	}
 
 	if (!defined($user_authen_module)) {
@@ -272,9 +272,7 @@ async sub dispatch ($c) {
 			}
 
 			if ($entrypoint->useRedirect()) {
-				$c->redirect_to($entryPoint->getRedirect());
-				my $q = CGI->new();
-				print $q->redirect($entrypoint->getRedirect());
+				$c->redirect_to($entrypoint->getRedirect());
 			}
 			return 1;
 		} else {
