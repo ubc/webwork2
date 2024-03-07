@@ -15,7 +15,8 @@
 ################################################################################
 
 package WeBWorK::Authen::LTI1p3;
-use base qw/WeBWorK::Authen/;
+use Mojo::Base 'WeBWorK::Authen', -strict, -signatures;
+
 
 use strict;
 use warnings;
@@ -32,6 +33,15 @@ use Date::Format;
 use Date::Parse;
 use URI::Escape;
 
+sub request_has_data_for_this_verification_module ($self) {
+	my $c = $self->{c};
+	if ($c->param("id_token") && $c->param("state")) {
+		return 1;
+	}
+
+	return 0;
+}
+
 sub verify_normal_user {
 	my $self = shift;
 	my $ret = $self->SUPER::verify_normal_user(@_);
@@ -43,8 +53,7 @@ sub verify_normal_user {
 	return $ret;
 }
 
-sub get_credentials {
-	my $self = shift;
+sub get_credentials ($self) {
 	my $c = $self->{c};
 	my $ce = $c->ce;
 
@@ -112,11 +121,12 @@ sub get_credentials {
 
 	my $version = $parser->get_claim("version");
 
-	my $dirname = dirname(__FILE__);
-	my $schema = $dirname."/LTI1p3/schema/1.3.0/LtiResourceLinkRequest.json";
+	my $schemaDir = 'file://'.dirname(__FILE__)."/LTI1p3/schema/1.3.0/";
+	my $schema = $schemaDir."LtiResourceLinkRequest.json";
+
 	if ($version ne "1.3.0") {
 		# for future, load different schemas as needed
-		# $schema = $dirname."/LTI1p3/Schema/1.3.0/LtiResourceLinkRequest.json";
+		# $schema = $schemaDir."LtiResourceLinkRequest.json";
 
 		# error out
 		$self->{log_error} = "Invalid LTI Version. Supported Version are: 1.3.0";
@@ -126,6 +136,11 @@ sub get_credentials {
 	}
 
 	my $validator = JSON::Validator->new;
+	$validator->store->load($schemaDir.'ResourceLink.json');
+	$validator->store->load($schemaDir.'LtiToken.json');
+	$validator->store->load($schemaDir.'LtiVersion.json');
+	$validator->store->load($schemaDir.'Token.json');
+	$validator->store->load($schemaDir.'ToolPlatformLinkRequest.json');
 	$validator->schema($schema);
 	my @errors = $validator->validate($parser->{data});
 
@@ -182,14 +197,6 @@ sub get_credentials {
     $self->{credential_source} = "LTI1p3";
 	$self->{session_key} = undef;
 	$self->{initial_login} = 1;
-
-	# resuse session_key if possible
-	my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
-	if (defined($cookieUser) && defined($cookieKey)) {
-		if ($cookieUser eq $user_id) {
-			$self->{session_key} = $cookieKey;
-		}
-	}
 
 	return 1;
 }

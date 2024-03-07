@@ -1,9 +1,7 @@
 package LTI1p3::Entrypoint::Launch;
-use base qw(LTI1p3::Entrypoint);
+use Mojo::Base 'LTI1p3::Entrypoint', -strict, -signatures, -async_await;
 
 ##### Library Imports #####
-use strict;
-use warnings;
 
 use Data::Dumper;
 use URI::Escape;
@@ -19,21 +17,8 @@ use LTI1p3::Service::NamesAndRoleService;
 
 #$WeBWorK::Debug::Enabled = 1;
 
-# Constructor
-sub new
+sub accept ($c)
 {
-	my ($class, $c) = @_;
-	my $self = $class->SUPER::new($c);
-	my $ce = $c->ce;
-	$self->{parser} = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
-	bless $self, $class;
-	return $self;
-}
-
-sub accept
-{
-	my $self = shift;
-	my $c = $self->{c};
 	if ($c->param("id_token") && $c->param("state")) {
 		return 1;
 	}
@@ -50,25 +35,24 @@ sub accept
 # * The course exists
 # ** SSO login
 
-sub run
+async sub run ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
-	my $ce = $c->ce;
-	$c->db = new WeBWorK::DB($ce->{dbLayout});
-	my $db = $c->db;
-	my $parser = $self->{parser};
+	debug("LTI1p3 Start Processing Redirect");
+	# no actual course yet, create an empty course environment
+	my $ce = $c->ce(WeBWorK::CourseEnvironment->new({
+		webwork_dir => $ENV{WEBWORK_ROOT},
+	}));
+	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
+	$c->{parser} = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
+	my $parser = $c->{parser};
 
 	if ($parser->{error}) {
 		debug("parser error: ". $parser->{error});
-		my $error_message = CGI::h2("LTI Launch Failed");
 		if ($parser->{error} =~ m/^JWT: exp claim check failed/) {
-			$error_message .= CGI::div({class=>"ResultsWithError"}, CGI::pre("Your launch request has expired. Please click on the LTI link again.") );
+			return $c->reply->exception($c->maketext("Your launch request has expired. Please click on the LTI link again."))->rendered(400);
 		} else {
-			$error_message .= CGI::p("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:");
-			$error_message .= CGI::div({class=>"ResultsWithError"}, CGI::pre($parser->{error}) );
+			return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:" . $parser->{error}))->rendered(400);
 		}
-		return $error_message;
 	}
 
 	# check if user wants to go directly to an assignment/quiz
@@ -76,7 +60,7 @@ sub run
 	if ($set_id_custom_claim) {
 		# not perfect sanitization, but need something
 		$set_id_custom_claim = $parser->sanitizeSetName($set_id_custom_claim);
-		$self->{setId} = $set_id_custom_claim;
+		$c->{setId} = $set_id_custom_claim;
 	} else {
 		# check query string for set id
 		my @query_params = ('set', 'custom_set', 'homework_set', 'custom_homework_set', 'quiz_set', 'custom_quiz_set');
@@ -85,7 +69,7 @@ sub run
 			if ($set_id_query_param) {
 				# not perfect sanitization, but need something
 				$set_id_query_param = $parser->sanitizeSetName($set_id_query_param);
-				$self->{setId} = $set_id_query_param;
+				$c->{setId} = $set_id_query_param;
 				last;
 			}
 		}
@@ -100,16 +84,6 @@ sub run
 	{
 		debug("LTI detected\n");
 
-		# verify message
-		my $ret = $self->_verifyMessage();
-		if ($ret) {
-			debug("_verifyMessage error: ". $ret);
-			my $error_message = CGI::h2("LTI Launch Failed");
-			$error_message .= CGI::p("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:");
-			$error_message .= CGI::div({class=>"ResultsWithError"}, CGI::pre($ret) );
-			return $error_message;
-		}
-
 		# Check for course existence
 		if($db->existsLTIContext($client_id, $context_id)) {
         	my $lti_context = $db->getLTIContext($client_id, $context_id);
@@ -119,33 +93,35 @@ sub run
 
 		# setup tmp course ce and db
 		my $tmpce = WeBWorK::CourseEnvironment->new({
-			%WeBWorK::SeedCE,
 			courseName => $course_id,
-			apache_hostname => $ce->{apache_hostname},
-			apache_port => $ce->{apache_port},
-			apache_is_ssl => $ce->{apache_is_ssl},
-			apache_root_url => $ce->{apache_root_url},
 		});
 
 		# set request ce and db to courseID
-		$c->ce = $tmpce;
-		$c->db = new WeBWorK::DB($c->ce->{dbLayout});
+		$c->stash('courseID', $course_id);
+		$c->ce($tmpce);
+		$c->db(new WeBWorK::DB($c->ce->{dbLayout}));
 		$db = $c->db;
 
+		my $authz = WeBWorK::Authz->new($c);
+		$c->authz($authz);
+		# verify message
+		my $ret = $c->_verifyMessage();
+		if ($ret) {
+			debug("_verifyMessage error: ". $ret);
+			return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
+		}
+
 		# direct the student directly to a homework assignment or quiz if needed
-		my $redir = $c->uri . $course_id;
+		my $redir = $c->url_for('set_list', courseID => $course_id);
 		my $status_message = "";
 		unless (-e $tmpce->{courseDirs}->{root}) {
 			# course does not exist
 			debug("Course does not exist, try LTI import.");
 
-			$ret = $self->createCourse();
+			$ret = $c->createCourse();
 			if ($ret) {
 				debug("createCourse error: ". $ret);
-				my $error_message = CGI::h2("LTI Launch Failed");
-				$error_message .= CGI::p("Unfortunately, import failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:");
-				$error_message .= CGI::div({class=>"ResultsWithError"}, CGI::pre($ret) );
-				return $error_message;
+				return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
 			}
 
 			$status_message .= CGI::div(
@@ -153,87 +129,83 @@ sub run
 				"The course was successfully imported into Webwork."
 			);
 		}
-		$self->_updateLTISettings();
-		$self->_updateLaunchUser();
+		$c->_updateLTISettings();
+		$c->_updateLaunchUser();
 
-		if ($self->getSetId()) {
+		if ($c->getSetId()) {
 			my %user = $parser->get_user_info();
 			my $user_id = $user{'loginid'};
-			my $set = $db->getMergedSet($user_id, $self->getSetId());
+			my $set = $db->getMergedSet($user_id, $c->getSetId());
 
 			if ($set && defined( $set->assignment_type() ) ) {
-				my @allVersionIds = $db->listSetVersions($user_id , $self->getSetId());
+				my @allVersionIds = $db->listSetVersions($user_id , $c->getSetId());
 				my $latest_version = (@allVersionIds ? $allVersionIds[-1] : 0);
 
 				if (before($set->open_date)) {
-					my $display_name = $self->getSetId();
+					my $display_name = $c->getSetId();
 					$display_name =~ s/_/ /g;
 					$status_message .= CGI::div(
 						{class=>"ResultsWithoutError"},
 						$display_name." will open on " . formatDateTime($set->open_date, undef, $tmpce->{studentDateDisplayFormat})
 					);
 				} elsif ( $set->assignment_type() eq 'proctored_gateway' ) {
-					$redir .= "/proctored_quiz_mode/" . $self->getSetId() . ($latest_version ? ",v$latest_version" : "");
+					$redir .= "/proctored_quiz_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} elsif ( $set->assignment_type() eq 'gateway' ) {
-					$redir .= "/quiz_mode/" . $self->getSetId() . ($latest_version ? ",v$latest_version" : "");
+					$redir .= "/quiz_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} else {
-					$redir .= "/" . $self->getSetId();
+					$redir .= "/" . $c->getSetId();
 				}
 			}
 		}
 		# ensure authentification module is used
-		$self->{useAuthenModule} = 1;
-		$self->{useRedirect} = 1;
-		$self->{redirect} = $redir."?lti=1&status_message=".uri_escape_utf8($status_message);
+		$c->{useAuthenModule} = 1;
+		$c->{useRedirect} = 1;
+		$c->{redirect} = $redir."?lti=1&status_message=".uri_escape_utf8($status_message);
 	}
+	$c->redirect_to($c->{redirect});
 
 	return 0;
 }
 
-sub getAuthenModule
+sub getAuthenModule ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
 	return WeBWorK::Authen::class($c->ce, "lti");
 }
 
-sub createCourse
+sub createCourse ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
 	my $ce = $c->ce;
 	my $db = $c->db;
-	my $parser = $self->{parser};
+	my $parser = $c->{parser};
 
 	my $permissions = $parser->get_permissions();
 	if ($permissions < $ce->{userRoles}{designer}) {
 		return error("Please ask your instructor to import this course into Webworks first.", "#e011");
 	}
 
-	my $ret = $self->SUPER::createCourse($parser->getCourseName(), $parser->get_claim_param("context", "title"));
+	my $ret = $c->SUPER::createCourse($parser->getCourseName(), $parser->get_claim_param("context", "title"));
 	if ($ret) {
 		return error("Create course failed: $ret", "#e010");
 	}
 
 	# store LTI credentials for auto-update
-	$self->_updateLTISettings();
+	$c->_updateLTISettings();
 
 	# add current user to the course
-	$self->_updateLaunchUser();
+	$c->_updateLaunchUser();
 
 	# try to update roster if names and role service enabled
-	$self->_updateClassRoster();
+	$c->_updateClassRoster();
 
 	return 0;
 }
 
-sub _updateLTISettings()
+sub _updateLTISettings ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
+	debug("Update LTI Settings");
 	my $ce = $c->ce;
 	my $db = $c->db;
-	my $parser = $self->{parser};
+	my $parser = $c->{parser};
 
 	my $client_id = $parser->get_param("aud");
 	my $context_id = $parser->get_claim_param("context", "id");
@@ -284,8 +256,8 @@ sub _updateLTISettings()
 			);
 		}
 
-		if ($self->getSetId()) {
-			$lti_resource_link->set_id($self->getSetId());
+		if ($c->getSetId()) {
+			$lti_resource_link->set_id($c->getSetId());
 		} else {
 			$lti_resource_link->set_id("");
 		}
@@ -321,15 +293,13 @@ sub _updateLTISettings()
 
 # Automatically add new users to course or update existing user information on launch.
 # assign users to all the available assignments.
-sub _updateLaunchUser()
+sub _updateLaunchUser ($c)
 {
 	debug("Manage LTI Launch user account.");
 
-	my $self = shift;
-	my $c = $self->{c};
 	my $ce = $c->ce;
 	my $db = $c->db;
-	my $parser = $self->{parser};
+	my $parser = $c->{parser};
 
 	debug("Parsing user information.");
 	# parse user from launch request
@@ -354,13 +324,11 @@ sub _updateLaunchUser()
 
 # Automatically add new users to course or update existing user information on launch.
 # assign users to all the available assignments.
-sub _updateClassRoster()
+sub _updateClassRoster ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
 	my $ce = $c->ce;
 	my $db = $c->db;
-	my $parser = $self->{parser};
+	my $parser = $c->{parser};
 
 	debug("Update class roster if available.");
 
@@ -372,7 +340,7 @@ sub _updateClassRoster()
 			debug("There was an issue fetching the class roster. ".$names_and_roles_service->{error});
 			return error("There was an issue fetching the class roster. ".$names_and_roles_service->{error}, "#e016");
 		}
-		my $ret = $self->SUPER::updateCourse($ce, $db, $membership);
+		my $ret = $c->SUPER::updateCourse($ce, $db, $membership);
 		if ($ret) {
 			return error("Update Class Roster failed: $ret", "#e010");
 		}
@@ -382,13 +350,12 @@ sub _updateClassRoster()
 	return 0;
 }
 
-sub _verifyMessage()
+sub _verifyMessage ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
 	# verify that the message hasn't been tampered with
 	my $ltiauthen = WeBWorK::Authen::LTI1p3->new($c);
-	my $ret = $ltiauthen->authenticate();
+	$c->authen($ltiauthen);
+	my $ret = $ltiauthen->verify();
 	if (!$ret) {
 		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");
 	}
