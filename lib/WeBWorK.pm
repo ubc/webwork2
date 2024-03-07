@@ -50,8 +50,6 @@ use WeBWorK::Utils qw(runtime_use);
 use WeBWorK::ContentGenerator::Login;
 use WeBWorK::ContentGenerator::LoginProctor;
 
-use LTI1p3::EntrypointManager;
-
 our %SeedCE;
 
 # This will either return 0 or 1.  If it returns 1, then the around_action hook will render the content generator module
@@ -187,23 +185,7 @@ async sub dispatch ($c) {
 	my $authz = WeBWorK::Authz->new($c);
 	$c->authz($authz);
 
-	my $user_authen_module;
-
-	my $entrypoint = LTI1p3::EntrypointManager->new($c);
-	my $entrypoint_error = $entrypoint->run();
-	if ($entrypoint->useAuthenModule()) {
-		$user_authen_module = $entrypoint->getAuthenModule();
-		# refresh ce after running entrypoint ($ce might change to a different course environment when redirecting from webwork root)
-		$ce = $c->ce;
-	}
-	if ($entrypoint_error) {
-		$displayModule = $entrypoint->getErrorDisplayModule();
-		return (0, $entrypoint_error);
-	}
-
-	if (!defined($user_authen_module)) {
-		$user_authen_module = WeBWorK::Authen::class($ce, "user_module");
-	}
+	my $user_authen_module = WeBWorK::Authen::class($ce, 'user_module');
 
 	runtime_use $user_authen_module;
 	my $authen = $user_authen_module->new($c);
@@ -269,10 +251,6 @@ async sub dispatch ($c) {
 					await WeBWorK::ContentGenerator::LoginProctor->new($c)->go;
 					return 0;
 				}
-			}
-
-			if ($entrypoint->useRedirect()) {
-				$c->redirect_to($entrypoint->getRedirect());
 			}
 			return 1;
 		} else {

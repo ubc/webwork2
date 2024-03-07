@@ -1,8 +1,8 @@
 package LTI1p3::Entrypoint;
 
+use Mojo::Base 'WeBWorK::Controller', -strict, -signatures, -async_await;
+
 ##### Library Imports #####
-use strict;
-use warnings;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
@@ -10,52 +10,6 @@ use WeBWorK::Debug;
 use LTI1p3::Importer::Error;
 use LTI1p3::Importer::CourseCreator;
 use LTI1p3::Importer::CourseUpdater;
-
-# Constructor
-sub new
-{
-	my ($class, $c) = @_;
-	my $self = {
-		c => $c,
-		useAuthenModule => 0,
-		setId => 0,
-		useRedirect => 0,
-		redirect => ""
-	};
-	bless $self, $class;
-	return $self;
-}
-
-sub accept
-{
-	my $self = shift;
-	return 0;
-}
-
-sub run
-{
-	my $self = shift;
-	die "Not implemented";
-}
-
-# Returns whether this module requires the use of a custom authen module
-sub useAuthenModule
-{
-	my $self = shift;
-	return $self->{useAuthenModule};
-}
-
-sub getErrorDisplayModule
-{
-	my $self = shift;
-	return "WeBWorK::ContentGenerator::LTI1p3Status";
-}
-
-sub getAuthenModule
-{
-	my $self = shift;
-	die "Not implemented";
-}
 
 sub getSetId
 {
@@ -92,18 +46,6 @@ sub updateCourse
 	}
 
 	return 0;
-}
-
-sub useRedirect
-{
-	my $self = shift;
-	return $self->{useRedirect};
-}
-
-sub getRedirect
-{
-	my $self = shift;
-	return $self->{redirect};
 }
 
 1;

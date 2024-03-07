@@ -29,6 +29,8 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::Utils qw(x writeTimingLogEntry);
 use WeBWorK::Utils::Routes qw(setup_content_generator_routes);
 
+use LTI1p3::Lti1p3Router;
+
 sub startup ($app) {
 	# Set up logging.
 	$app->log->path($app->home->child('logs', 'webwork2.log')) if $app->mode eq 'production';
@@ -183,6 +185,7 @@ sub startup ($app) {
 
 	# Router
 	my $r = $app->routes;
+	LTI1p3::Lti1p3Router::setup($r);
 	push(@{ $r->namespaces }, 'WeBWorK::ContentGenerator');
 
 	# Provide access to webwork2 and pg resources.  A resource from $webwork_htdocs_dir is used if present, then
