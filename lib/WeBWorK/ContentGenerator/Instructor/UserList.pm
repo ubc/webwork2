@@ -245,13 +245,18 @@ sub pre_header_initialize ($c) {
 	my $secondarySortSub = SORT_SUBS()->{ $c->{secondarySortField} };
 	my $ternarySortSub   = SORT_SUBS()->{ $c->{ternarySortField} };
 
-	$c->{allUserIDs} = [ keys %allUsers ];
+	# ubc custom: the %allUsers pointer has stale data after LTI classlist
+	# sync, so we use the updated data in $c->{allUsers}
+	#$c->{allUserIDs} = [ keys %allUsers ];
+	$c->{allUserIDs} = [ keys %{$c->{allUsers}} ];
 
 	# Always have a definite sort order in case the first three sorts don't determine things.
 	$c->{sortedUserIDs} = [
 		map  { $_->user_id }
 		sort { &$primarySortSub || &$secondarySortSub || &$ternarySortSub || byLastName || byFirstName || byUserID }
-		grep { $c->{visibleUserIDs}{ $_->user_id } } (values %allUsers)
+		# ubc custom: %allUsers pointer has stale data after LTI classlist sync
+		#grep { $c->{visibleUserIDs}{ $_->user_id } } (values %allUsers)
+		grep { $c->{visibleUserIDs}{ $_->user_id } } (values %{$c->{allUsers}})
 	];
 
 	return;
@@ -598,7 +603,10 @@ sub lti_handler ($c) {
 	if ($ret) {
 		return $c->maketext("Update class roster failed: [_1]", $ret);
 	}
-	$c->{visibleUserIDs} = [ $c->{allUserIDs} ];
+
+	# reload the users list since we might have added/removed users
+	$c->param(action => 'filter');
+	$c->pre_header_initialize();
 	return $c->maketext("Successfully updated class roster.");
 }
 
