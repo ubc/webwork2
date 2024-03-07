@@ -1,9 +1,7 @@
 package LTI1p3::Entrypoint::Login;
-use base qw(LTI1p3::Entrypoint);
+use Mojo::Base 'LTI1p3::Entrypoint', -strict, -signatures, -async_await;
 
 ##### Library Imports #####
-use strict;
-use warnings;
 
 use Data::Dumper;
 use CGI;
@@ -16,23 +14,9 @@ use WeBWorK::DB;
 use WeBWorK::Debug;
 
 use LTI1p3::Importer::Error;
-use LTI1p3::Parser::LaunchParser;
 
-# Constructor
-sub new
+sub accept ($c)
 {
-	my ($class, $c) = @_;
-	my $self = $class->SUPER::new($c);
-	my $ce = $c->ce;
-	$self->{parser} = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
-	bless $self, $class;
-	return $self;
-}
-
-sub accept
-{
-	my $self = shift;
-	my $c = $self->{c};
 	if ($c->param("iss") && $c->param("login_hint") && $c->param("lti_message_hint") && $c->param("target_link_uri")) {
 		return 1;
 	}
@@ -49,13 +33,13 @@ sub accept
 # * The course exists
 # ** SSO login
 
-sub run
+async sub run ($c)
 {
-	my $self = shift;
-	my $c = $self->{c};
-	my $ce = $c->ce;
-	$c->db = new WeBWorK::DB($ce->{dbLayout});
-	my $db = $c->db;
+	# no course when starting lti, so create a empty course environment
+	my $ce = $c->ce(WeBWorK::CourseEnvironment->new({
+		webwork_dir => $ENV{WEBWORK_ROOT},
+	}));
+	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
 
 	# required
 	my $platform_id = $c->param("iss");
@@ -86,7 +70,7 @@ sub run
 
 	if ($oidc_auth_url eq "") {
 		debug("Could not find a oidc_auth_url for platform $platform_id.");
-		return $c->maketext("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error.");
+		return $c->reply->exception($c->maketext("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occurred."))->rendered(400);
 	}
 
 	# store the nonce
@@ -94,7 +78,7 @@ sub run
 
 	if($exists) {
 		debug("Nonce already exists for $platform_id. Nonce: $nonce");
-		return $c->maketext("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error.");
+		return $c->reply->exception($c->maketext("Unfortunately, the LTI login failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occurred."))->rendered(400);
 	} else {
 		my $expires_at = time2str("%Y-%m-%d %H:%M:%S", time+(15*60), "GMT");
 		my $lti_nonce = $db->newLTINonce(
@@ -113,7 +97,7 @@ sub run
 		'response_mode' => 'form_post',  # OIDC response is always a form post
 		'prompt' => 'none',  # Don't prompt user on redirect
 		'client_id' => $c->param("client_id"),  # Registered client id
-		'redirect_uri' => $c->param("target_link_uri"),  # URL to return to after login
+		'redirect_uri' => $c->url_for('lti1p3redirect')->to_abs,  # next step url
 		'state' => $state,  # State to identify browser session
 		'nonce' => $nonce,  # Prevent replay attacks
 		'login_hint' => $login_hint,  # Login hint to identify platform session
