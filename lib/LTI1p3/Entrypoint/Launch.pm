@@ -15,6 +15,8 @@ use LTI1p3::Parser::LaunchParser;
 use WeBWorK::Authen::LTI1p3;
 use LTI1p3::Service::NamesAndRoleService;
 
+use Mojo::URL;
+
 #$WeBWorK::Debug::Enabled = 1;
 
 sub accept ($c)
@@ -62,11 +64,18 @@ async sub run ($c)
 		$set_id_custom_claim = $parser->sanitizeSetName($set_id_custom_claim);
 		$c->{setId} = $set_id_custom_claim;
 	} else {
+		# ubc's Canvas Instructor Guide procedure modifies the target_link_uri
+		# to put the set id at the end in the query section of the uri
+		my $targetLinkUriClaim = $parser->get_claim('target_link_uri');
 		# check query string for set id
 		my @query_params = ('set', 'custom_set', 'homework_set', 'custom_homework_set', 'quiz_set', 'custom_quiz_set');
 		foreach my $query_param (@query_params) {
-			my $set_id_query_param = $c->param($query_param);
+			if (!$targetLinkUriClaim) { last; }
+			my $targetLinkUri = Mojo::URL->new($targetLinkUriClaim);
+			my $uriQueries = $targetLinkUri->query;
+			my $set_id_query_param = $uriQueries->param($query_param);
 			if ($set_id_query_param) {
+				debug('User wants to go directly to set: ' . $set_id_query_param);
 				# not perfect sanitization, but need something
 				$set_id_query_param = $parser->sanitizeSetName($set_id_query_param);
 				$c->{setId} = $set_id_query_param;
