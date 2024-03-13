@@ -191,6 +191,9 @@
 							$c->systemLink(url_for, params => { primary_sort => 'user_id', %params }) =%>
 					</th>
 				% }
+				% if ($setIsVersioned) {
+					<th <%== $rowspan %>><%= maketext('# of Attempts') %></th>
+				% }
 			</tr>
 			% if ($showColumns->{problems}) {
 				<tr>
@@ -286,6 +289,7 @@
 						% if ($showColumns->{login}) {
 							<td><%= $rec->{record}{user_id} %></td>
 						% }
+							<td><%= $rec->{num_of_attempts} %></td>
 					</tr>
 				% } else {
 					<tr>

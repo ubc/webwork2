@@ -37,7 +37,7 @@ use WeBWorK::Authen::LTIAdvantage::SubmitGrade;
 use Caliper::Sensor;
 use Caliper::Entity;
 
-use LTIAdvantage::Service::AssignmentAndGradeService;
+use LTI1p3::Service::AssignmentAndGradeService;
 use DelayedJob::Service;
 
 our @EXPORT_OK = qw(

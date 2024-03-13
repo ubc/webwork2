@@ -170,7 +170,9 @@ sub displaySets ($c) {
 				$set = $db->getMergedSet($studentName, $setName);
 			}
 
-			my ($score, $total, $problem_scores, $problem_incorrect_attempts) =
+			my ($score, $total, $problem_scores, $problem_incorrect_attempts,
+				# ubc custom, add number of attempts as a return value
+				$num_of_attempts) =
 				grade_set($db, $set, $studentName, $setIsVersioned, 1);
 			$score = wwRound(2, $score);
 
@@ -182,7 +184,9 @@ sub displaySets ($c) {
 				testtime                   => $testTime,
 				timeleft                   => $timeLeft,
 				problem_scores             => $problem_scores,
-				problem_incorrect_attempts => $problem_incorrect_attempts
+				problem_incorrect_attempts => $problem_incorrect_attempts,
+				# ubc custom, added number of attempts
+				num_of_attempts            => $num_of_attempts
 			};
 
 			if ($showBestOnly) {
