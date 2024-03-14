@@ -219,13 +219,14 @@ sub prevent_replay {
 	}
 }
 
-sub authenticate {
-	my $self = shift;
+sub verifyIdToken ($self) {
 	my $c = $self->{c};
 	my $ce = $c->ce;
 	my $db = $c->db;
 
-	debug("Starting OAuth verification\n");
+	$self->{isIdTokenVerified} = 0;
+
+	debug("Starting LTI id_token verification\n");
 
 	if (!defined($c->param("id_token"))) {
 		$self->{log_error} = "Unable to find id_token param.";
@@ -326,9 +327,17 @@ sub authenticate {
 		return 0;
 	}
 
-	debug("LTI OAuth Verification Successful");
+	debug("LTI id_token Verification Successful");
 	debug(("-" x 80) . "\n");
+	$self->{isIdTokenVerified} = 1;
 	return 1;
+}
+
+sub authenticate {
+	my $self = shift;
+	# only need to make sure that verifyIdToken() was called
+	if ($self->{isIdTokenVerified}) { return 1; }
+	return 0;
 }
 
 1;

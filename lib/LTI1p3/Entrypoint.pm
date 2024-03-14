@@ -17,10 +17,8 @@ sub getSetId
 	return $self->{setId};
 }
 
-sub createCourse
+sub createCourse ($c, $courseID, $courseTitle)
 {
-	my ($self, $courseID, $courseTitle) = @_;
-	my $c = $self->{c};
 	my $ce = $c->ce;
 	my $db = $c->db;
 

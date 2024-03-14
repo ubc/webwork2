@@ -122,7 +122,6 @@ async sub run ($c)
 
 		# direct the student directly to a homework assignment or quiz if needed
 		my $redir = $c->url_for('set_list', courseID => $course_id);
-		my $status_message = "";
 		unless (-e $tmpce->{courseDirs}->{root}) {
 			# course does not exist
 			debug("Course does not exist, try LTI import.");
@@ -133,13 +132,19 @@ async sub run ($c)
 				return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
 			}
 
-			$status_message .= CGI::div(
-				{class=>"ResultsWithoutError"},
-				"The course was successfully imported into Webwork."
-			);
+			$c->flash(lti1p3good => $c->maketext(
+				"The course was successfully imported into Webwork."));
 		}
 		$c->_updateLTISettings();
 		$c->_updateLaunchUser();
+
+		# now we can log the user in, before this point, the course might not
+		# have existed and thus the user might not have existed
+		$ret = $c->_verifyUser();
+		if ($ret) {
+			debug("_verifyUser error: ". $ret);
+			return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
+		}
 
 		if ($c->getSetId()) {
 			my %user = $parser->get_user_info();
@@ -153,14 +158,13 @@ async sub run ($c)
 				if (before($set->open_date)) {
 					my $display_name = $c->getSetId();
 					$display_name =~ s/_/ /g;
-					$status_message .= CGI::div(
-						{class=>"ResultsWithoutError"},
-						$display_name." will open on " . formatDateTime($set->open_date, undef, $tmpce->{studentDateDisplayFormat})
+					$c->flash(lti1p3bad =>  
+						$display_name." not open yet, will open on " . formatDateTime($set->open_date, $tmpce->{siteDefaults}{timezone}, $tmpce->{studentDateDisplayFormat})
 					);
 				} elsif ( $set->assignment_type() eq 'proctored_gateway' ) {
-					$redir .= "/proctored_quiz_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
+					$redir .= "/proctored_test_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} elsif ( $set->assignment_type() eq 'gateway' ) {
-					$redir .= "/quiz_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
+					$redir .= "/test_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} else {
 					$redir .= "/" . $c->getSetId();
 				}
@@ -169,7 +173,7 @@ async sub run ($c)
 		# ensure authentification module is used
 		$c->{useAuthenModule} = 1;
 		$c->{useRedirect} = 1;
-		$c->{redirect} = $redir."?lti=1&status_message=".uri_escape_utf8($status_message);
+		$c->{redirect} = $redir;
 	}
 	$c->redirect_to($c->{redirect});
 
@@ -364,9 +368,18 @@ sub _verifyMessage ($c)
 	# verify that the message hasn't been tampered with
 	my $ltiauthen = WeBWorK::Authen::LTI1p3->new($c);
 	$c->authen($ltiauthen);
-	my $ret = $ltiauthen->verify();
+	my $ret = $c->authen->verifyIdToken();
 	if (!$ret) {
 		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");
+	}
+	return 0;
+}
+
+sub _verifyUser ($c)
+{
+	my $ret = $c->authen->verify();
+	if (!$ret) {
+		return error("Error: LTI user could not be verified: $ret", "#e015");
 	}
 	return 0;
 }

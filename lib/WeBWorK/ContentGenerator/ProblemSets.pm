@@ -116,6 +116,14 @@ sub initialize ($c) {
 		$c->stash->{course_info_error}    = $@ if $@;
 	}
 
+	# ubc custom, lti1p3 messages
+	if ($c->flash('lti1p3good')) {
+		$c->addgoodmessage($c->flash('lti1p3good'));
+	}
+	if ($c->flash('lti1p3bad')) {
+		$c->addbadmessage($c->flash('lti1p3bad'));
+	}
+
 	return;
 }
 

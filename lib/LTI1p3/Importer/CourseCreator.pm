@@ -45,7 +45,6 @@ sub createCourse
 	});
 
 	my %courseOptions = ( dbLayoutName => $ce2->{dbLayoutName} );
-	my %dbOptions;
 	my %optional_arguments;
 	if ($ce->{lti_advantage}{course_template})
 	{
@@ -79,7 +78,6 @@ sub createCourse
 			courseID      => $courseID,
 			ce            => $ce2,
 			courseOptions => \%courseOptions,
-			dbOptions     => \%dbOptions,
 			users         => \@classlist,
 			%optional_arguments,
 		);
@@ -92,7 +90,6 @@ sub createCourse
 				deleteCourse(
 					courseID   => $courseID,
 					ce         => $ce2,
-					dbOptions  => \%dbOptions,
 				);
 			}
 		}
