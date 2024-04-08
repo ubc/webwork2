@@ -506,8 +506,9 @@ $authen{user_module} = {
 
 # ubc custom, some params from authen_LTI.conf.dist that are used by the
 # ContentGenerator modules in error messages so needs to be defined
-$LMS_name = 'Canvas';
-$LMS_url = 'https://canvas.ubc.ca/';
+$LTIVersion = 'v1p3';
+$LTI{v1p3}{LMS_name} = 'Canvas';
+$LTI{v1p3}{LMS_url} = 'http://canvas.docker:9100/';
 
 ################################################################################
 # LDAP Authentication

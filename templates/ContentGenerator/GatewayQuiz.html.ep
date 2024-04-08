@@ -613,6 +613,9 @@
 		%
 		<%= $jumpLinks->() =%>
 		<div class="gwDivider"></div>
+    <div id='autosaveStatusInfo'></div>
+    <div id='autosaveStatusError' class='alert alert-danger collapse'
+      role='alert'></div>
 		%
 		<div class="checkboxes-container col-12 my-2">
 			% if ($c->{can}{showCorrectAnswers}) {
