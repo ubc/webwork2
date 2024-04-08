@@ -711,7 +711,9 @@ sub getDefList {
 		push @found_set_defs, $_ =~ s|^$topdir/?||r if m|/set[^/]*\.def$|;
 	};
 
-	find({ wanted => $get_set_defs_wanted, follow_fast => 1, no_chdir => 1 }, $topdir);
+	#find({ wanted => $get_set_defs_wanted, follow_fast => 1, no_chdir => 1 }, $topdir);
+	# ubc custom - follow_fast causes freezes on our NFS mount
+	find({ wanted => $get_set_defs_wanted, no_chdir => 1 }, $topdir);
 
 	# Load the OPL set definition files from the list file.
 	push(@found_set_defs, loadSetDefListFile("$ce->{webworkDirs}{htdocs}/DATA/library-set-defs.json"))

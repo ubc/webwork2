@@ -121,7 +121,8 @@ sub build_tree {
 					$node = $node->{$_} = {};
 				}
 			},
-			follow_fast => 1
+			# ubc custom, follow_fast causes freezes on our NFS mount
+			#follow_fast => 1
 		},
 		$dirPath
 	);
@@ -173,7 +174,9 @@ sub listLib {
 
 	$command eq 'all' && do {
 		$out->{command} = "all -- list all pg files in $dirPath";
-		find({ wanted => $wanted, follow_fast => 1 }, $dirPath);
+		# ubc custom, follow_fast causes freezes on our NFS mount
+		#find({ wanted => $wanted, follow_fast => 1 }, $dirPath);
+		find({ wanted => $wanted }, $dirPath);
 		@outListLib    = sort @outListLib;
 		$out->{ra_out} = \@outListLib;
 		$out->{text}   = join("\n", @outListLib);
@@ -183,7 +186,9 @@ sub listLib {
 		if (-e $dirPath2 && $dirPath2 !~ m|//|) {
 			# it turns out that when // occur in path -e will work
 			# but find will not :-(
-			find({ wanted => $wanted_directory, follow_fast => 1 }, $dirPath2);
+			# ubc custom, follow_fast causes freezes on our NFS mount
+			#find({ wanted => $wanted_directory, follow_fast => 1 }, $dirPath2);
+			find({ wanted => $wanted_directory }, $dirPath2);
 			delete $libDirectoryList{''};
 			$out->{ra_out} = \%libDirectoryList;
 			$out->{text}   = 'Loaded libraries';
@@ -203,7 +208,9 @@ sub listLib {
 		@outListLib = ();
 
 		if (-e $dirPath2 and $dirPath2 !~ m|//|) {
-			find({ wanted => $wanted, follow_fast => 1 }, $dirPath2);
+			# ubc custom, follow_fast causes freezes on our NFS mount
+			#find({ wanted => $wanted, follow_fast => 1 }, $dirPath2);
+			find({ wanted => $wanted }, $dirPath2);
 			@outListLib    = sort @outListLib;
 			$out->{text}   = 'Problems loaded';
 			$out->{ra_out} = \@outListLib;
