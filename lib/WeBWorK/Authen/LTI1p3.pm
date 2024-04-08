@@ -17,9 +17,6 @@
 package WeBWorK::Authen::LTI1p3;
 use Mojo::Base 'WeBWorK::Authen', -strict, -signatures;
 
-
-use strict;
-use warnings;
 use WeBWorK::Debug;
 use Net::OAuth;
 use JSON::Validator;
@@ -35,10 +32,14 @@ use URI::Escape;
 
 sub request_has_data_for_this_verification_module ($self) {
 	my $c = $self->{c};
-	if ($c->param("id_token") && $c->param("state")) {
+	# LTI1p3 methods are called manually by the LTI1p3 controllers, which sets
+	# 'isCalledByLti1p3Launch', so that's the only case we care about.
+	# Once we've authed, we let the stock session handlers do everything.
+	if ($c->param('isCalledByLti1p3Launch')) {
+		#disable password login
+		$self->{external_auth} = 1;
 		return 1;
 	}
-
 	return 0;
 }
 
@@ -75,9 +76,6 @@ sub get_credentials ($self) {
 		debug($self->{log_error});
 		return 0;
 	}
-
-	#disable password login
-	$self->{external_auth} = 1;
 
 	my $parser = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
 	if ($parser->{error}) {
@@ -225,6 +223,8 @@ sub verifyIdToken ($self) {
 	my $db = $c->db;
 
 	$self->{isIdTokenVerified} = 0;
+	#disable password login
+	$self->{external_auth} = 1;
 
 	debug("Starting LTI id_token verification\n");
 

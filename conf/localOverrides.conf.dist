@@ -487,9 +487,9 @@ $pg{specialPGEnvironmentVars}{entryAssist} = 'MathView';
 
 # Extra modules have been created to allow WeBWorK to use certain external
 # methods of authentication.
-$authen{user_module} = {
-	"*" => "WeBWorK::Authen::Shibboleth",
-};
+$authen{user_module} = [
+	'WeBWorK::Authen::PreferExternalUnlessBypassed'
+];
 
 ################################################################################
 # IMS LTI Authentication
@@ -696,11 +696,6 @@ $statuses{Proctor}{abbrevs} = [qw/ G g gatewayproctor /];
 
 # URL of WeBWorK Bugzilla database.
 $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
-
-# Add in custom authen modules
-$authen{lti} = "WeBWorK::Authen::LTI1p3";
-# xmlrpc webservice requests will use the default auth instead of shib
-$authen{'xmlrpc'} = "WeBWorK::Authen";
 
 
 ################################################################################

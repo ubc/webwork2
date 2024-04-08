@@ -377,6 +377,7 @@ sub _verifyMessage ($c)
 
 sub _verifyUser ($c)
 {
+	$c->param('isCalledByLti1p3Launch', 1);
 	my $ret = $c->authen->verify();
 	if (!$ret) {
 		return error("Error: LTI user could not be verified: $ret", "#e015");
