@@ -254,9 +254,10 @@ echo "End fixing ownership and permissions"
 #  chmod 644 /etc/shibboleth/shibboleth2.xml
 #fi
 
+# ubc custom, job queue is started in its own container
 # Start the Minion job queue.
-echo "Starting Minion job queue"
-sudo -E -u www-data bin/webwork2 minion worker -m production &
+#echo "Starting Minion job queue"
+#sudo -E -u www-data bin/webwork2 minion worker -m production &
 
 # # The code below allows you to use
 # #    docker container exec -it webwork2_app_1 hypnotoad -s bin/webwork2

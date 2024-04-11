@@ -699,6 +699,17 @@ $webworkURLs{bugReporter}   = "mailto:webwork.support\@ubc.ca";
 
 
 ################################################################################
+# Minion job queue options
+################################################################################
+# Default is sqlite, but with our setup, we'd end up with every single node
+# having its own sqlite queue that might lose data on reboot. So it's simpler
+# to just reuse webwork's existing MariaDB, since that's already properly
+# shared and configured to persist data.
+$job_queue{backend} = 'mysql';
+$job_queue{database_dsn} = "mysql://$database_username:$database_password\@$database_host:$database_port/$database_name";
+
+
+################################################################################
 # Delayed Job
 ################################################################################
 

@@ -158,7 +158,7 @@ RUN apt-get update \
 	libmariadb-dev \
 	libmath-random-secure-perl \
 	libmime-tools-perl \
-	libminion-backend-sqlite-perl \
+	#libminion-backend-sqlite-perl \ # we're using mysql instead
 	libminion-perl \
 	libmodule-build-perl \
 	libmodule-pluggable-perl \
@@ -248,8 +248,9 @@ RUN cpanm install Statistics::R::IO DBD::MariaDB Mojo::SQLite Perl::Tidy@2022061
 # App::Genpass - used by LTI1p3's CourseUpdater
 # Data::ObjectDriver - used by DelayedJob
 # Bytes::Random::Secure::Tiny - used by LTI1p3 for secure random string
+# Minion::Backend::mysql - let us reuse webwork db for Minion job queue database
 RUN cpanm install App::Genpass Data::ObjectDriver Bytes::Random::Secure::Tiny \
-	&& rm -fr ./cpanm /root/.cpanm /tmp/*
+	Minion::Backend::mysql && rm -fr ./cpanm /root/.cpanm /tmp/*
 
 RUN cpanm install Statistics::R::IO \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*
