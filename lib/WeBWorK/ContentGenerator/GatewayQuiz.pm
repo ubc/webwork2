@@ -1095,7 +1095,13 @@ async sub pre_header_initialize ($c) {
 		# submit a test).
 		my $answer_log = $ce->{courseFiles}{logs}{answer_log};
 
-		if (defined $answer_log && $c->{submitAnswers}) {
+		# ubc custom, we want to log all answers (such as previews) for
+		# troubleshooting and academic integrity investigations. Webwork used
+		# to log all answers but changed to logging only submits in 2.16
+		#if (defined $answer_log && $c->{submitAnswers}) {
+		if (defined $answer_log) {
+			my $answerType = $c->{submitAnswers} ? '' : 'preview |';
+			if ($c->{previewAnswers} eq 'autosave') { $answerType = 'autosave|'; }
 			for my $i (0 .. $#problems) {
 				next unless ref($pg_results[ $probOrder[$i] ]);
 
@@ -1115,7 +1121,7 @@ async sub pre_header_initialize ($c) {
 					'answer_log',
 					$timeNowInt,
 					join('',
-						'|', $problem->user_id, '|', $setVName, '|', ($i + 1), '|', $scores,
+						'|', $problem->user_id, '|', $setVName, '|', ($i + 1), '|', $answerType, $scores,
 						"\t$timeNowInt\t", "$past_answers_string")
 				);
 
@@ -1127,7 +1133,7 @@ async sub pre_header_initialize ($c) {
 				$pastAnswer->problem_id($problem->problem_id);
 				$pastAnswer->timestamp($timeNowInt);
 				$pastAnswer->scores($scores);
-				$pastAnswer->answer_string($past_answers_string);
+				$pastAnswer->answer_string($answerType . $past_answers_string);
 				$pastAnswer->source_file($problem->source_file);
 				$db->addPastAnswer($pastAnswer);
 			}
