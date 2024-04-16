@@ -14,7 +14,7 @@
 ################################################################################
 
 package WeBWorK::ContentGenerator::Instructor::StudentProgress;
-use Mojo::Base 'WeBWorK::ContentGenerator', -signatures;
+use Mojo::Base 'WeBWorK::ContentGenerator', -signatures, -async_await;
 
 =head1 NAME
 
@@ -22,10 +22,17 @@ WeBWorK::ContentGenerator::Instructor::StudentProgress - Display Student Progres
 
 =cut
 
-use WeBWorK::Utils qw(jitar_id_to_seq wwRound grade_set format_set_name_display);
+# 'decodeAnswers', 'before' needed for submit draft tests
+use WeBWorK::Utils qw(jitar_id_to_seq wwRound grade_set format_set_name_display decodeAnswers before);
 use WeBWorK::Utils::Grades qw(list_set_versions);
 
-sub initialize ($c) {
+use WeBWorK::Debug;
+use WeBWorK::Utils::Rendering qw(getTranslatorDebuggingOptions renderPG);
+use WeBWorK::Utils::ProblemProcessing qw/compute_reduced_score/;
+use Mojo::Promise;
+use PGrandom;
+
+async sub initialize ($c) {
 	my $db   = $c->db;
 	my $ce   = $c->ce;
 	my $user = $c->param('user');
@@ -60,6 +67,7 @@ sub initialize ($c) {
 		my $setRecord = $db->getGlobalSet($c->stash('setID'));
 		return unless $setRecord;
 		$c->{setRecord} = $setRecord;
+		await $c->handleGradeSavedDrafts();
 	}
 
 	return;
@@ -285,14 +293,185 @@ sub displaySets ($c) {
 	);
 }
 
+
+# original feature commit for reference, history was disconnected in the merge: 
+# https://github.com/ubc/webwork2/commit/bda7c28d717718c769f152c24cb7b581ac126d24
+async sub handleGradeSavedDrafts ($c) {
+	my $ce = $c->ce;
+	my $db = $c->db;
+
+	my $user = $c->param('user');
+	# get all the permissions needed to allow Grade Saved Drafts
+	my $setIsVersioned = defined $c->{setRecord}->assignment_type && $c->{setRecord}->assignment_type =~ /gateway/;
+	my $recordAsOther = $c->authz->hasPermissions(
+		$user, "record_answers_when_acting_as_student");
+	my $recordVersionsAsOther = $c->authz->hasPermissions(
+		$user, "record_set_version_answers_when_acting_as_student");
+	# set data needed for rendering the Grade Saved Drafts form
+	$c->stash->{recordAsOther} = $recordAsOther;
+	$c->stash->{recordVersionsAsOther} = $recordVersionsAsOther;
+	
+	# stop if instructor didn't click the Grade Saved Drafts button
+	if (!$c->param( 'batch_grade_not_submitted' )) { return; }
+	# stop if this isn't a test
+	if (!$setIsVersioned) { return; } 
+	# stop if user doesn't have the right permissions
+	if (!$recordAsOther && !$recordVersionsAsOther) { return; }
+
+	# we want to submit all the draft tests
+	my @studentSetToSubmit;
+	@studentSetToSubmit = $c->_get_student_quiz_not_submitted($setIsVersioned);
+	foreach my $pair ( @studentSetToSubmit ) {
+		my ( $userId, $theSet ) = @{$pair};
+		# use PG to calculate score for each problem
+		my @problems = $c->_getProblems($userId, $theSet);
+		my @renderPromises = ();
+		my @pgResults = (); # this will hold the actual score we can save to db
+		my $effectiveUser = $db->getUser($userId);
+		for my $problem (@problems) {
+			my %formFields = decodeAnswers($problem->last_answer);
+			$formFields{'submitAnswers'} = 'Grade Test';
+			push @renderPromises, $c->_getProblemHTML($effectiveUser, $theSet, \%formFields, $problem);
+			push(@pgResults, undef);
+		}
+		my @renderedPG = await Mojo::Promise->all(@renderPromises);
+		for (@pgResults) {
+			$_ = (shift @renderedPG)->[0] if !defined $_;
+		}
+		# save problem score
+		my $setId = $theSet->set_id;
+		my $setVer = $theSet->version_id;
+		my @probOrder = $c->_getProblemOrder($userId, $theSet);
+		# $pureProblem is what we actually save to do, I guess because $problem
+		# is two tables combined together so not a real table entry that can be
+		# saved?
+		my @pureProblems = $db->getAllProblemVersions($userId, $setId, $setVer);
+		for my $i (0 .. $#problems) {
+			my $pureProblem = $pureProblems[ $probOrder[$i] ];
+			my $problem     = $problems[ $probOrder[$i] ];
+			my $pg_result   = $pgResults[ $probOrder[$i] ];
+			# we pretend the test was submitted just on time
+			my $score = $pg_result->{state}{recorded_score};
+			$pureProblem->status($score) if $score > $pureProblem->status;
+			$pureProblem->sub_status($pureProblem->status)
+				if (!$ce->{pg}{ansEvalDefaults}{enableReducedScoring}
+					|| !$theSet->enable_reduced_scoring
+					|| before($theSet->reduced_scoring_date, $theSet->due_date));
+			$pureProblem->attempted(1);
+			$pureProblem->num_correct($pg_result->{state}{num_of_correct_ans});
+			$pureProblem->num_incorrect($pg_result->{state}{num_of_incorrect_ans});
+			$db->putProblemVersion($pureProblem);
+		}
+		# update set last attempt time
+		my $cleanSet = $db->getSetVersion($userId, $setId, $setVer);
+		$cleanSet->version_last_attempt_time(time);
+		$db->putSetVersion($cleanSet);
+	}
+
+}
+
+# copied from GatewayQuiz.pm
+async sub _getProblemHTML ($c, $effectiveUser, $set, $formFields, $mergedProblem) {
+	my $setID            = $set->set_id;
+	my $setVersionNumber = $set->version_id;
+
+	# Figure out solutions are allowed and call renderPG accordingly.
+	my $showCorrectAnswers = 0;
+	my $showHints          = 0;
+	my $showSolutions      = 0;
+	my $processAnswers     = 0;
+
+	# FIXME: I'm not sure that problem_id is what we want here.
+	my $problemNumber = $mergedProblem->problem_id;
+
+	my $pg = await renderPG(
+		$c,
+		$effectiveUser,
+		$set,
+		$mergedProblem,
+		$set->psvn,
+		$formFields,
+		{
+			displayMode        => 'text',
+			showHints          => $showHints,
+			showSolutions      => $showSolutions,
+			refreshMath2img    => $showHints || $showSolutions,
+			processAnswers     => 1,
+			QUIZ_PREFIX        => 'Q' . sprintf('%04d', $problemNumber) . '_',
+			useMathQuill       => 0,
+			useMathView        => 0,
+			forceScaffoldsOpen => 1,
+			isInstructor       => 0
+		},
+	);
+
+	# Warnings in the renderPG subprocess will not be caught by the global warning handler of this process.
+	# So rewarn them and let the global warning handler take care of it.
+	warn $pg->{warnings} if $pg->{warnings};
+
+	if ($pg->{flags}{error_flag}) {
+		push @{ $c->{errors} },
+			{
+				set     => "$setID,v$setVersionNumber",
+				problem => $mergedProblem->problem_id,
+				message => $pg->{errors},
+				context => $pg->{body_text},
+			};
+		$pg->{body_text} = undef;
+	}
+
+	return $pg;
+}
+
+sub _getProblems($c, $userId, $set) {
+	my $db = $c->db;
+
+	my $setId = $set->set_id;
+	my $setVer = $set->version_id;
+	my @problemNumbers = $db->listProblemVersions($userId, $setId, $setVer);
+	my @problems;
+	my @mergedProblems = $db->getAllMergedProblemVersions($userId, $setId, $setVer);
+
+	for my $pIndex (0 .. $#problemNumbers) {
+		my $problemN = $mergedProblems[$pIndex];
+		if (!defined $problemN) {
+			return $c->reply->exception($c->maketext("Invalid problem index $pIndex in set $setId $setVer for $userId"))->rendered(400);
+		}
+		push(@problems, $problemN);
+	}
+	return @problems;
+}
+
+sub _getProblemOrder($c, $userId, $set) {
+	my $db = $c->db;
+
+	my $setId = $set->set_id;
+	my $setVer = $set->version_id;
+	my @problemNumbers = $db->listProblemVersions($userId, $setId, $setVer);
+	my @probOrder = (0 .. $#problemNumbers);
+	if ($set->problem_randorder) {
+		my @newOrder;
+		my $pgrand = PGrandom->new;
+		$pgrand->srand($set->psvn);
+		while (@probOrder) {
+			my $i = int($pgrand->rand(scalar(@probOrder)));
+			push(@newOrder, splice(@probOrder, $i, 1));
+		}
+		@probOrder = @newOrder;
+	}
+	return @probOrder;
+}
+
 ##
 ## get_student_quiz_not_submitted
 ##
 ## Returns an array of (student ID, set name with version) in which the set has started but not submitted before the dealine.
 ## Only include those with deadline < current time.
 ##
-sub get_student_quiz_not_submitted {
-    my ( $ce, $db, $setName, $setIsVersioned ) = @_;
+sub _get_student_quiz_not_submitted ($c, $setIsVersioned) {
+	my $db   = $c->db;
+	my $ce   = $c->ce;
+	my $setName = $c->stash('setID');
     my @result = ();
     my @userIDs = $db->listSetUsers( $setName );
 
@@ -301,7 +480,7 @@ sub get_student_quiz_not_submitted {
         next if $notAssignedSet;
         my @allSetVersionNames = @{$ra_allSetVersionNames};
         foreach my $setNameVersion ( @allSetVersionNames ) {
-            my ( $setN, $vNum ) = ( $setNameVersion =~ /(.+),v(\d+)$/ );
+            my ( $setN, $vNum ) = $c->_splitSetIdAndVersion($setNameVersion);
 
             # see if student has submitted the quiz. if so, can skip
             my $attempted = 0;
@@ -321,12 +500,16 @@ sub get_student_quiz_not_submitted {
             next if ( $theSet->due_date() + $grace > $timeNow );
 
             my @pair;
-            @pair = ( $studentId, $setNameVersion );
+            @pair = ( $studentId, $theSet );
             push( @result, \@pair );
         }
     }
 
     @result
+}
+
+sub _splitSetIdAndVersion ($c, $setIdVersion) {
+	return ( $setIdVersion =~ /(.+),v(\d+)$/ );
 }
 
 1;

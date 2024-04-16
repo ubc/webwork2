@@ -331,3 +331,22 @@
 		</tbody>
 	</table>
 </div>
+
+<!-- ubc custom, batch submit unsubmitted tests. For students who have saved
+  answers but didn't get to submit their test somehow. -->
+% if ($setIsVersioned && ( $recordAsOther || $recordVersionsAsOther )) {
+<div class='card col-md-6'>
+  <div class='card-body'>
+    <h5 class='card-title'><%= maketext('Grade Saved Drafts') =%></h5>
+    <p><%= maketext('Grade saved drafts for students who have not submitted their answers for grading.') =%></p>
+    <p class='text-info'><%= maketext('Only use this function when all students have finished this test.') =%></p>
+		<%= form_for current_route, method => 'post',
+			id => 'sp-saved-drafts-form', name => 'StudentProgress', begin =%>
+      <%= $c->hidden_authen_fields =%>
+      <%= hidden_field returning => 1 =%>
+      <input type='hidden' name='batch_grade_not_submitted' value='1' />
+      <button type="submit" class="btn btn-secondary">Grade Saved Drafts</button>
+		<% end =%>
+  </div>
+</div>
+% }
