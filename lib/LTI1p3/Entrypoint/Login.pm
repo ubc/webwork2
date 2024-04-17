@@ -97,7 +97,7 @@ async sub run ($c)
 		'response_mode' => 'form_post',  # OIDC response is always a form post
 		'prompt' => 'none',  # Don't prompt user on redirect
 		'client_id' => $c->param("client_id"),  # Registered client id
-		'redirect_uri' => $c->url_for('lti1p3redirect')->to_abs,  # next step url
+		'redirect_uri' => $ENV{WEBWORK_ROOT_URL} . $c->url_for('lti1p3redirect'),  # next step url
 		'state' => $state,  # State to identify browser session
 		'nonce' => $nonce,  # Prevent replay attacks
 		'login_hint' => $login_hint,  # Login hint to identify platform session
