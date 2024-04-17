@@ -44,7 +44,9 @@ sub startup ($app) {
 	$app->secrets($config->{secrets});
 
 	# Set constants from the configuration.
-	$WeBWorK::Debug::Enabled                                = $config->{debug}{enabled} // 0;
+	# ubc custom, allow env var to override debug conf
+	#$WeBWorK::Debug::Enabled                                = $config->{debug}{enabled} // 0;
+	$WeBWorK::Debug::Enabled                                = $ENV{DEBUG} // $config->{debug}{enabled} // 0;
 	$WeBWorK::Debug::Logfile                                = $config->{debug}{logfile} // '';
 	$WeBWorK::Debug::DenySubroutineOutput                   = $config->{debug}{deny_subroutine_output};
 	$WeBWorK::Debug::AllowSubroutineOutput                  = $config->{debug}{allow_subroutine_output};

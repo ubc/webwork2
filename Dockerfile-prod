@@ -231,7 +231,8 @@ RUN apt-get update \
 	tzdata \
 	zip $ADDITIONAL_BASE_IMAGE_PACKAGES \
 	&& curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs
+	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs \
+    vim
 	#&& apt-get install -y --no-install-recommends --no-install-suggests \
     #   # used for shib
     #   libapache2-mod-shib \

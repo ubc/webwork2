@@ -84,6 +84,7 @@ redirect_http_to_https: 0
 # Make sure to convert the Perl notation there to YAML.
 hypnotoad:
   listen:
+    # ubc custom, run on 80, same as apache used to, saves us from some work
     - http://*:8080
     # Below is an example of how to use ssl certificates when serving directly via hypnotoad.
     #- https://*:443?cert=/etc/ssl/local/fullchain.pem&key=/etc/ssl/local/privkey.pem
