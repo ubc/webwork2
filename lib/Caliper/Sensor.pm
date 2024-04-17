@@ -17,6 +17,8 @@ use HTTP::Async;
 use Caliper::Event;
 use Caliper::ResourceIri;
 
+use DelayedJob::Service;
+
 use Encode qw(encode);
 
 # Constructor
