@@ -41,7 +41,11 @@ sub startup ($app) {
 	my $config = $app->plugin('NotYAMLConfig', { file => $config_file });
 
 	# Configure the application
-	$app->secrets($config->{secrets});
+	#$app->secrets($config->{secrets});
+	# ubc custom, take secret from env var
+	my $secrets = $ENV{WEBWORK_SECRET} ? [$ENV{WEBWORK_SECRET}] :
+									     $config->{secrets};
+	$app->secrets($secrets);
 
 	# Set constants from the configuration.
 	# ubc custom, allow env var to override debug conf
