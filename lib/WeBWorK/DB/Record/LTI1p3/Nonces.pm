@@ -29,7 +29,7 @@ BEGIN {
 	__PACKAGE__->_fields(
 		platform_id => { type=>"TINYBLOB NOT NULL", key=>1 },
 		nonce => { type=>"TINYBLOB NOT NULL", key=>1 },
-		expires_at => { type=>"TIMESTAMP" },
+		expires_at => { type=>"DATETIME" },
 		was_used => { type=>"TINYINT" }
 	);
 }
