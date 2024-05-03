@@ -488,6 +488,7 @@ $pg{specialPGEnvironmentVars}{entryAssist} = 'MathView';
 # Extra modules have been created to allow WeBWorK to use certain external
 # methods of authentication.
 $authen{user_module} = [
+	'WeBWorK::Authen::Saml2',
 	'WeBWorK::Authen::PreferExternalUnlessBypassed'
 ];
 
