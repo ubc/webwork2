@@ -70,6 +70,10 @@ $mail{feedbackRecipients}    = [
 # Use this to customize the text of the feedback button.
 #$feedback_button_name = "Email Instructor";
 
+# The following variable is the address that will be listed in server error
+# messages that come from WeBWorK
+$webwork_server_admin_email = $ENV{'WEBWORK_SUPPORT_EMAIL'} // 'lt.hub@ubc.ca';
+
 ################################################################################
 # Theme
 ################################################################################
