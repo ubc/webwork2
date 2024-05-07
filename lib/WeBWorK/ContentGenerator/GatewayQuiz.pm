@@ -585,12 +585,6 @@ async sub pre_header_initialize ($c) {
 				$set->answer_date($set->due_date + $ansOffset);
 				$set->version_last_attempt_time(0);
 
-				my $proctorOnlyNeededWhenStarting = $ce->{options}{proctorOnlyNeededWhenStarting} // 0;
-				if ( $set->assignment_type eq 'proctored_gateway' && $proctorOnlyNeededWhenStarting ) {
-					# override the assignment type if proctor login is only required to start the quiz
-					$set->assignment_type( 'gateway' );
-				}
-
 				# Put this new info into the database.  Put back the data needed for the version, and leave blank any
 				# information that should be inherited from the user set or global set.  Set the data which determines
 				# if a set is open, because a set version should not reopen after it's complete.

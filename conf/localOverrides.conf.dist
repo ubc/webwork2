@@ -820,7 +820,4 @@ push @{$pg{modules}},
 
 $pg{specialPGEnvironmentVars}{Rserve} = {host => $ENV{"R_HOST"}};
 
-# By default, only require proctor password when starting proctored quiz
-$options{proctorOnlyNeededWhenStarting} = 1;
-
 1; #final line of the file to reassure perl that it was read properly.
