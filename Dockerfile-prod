@@ -233,12 +233,6 @@ RUN apt-get update \
 	&& curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs \
     vim
-	#&& apt-get install -y --no-install-recommends --no-install-suggests \
-    #   # used for shib
-    #   libapache2-mod-shib \
-    #   unixodbc \
-    #   # for envsubst
-    #   gettext-base \
 
 # ==================================================================
 # Phase 4 - Install additional Perl modules from CPAN that are not packaged for Ubuntu or are outdated in Ubuntu.
@@ -299,18 +293,6 @@ RUN echo "PATH=$PATH:$APP_ROOT/webwork2/bin" >> /root/.bashrc \
 		&&   dpkg-reconfigure -f noninteractive tzdata \
 	&& patch -p1 -d / < /tmp/imagemagick-allow-pdf-read.patch \
 	&& rm /tmp/imagemagick-allow-pdf-read.patch
-
-# install odbc for shib sp
-#RUN cd /usr && \
-#    curl https://downloads.mariadb.com/Connectors/odbc/connector-odbc-3.1.1/mariadb-connector-odbc-3.1.1-ga-debian-x86_64.tar.gz | tar -xvz && \
-#    echo "[MariaDB]" > MariaDB_odbc_driver_template.ini && \
-#    echo "Description = MariaDB Connector/ODBC v.3.1" >> MariaDB_odbc_driver_template.ini && \
-#    echo "Driver = /usr/lib/libmaodbc.so" >> MariaDB_odbc_driver_template.ini && \
-#    odbcinst -i -d -f MariaDB_odbc_driver_template.ini
-
-#COPY docker-config/apache/shibboleth2.xml-template /etc/shibboleth/
-#COPY docker-config/apache/mod_shib.conf /etc/apache2/conf-enabled/
-#COPY docker-config/apache/000-default.conf /etc/apache2/sites-available/
 
 # ==================================================================
 # Phase 7 - Final setup and prepare docker-entrypoint.sh

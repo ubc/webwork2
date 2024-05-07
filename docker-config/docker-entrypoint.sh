@@ -241,19 +241,6 @@ chown www-data:www-data  $APP_ROOT/courses/admin/*
 
 echo "End fixing ownership and permissions"
 
-# setup shib
-#if [ -z "${SHIBD_SERVICE_NAME}" ];
-#then
-#  echo "SHIBD_SERVICE_NAME is not set, removing mod_shib and skipping shibboleth setup"
-#  rm -f /etc/apache2/mods-enabled/shib.load /etc/apache2/conf-enabled/shib.conf
-#else
-#  echo "SHIBD_SERVICE_NAME is set, setting up shibboleth"
-#  export SHIBD_SERVICE_IP=`getent hosts ${SHIBD_SERVICE_NAME} | awk '{ print $1  }'`
-#
-#  envsubst < /etc/shibboleth/shibboleth2.xml-template > /etc/shibboleth/shibboleth2.xml
-#  chmod 644 /etc/shibboleth/shibboleth2.xml
-#fi
-
 # ubc custom, job queue is started in its own container
 # Start the Minion job queue.
 #echo "Starting Minion job queue"

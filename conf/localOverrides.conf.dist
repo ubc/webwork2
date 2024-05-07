@@ -792,24 +792,6 @@ $lti_advantage{custom_course_title_parser} = sub {
 $lti_advantage{course_template} = "modelCourse";
 
 ################################################################################
-# Shibboleth
-################################################################################
-
-$shibboleth{login_script} = "/Shibboleth.sso/Login";
-$shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url;
-$shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if there is an existing shibboleth session
-$shibboleth{manage_session_timeout} = 0; #allow shib to manage session time instead of webwork
-$shibboleth{hash_user_id_method} = "none"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url.
-$shibboleth{hash_user_id_salt} = ""; # salt for hash function
-#define mapping between shib and webwork
-$shibboleth{attributes} = [
-        'puid',
-        'studentNumber',
-        'employeeNumber',
-        'cwlLoginName',
-];
-
-################################################################################
 # R Integration
 ################################################################################
 
