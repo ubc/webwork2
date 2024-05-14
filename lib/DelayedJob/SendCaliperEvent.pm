@@ -27,7 +27,7 @@ sub work {
     my $array_of_events = decode_json($args->{json_array_of_events});
 
     my $caliper_sensor = Caliper::Sensor->new($ce);
-    $caliper_sensor->_sendEvents($array_of_events);
+    $caliper_sensor->_sendEvents($ce, $array_of_events);
     $job->completed();
     $job->debug("Job: " . $job->jobid . ". Successfully sent Caliper events for course_id: $courseName");
 }

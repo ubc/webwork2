@@ -48,6 +48,7 @@ sub sendEvent {
 sub sendEvents {
 	my ($self, $c, $array_of_events) = @_;
 	return 0 unless $self->caliperEnabled();
+	my $ce = $c->ce;
 
 	for my $event_hash (@$array_of_events) {
 		Caliper::Event::add_defaults($c, $event_hash);
@@ -58,15 +59,15 @@ sub sendEvents {
 		my $delayed_job_service = DelayedJob::Service->new($c->ce);
 		$delayed_job_service->sendEvents($c, $json_array_of_events);
 	} else {
-		$self->_sendEvents($c, $array_of_events);
+		$self->_sendEvents($ce, $array_of_events);
 	}
 }
+
 sub _sendEvents
 {
-	my ($self, $c, $array_of_events) = @_;
+	my ($self, $ce, $array_of_events) = @_;
 
-	my $ce           = $c->ce;
-	my $resource_iri = Caliper::ResourseIri->new($ce);
+	my $resource_iri = Caliper::ResourceIri->new($ce);
 	my $async        = HTTP::Async->new;
 	$async->timeout(5);
 	$async->max_request_time(10);
