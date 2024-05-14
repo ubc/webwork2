@@ -34,6 +34,7 @@ sub new
         },
     );
     my $driver = Data::ObjectDriver::Driver::DBI->new(dbh => $dbh);
+    my $prioritize = $ENV{DELAYED_JOB_PRIORITIZE} // 0;
     my $client = TheSchwartz->new(
         databases => [{ driver => $driver }],
         verbose => sub {
@@ -41,7 +42,7 @@ sub new
             $msg =~ s/\s+$//;
             print STDERR scalar localtime() . ": $msg\n";
         },
-        prioritize => 1
+        prioritize => $prioritize
     );
     $client->can_do('DelayedJob::GetClassMembership');
     $client->can_do('DelayedJob::PushClassGrades');
@@ -57,7 +58,8 @@ sub new
 
 sub work {
     my ($self) = @_;
-    $self->{client}->work(15);
+    my $sleep = $ENV{DELAYED_JOB_SLEEP} // 10;
+    $self->{client}->work($sleep);
 }
 
 sub work_until_done {
@@ -69,7 +71,9 @@ sub pushUserGradesOnSubmit {
     my ($self, $user_id, $set_id) = @_;
     my $job = TheSchwartz::Job->new(
         funcname => 'DelayedJob::PushUserGrades',
-        priority => 100,
+        # try to vary the priority a bit, as too few variations makes the db
+        # index on priority useless, which make sorting by priority very slow
+        priority => 50 + int(rand(20)),
         arg => {
             courseName => $self->{ce}->{courseName},
             user_id => $user_id,
@@ -83,7 +87,7 @@ sub pushClassGrades {
     my ($self) = @_;
     my $job = TheSchwartz::Job->new(
         funcname => 'DelayedJob::PushClassGrades',
-        priority => 100,
+        priority => 100 + int(rand(20)),
         arg => {
             courseName => $self->{ce}->{courseName}
         },
@@ -95,7 +99,7 @@ sub getClassMembership {
     my ($self) = @_;
     my $job = TheSchwartz::Job->new(
         funcname => 'DelayedJob::GetClassMembership',
-        priority => 50,
+        priority => 80 + int(rand(20)),
         arg => {
             courseName => $self->{ce}->{courseName}
         },
@@ -110,7 +114,7 @@ sub sendEvents {
     $args = encode_json($args);
     my $job = TheSchwartz::Job->new(
         funcname => 'DelayedJob::SendCaliperEvent',
-        priority => 0,
+        priority => 0 + int(rand(20)),
         arg => $args,
     );
     $self->{client}->insert($job);
