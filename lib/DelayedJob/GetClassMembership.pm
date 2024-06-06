@@ -12,6 +12,15 @@ use TheSchwartz::Job;
 use LTI1p3::Service::NamesAndRoleService;
 use LTI1p3::Importer::CourseUpdater;
 
+sub grab_for {
+	# How long before we assume a job failed and another worker retries it.
+	# Came across a 5100+ student course that took ~4 hours (I think the fault
+	# is inefficient code on our part). The job didn't fail, the worker
+	# eventually finishes, but other workers picked up the job assuming it
+	# failed and we ended up with a bunch of blocked workers as jobs piled up.
+	return $ENV{DELAYED_JOB_NRPS_GRAB_FOR} // 60*60*8; # defaults to 8 hours
+}
+
 sub work {
     my $class = shift;
     my TheSchwartz::Job $job = shift;

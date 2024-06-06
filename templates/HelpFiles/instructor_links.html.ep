@@ -72,11 +72,13 @@
 		<%= maketext('Upload, download and delete text files, including scoring spread sheets, set definition files, '
 			. 'class list spread sheets, and "PG" problems.') =%>
 	</dd>
+  <!-- ubc custom, this describes the stock implementation so is irrevelent to us currently
 	<dt><%= maketext('LTI Grade Update') %></dt>
 	<dd>
 		<%= maketext('Manually initiate an LTI grade passback for selected sets or users. This link is only visible '
 			. 'if LTI grade passback is enabled for the course.') =%>
 	</dd>
+  -->
 	<dt><%= maketext('Course Configuration') %></dt>
 	<dd>
 		<%= maketext('Allows configuration of certain parameters, such as permission levels, default display mode for '
