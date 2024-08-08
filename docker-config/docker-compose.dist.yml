@@ -152,6 +152,7 @@ services:
 
     environment:
       # Standard database environment variables needed by WeBWorK:
+      WEBWORK_SECRET: 'veryverysecret'
 
       # Select which DBD driver to use
       WEBWORK_DB_DRIVER: MariaDB
@@ -164,6 +165,9 @@ services:
       # These are set in the .env file and import values from there
       WEBWORK_DB_PASSWORD: ${WEBWORK_DB_PASSWORD}
       WEBWORK_DB_USER: ${WEBWORK_DB_USER}
+
+      # error pages will tell users to email this for support
+      WEBWORK_SUPPORT_EMAIL: support@example.edu
 
       # =======================================================
       # Local configuration variables:
@@ -208,9 +212,18 @@ services:
 
       WEBWORK_TIMEZONE: America/Vancouver
 
+      # disable prioritization of LTI1p3 jobs, this is performance tuning flag
+      # as queries by priority was causing slowdowns with large amounts of jobs
+      DELAYED_JOB_PRIORITIZE: 0
+
+      # this is from us using MySQL as a Minion queue backend.
       # silence 'Mojo::mysql::PubSub is highly experimental' warning from Minion
       # https://github.com/preaction/Minion-Backend-mysql/issues/44
       MOJO_PUBSUB_EXPERIMENTAL: 1
+      # show db migration errors with the Minion MySQL backend
+      MOJO_MIGRATIONS_DEBUG: 1
+      # show Webwork debug
+      DEBUG: 1
 
   r:
     image: ubcctlt/rserve
