@@ -47,6 +47,9 @@ sub startup ($app) {
 									     $config->{secrets};
 	$app->secrets($secrets);
 
+	# ubc custom, increase the file upload limit (in bytes), defaults to 1GiB
+	$app->max_request_size($ENV{MAX_REQUEST_SIZE} // 1073741824);
+
 	# Set constants from the configuration.
 	# ubc custom, allow env var to override debug conf
 	#$WeBWorK::Debug::Enabled                                = $config->{debug}{enabled} // 0;
