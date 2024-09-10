@@ -284,13 +284,8 @@ sub _performAssignmentAndGradeRequests {
 			$scopes .= " https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly";
 		}
 
-		my $lti_access_token_request = LTI1p3::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
-		my $access_token = $lti_access_token_request->getAccessToken();
-		unless ($access_token) {
-			$self->{error} = "Assignment and Grades Service request failed, unable to get an access token for scopes: $scopes";
-			$extralog->logAGSRequest($self->{error});
-			return 0;
-		}
+		my $access_token = $self->_getAccessToken($ce, $client_id, $scopes, $extralog);
+		if (!$access_token) { return 0; }
 
 		my $set_id = $lti_resource_link->set_id();
 		$set_id = '/--course_overall--/' if !defined($set_id) || $set_id eq '';
@@ -493,100 +488,179 @@ sub _performAssignmentAndGradeRequests {
 			debug("Skipping Grade update for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
 		}
 
-		my $async = HTTP::Async->new;
-		$async->slots( 10 );
+		# the actual POST requests to send the grades
+		my $gradePayloads = $self->_generateGradePayloads($ce, $extralog, $lti_resource_link, \@grades_to_update);
+		my $async = $self->_sendGradePayloadsAsync($extralog, $lineitem_url, $access_token, $gradePayloads);
+		my $retryPayloads = $self->_handleGradeResponses($async, $extralog);
+		# currently, only reason to retry payloads is an expired access token.
+		# I think one retry should be enough, so no looping retry here.
+		if (@$retryPayloads) {
+			my $logMsg = "Getting access token after expired access token error";
+			$extralog->logAGSRequest($logMsg); debug($logMsg);
 
-		foreach my $grade_to_update (@grades_to_update) {
-			my $lti_user_id = $grade_to_update->{lti_user_id};
-			my $user_id = $grade_to_update->{user_id};
-			my $set_id = $grade_to_update->{set_id};
-			my $grade = $grade_to_update->{grade};
+			$access_token = $self->_getAccessToken($ce, $client_id, $scopes, $extralog);
+			if (!$access_token) { return 0; }
 
-			$extralog->logAGSRequest("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
-			debug("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
+			$logMsg = "Retrying payloads that failed due to expired access token";
+			$extralog->logAGSRequest($logMsg); debug($logMsg);
 
-            # LTI AGS spec technically requires subsecond precision. But since
-            # the original timestamp is a unix timestamp with only second
-            # precision, I've just stuck .000 to it.
-            my $nowTimestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
-            my $submittedTimestamp = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
-			my $params = {
-				userId => $lti_user_id,
-				scoreGiven => $grade,
-				scoreMaximum => 1.0,
-                # We used to set this timestamp to the student's assignment
-                # submit time. This caused a situtation where if instructor
-                # updates Canvas assignment configuration *after* the student's
-                # submit time, Canvas will reject the grade sync. We set it to
-                # the current time to avoid this scenario.
-				timestamp => $nowTimestamp,
-				activityProgress => $grade_to_update->{activity_progress},
-				gradingProgress => $grade_to_update->{grading_progress},
-                # Canvas specific LTI extension
-                "https://canvas.instructure.com/lti/submission" => {
-                    # Canvas does not use 'timestamp' to set submission time,
-                    # submission time gets set to the time Canvas receives the
-                    # score. This means that if grade sync gets delayed, Canvas
-                    # will wrongly mark students as being late. We can override
-                    # this by using 'submitted_at' to set submission time to
-                    # the actual time the student submitted.
-                    submitted_at => $submittedTimestamp
-                }
-			};
-			my $json_payload = JSON->new->canonical->encode($params);
-
-			$extralog->logAGSRequest("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".Dumper($params));
-			debug("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".Dumper($params));
-
-			my $HTTPRequest = HTTP::Request->new('POST', "$lineitem_url/scores", [
-				'Accept' => 'application/vnd.ims.lis.v1.score+json',
-				'Content-Type' => 'application/json',
-				'Authorization' => "Bearer $access_token"
-			], $json_payload);
-			$async->add($HTTPRequest);
-		}
-
-		while ( my $res = $async->wait_for_next_response ) {
-			if (!$res->is_success) {
-				# expected errors
-				# Canvas Student View User (Test Student)
-				if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":{"type":"unprocessable_entity","message":"User not found in course or is not a student"}}') {
-					$extralog->logAGSRequest(
-						"Could not update grade for probable Canvas Student View user. " .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content
-					);
-					debug(
-						"Could not update grade for probable Canvas Student View user. " .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content
-					);
-					next;
-				}
-				# Canvas Unpublished Assignment
-				if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}') {
-					$extralog->logAGSRequest(
-						"Could not update grade for unpublished Canvas assignment. " .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content
-					);
-					debug(
-						"Could not update grade for unpublished Canvas assignment. " .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content
-					);
-					next;
-				}
-				$self->{error} = "Assignment and Grades Service (LineItem Score POST) request failed. " .
-					"\nStatus: " . $res->status_line .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content .
-					"\nResponse: " . $res->content;
-				debug($self->{error});
-				$extralog->logAGSRequest($self->{error});
+			$async = $self->_sendGradePayloadsAsync($extralog, $lineitem_url, $access_token, $retryPayloads);
+			my $failedPayloads = $self->_handleGradeResponses($async, $extralog);
+			if (@$failedPayloads) {
+				my $errMsg = "Expired access token retry has failed entries, giving up.";
+				$extralog->logAGSRequest($errMsg);
+				debug($errMsg);
 			}
 		}
 	}
+}
+
+sub _handleGradeResponses
+{
+	my ($self, $async, $extralog) = @_;
+	my @retryPayloads = ();
+	while ( my $res = $async->wait_for_next_response ) {
+		if (!$res->is_success) {
+			# expected errors
+			# Canvas Student View User (Test Student)
+			if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":{"type":"unprocessable_entity","message":"User not found in course or is not a student"}}') {
+				$extralog->logAGSRequest(
+					"Could not update grade for probable Canvas Student View user. " .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content
+				);
+				debug(
+					"Could not update grade for probable Canvas Student View user. " .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content
+				);
+				next;
+			}
+			# Canvas Unpublished Assignment
+			if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}') {
+				$extralog->logAGSRequest(
+					"Could not update grade for unpublished Canvas assignment. " .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content
+				);
+				debug(
+					"Could not update grade for unpublished Canvas assignment. " .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content
+				);
+				next;
+			}
+			# Expired access token 
+			if ($self->isExpiredAccessToken($res)) {
+				my $errorMsg = "Expired access token, adding to retry queue" .
+					"\nRequest URI: " . $res->request->uri .
+					"\nRequest Content: " . $res->request->content .
+					"\nResponse Content: " . $res->content;
+				$extralog->logAGSRequest($errorMsg);
+				debug($errorMsg);
+				push(@retryPayloads, $res->request->content);
+				next;
+			}
+
+			$self->{error} = "Assignment and Grades Service (LineItem Score POST) request failed. " .
+				"\nStatus: " . $res->status_line .
+				"\nRequest URI: " . $res->request->uri .
+				"\nRequest Content: " . $res->request->content .
+				"\nResponse: " . $res->content;
+			debug($self->{error});
+			$extralog->logAGSRequest($self->{error});
+		}
+	}
+	return \@retryPayloads;
+}
+
+sub _sendGradePayloadsAsync
+{
+	my ($self, $extralog, $lineitem_url, $access_token, $gradePayloads) = @_;
+	my $async = HTTP::Async->new;
+	$async->slots( 10 );
+	foreach my $gradePayload (@$gradePayloads) {
+		my $HTTPRequest = HTTP::Request->new('POST', "$lineitem_url/scores", [
+			'Accept' => 'application/vnd.ims.lis.v1.score+json',
+			'Content-Type' => 'application/json',
+			'Authorization' => "Bearer $access_token"
+		], $gradePayload);
+		$async->add($HTTPRequest);
+
+		$extralog->logAGSRequest("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".$gradePayload);
+		debug("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".$gradePayload);
+	}
+
+	return $async;
+}
+
+sub _generateGradePayloads
+{
+	my ($self, $ce, $extralog, $lti_resource_link, $grades_to_update) = @_;
+
+	my $client_id = $lti_resource_link->client_id();
+	my $context_id = $lti_resource_link->context_id();
+	my $resource_link_id = $lti_resource_link->resource_link_id();
+	my $lineitem_url = $lti_resource_link->lineitem_url();
+
+	my @payloads = ();
+
+	foreach my $grade_to_update (@$grades_to_update) {
+		my $lti_user_id = $grade_to_update->{lti_user_id};
+		my $user_id = $grade_to_update->{user_id};
+		my $set_id = $grade_to_update->{set_id};
+		my $grade = $grade_to_update->{grade};
+
+		$extralog->logAGSRequest("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
+		debug("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
+
+		# LTI AGS spec technically requires subsecond precision. But since
+		# the original timestamp is a unix timestamp with only second
+		# precision, I've just stuck .000 to it.
+		my $nowTimestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
+		my $submittedTimestamp = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
+		my $params = {
+			userId => $lti_user_id,
+			scoreGiven => $grade,
+			scoreMaximum => 1.0,
+			# We used to set this timestamp to the student's assignment
+			# submit time. This caused a situtation where if instructor
+			# updates Canvas assignment configuration *after* the student's
+			# submit time, Canvas will reject the grade sync. We set it to
+			# the current time to avoid this scenario.
+			timestamp => $nowTimestamp,
+			activityProgress => $grade_to_update->{activity_progress},
+			gradingProgress => $grade_to_update->{grading_progress},
+			# Canvas specific LTI extension
+			"https://canvas.instructure.com/lti/submission" => {
+				# Canvas does not use 'timestamp' to set submission time,
+				# submission time gets set to the time Canvas receives the
+				# score. This means that if grade sync gets delayed, Canvas
+				# will wrongly mark students as being late. We can override
+				# this by using 'submitted_at' to set submission time to
+				# the actual time the student submitted.
+				submitted_at => $submittedTimestamp
+			}
+		};
+		my $json_payload = JSON->new->canonical->encode($params);
+
+		push(@payloads, $json_payload);
+	}
+
+	return \@payloads;
+}
+
+sub _getAccessToken
+{
+	my ($self, $ce, $client_id, $scopes, $extralog) = @_;
+	my $lti_access_token_request = LTI1p3::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
+	my $access_token = $lti_access_token_request->getAccessToken();
+	unless ($access_token) {
+		$self->{error} = "Assignment and Grades Service request failed, unable to get an access token for scopes: $scopes";
+		$extralog->logAGSRequest($self->{error});
+		return 0;
+	}
+	return $access_token;
 }
 
 #### Private Helper Functions ####
@@ -791,14 +865,32 @@ sub handleErrorMissingResourceLink
 {
 	my ($self, $res, $ltiResourceLink) = @_;
 	my $isMissingResourceError = $res->status_line eq '404 Not Found' && $res->content eq '';
-	debug('++++ Checking for missing resource error');
 	if (!$isMissingResourceError) { return 0; }
-	debug('++++ After checking for missing resource error');
 
 	my $db = $self->{db};
 	$ltiResourceLink->is_valid(0);
 	$db->putLTIResourceLink($ltiResourceLink);
-	debug('++++ After marking resource link as invalid');
+	return 1;
+}
+
+# cached access tokens that are still valid for at least 10 minutes will not
+# trigger a token refresh. So if a sync that runs >10 minutes grabbed a token
+# that's only still valid for 10 minutes, some of the job will fail due to the
+# expired token. This method checks a failed request and returns true if the
+# request failed due to an expired access token.
+sub isExpiredAccessToken
+{
+	my ($self, $res) = @_;
+	my $isExpiredAccessTokenError = $res->status_line eq '401 Unauthorized' && 
+		(
+			# Saw one instance of this error message
+			$res->content eq '{"errors":{"type":"unauthorized","message":"Invalid access token field/s: the JWT has expired"}}'
+			||
+			# More common error msg
+			$res->content eq '{"errors":{"type":"unauthorized","message":"Access token expired"}}'
+		);
+	if (!$isExpiredAccessTokenError) { return 0; }
+
 	return 1;
 }
 
