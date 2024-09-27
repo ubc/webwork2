@@ -67,6 +67,11 @@ sub work_until_done {
     $self->{client}->work_until_done();
 }
 
+sub work_once {
+    my ($self) = @_;
+    return $self->{client}->work_once();
+}
+
 sub pushUserGradesOnSubmit {
     my ($self, $user_id, $set_id) = @_;
     my $job = TheSchwartz::Job->new(
