@@ -28,11 +28,7 @@ use WeBWorK::Debug;
 use Data::Dumper;
 use DelayedJob::Service;
 use sigtrap qw(handler quitHandler QUIT);
-
-use Config;
-$Config{useithreads} or die('Recompile Perl with threads to run this program.');
-use threads;
-use threads::shared;
+use POSIX ":sys_wait_h"; # for WNOHANG
 
 my $man = 0;
 my $help = 0;
@@ -44,28 +40,22 @@ GetOptions (
 
 pod2usage(1) if $help;
 
-my $canRun :shared = 1;
+my $canRun = 1;
 
 sub quitHandler {
-	print("Signal QUIT received, will stop processing after current task.\n");
-	{
-		lock($canRun);
-		$canRun = 0;
-	}
+	print("Signal QUIT received, stopping processing.\n");
+	$canRun = 0;
 }
 
-sub workThread {
-	# prevent the wait-for-buffer-full delay in the log output
-	STDOUT->autoflush(1);
-	STDERR->autoflush(1);
+sub processJobs {
 	my $ce = WeBWorK::CourseEnvironment->new({
 				webwork_dir => $ENV{WEBWORK_ROOT},
 			});
 	my $delayed_job_service = DelayedJob::Service->new($ce);
 	my $sleep = $ENV{DELAYED_JOB_SLEEP} // 10;
 	my $numJobsDone = 0;
-	# each thread will only do 10 jobs before being recreated
-	while ($numJobsDone <= 10) {
+	# each thread will do 100 jobs before being recreated
+	while ($numJobsDone < 100) {
 		# work_once() returns 1 if it actually found a job to do, 0 otherwise
 		my $didWork = $delayed_job_service->work_once();
 		if ($didWork) { $numJobsDone++; }
@@ -75,14 +65,24 @@ sub workThread {
 	}
 }
 
+my $numCycles = 0;
+my $pid = 0;
 while ($canRun) {
-	print("*** Starting new thread\n");
-	my $workThr = threads->create(\&workThread);
-	# thread join is blocking, which delays handling of SIGQUIT until the
-	# thread has finished. So we won't call it until we know the join call
-	# won't block.
-	while (!$workThr->is_joinable()) {
+	print("*** Starting new fork $numCycles\n");
+	$pid = fork;
+	if (!defined $pid) {
+		warn "Failed to fork: $!";
+		exit;
+	}
+	elsif ($pid == 0) { # we're the child pid actually processing jobs
+		processJobs();
+		exit;
+	}
+	# nonblocking wait so we can propagate the quit signal to child
+	while (waitpid($pid, WNOHANG) == 0) {
+		if (!$canRun) { kill('QUIT', $pid); }
 		sleep(1);
 	}
-	$workThr->join();
+	undef($pid);
+	$numCycles++;
 }
