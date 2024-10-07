@@ -58,8 +58,13 @@ sub processJobs {
 	while ($numJobsDone < 100) {
 		# work_once() returns 1 if it actually found a job to do, 0 otherwise
 		my $didWork = $delayed_job_service->work_once();
-		if ($didWork) { $numJobsDone++; }
-		sleep($sleep);
+		if ($didWork) {
+			$numJobsDone++;
+		}
+		else {
+			# only sleep if there is no jobs
+			sleep($sleep);
+		}
 		# check if we need to stop due to SIGQUIT
 		if (!$canRun) { last; }
 	}
