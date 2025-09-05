@@ -731,6 +731,10 @@ $lti_advantage{hide_new_courses} = 1;
 $lti_advantage{auto_assign_users_to_sets} = 1;
 $lti_advantage{cron_grade_sync} = 1;
 $lti_advantage{cron_roster_sync} = 1;
+$lti_advantage{allow_origins} = [ #  allow cors lti from canvas
+	'https://canvas.ubc.ca',
+	'https://ubc.instructure.com',
+];
 $lti_advantage{lti_clients} = {
 	'example_client_id' => {
 		# will look inside of nested object if `|` is used as seperator. Doing this allow using fields inside of claims

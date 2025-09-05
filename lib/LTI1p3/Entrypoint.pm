@@ -46,4 +46,43 @@ sub updateCourse
 	return 0;
 }
 
+sub _addCorsHeaders ($c, $ce) {
+	my $originHeader = $c->req->headers->header('Origin');
+	my $allowHeader = $c->req->headers->header('Access-Control-Allow-Headers');
+	my $sendHeader = 0;
+	# don't send header if we don't have an origin header or if the origin
+	# isn't listed as allowed
+	if ($originHeader) {
+		foreach my $allowOrigin (@{$ce->{lti_advantage}{allow_origins}}) {
+			debug("Origin: $originHeader Allow: $allowOrigin");
+			if ($originHeader eq $allowOrigin) {
+				$sendHeader = 1;
+				last;
+			}
+		}
+	}
+
+	if ($sendHeader) {
+		$c->res->headers->access_control_allow_origin($originHeader);
+		$c->res->headers->header('Access-Control-Allow-Methods' =>
+								 'OPTIONS, GET, POST');
+		$c->res->headers->header('Access-Control-Allow-Credentials' => 'true');
+		$c->res->headers->header('Vary' => 'Cookie, Origin');
+		if ($allowHeader) {
+			$c->res->headers->header('Access-Control-Allow-Headers' => $allowHeader);
+		}
+	}
+}
+
+async sub options ($c)
+{
+	my $ce = $c->ce(WeBWorK::CourseEnvironment->new({
+		webwork_dir => $ENV{WEBWORK_ROOT},
+	}));
+
+	$c->_addCorsHeaders($ce);
+
+	$c->rendered(204);
+}
+
 1;

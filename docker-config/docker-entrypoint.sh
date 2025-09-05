@@ -241,6 +241,17 @@ chown www-data:www-data  $APP_ROOT/courses/admin/*
 
 echo "End fixing ownership and permissions"
 
+# ubc custom, hynotoad's graceful shutdown isn't guaranteed to remove the pid
+# file for some reason, this causes the next startup to quit with no error, so
+# we remove the pid file to guarantee this dangling pid file doesn't hinder
+# startup
+echo "Checking for dangling hynotoad pid file"
+if [ -f /run/webwork2/webwork2.pid ]; then
+    echo "Removing dangling hypnotoad pid file"
+    rm -f /run/webwork2/webwork2.pid
+fi
+echo "Done checking pid file"
+
 # ubc custom, job queue is started in its own container
 # Start the Minion job queue.
 #echo "Starting Minion job queue"

@@ -40,6 +40,8 @@ async sub run ($c)
 		webwork_dir => $ENV{WEBWORK_ROOT},
 	}));
 	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
+	# in case we were sent a CORS request, add appropriate response headers
+	$c->_addCorsHeaders($ce);
 
 	# required
 	my $platform_id = $c->param("iss");

@@ -248,9 +248,6 @@ RUN cpanm install Statistics::R::IO DBD::MariaDB Mojo::SQLite Perl::Tidy@2022061
 RUN cpanm install App::Genpass Data::ObjectDriver Bytes::Random::Secure::Tiny \
 	Minion::Backend::mysql Net::SAML2 && rm -fr ./cpanm /root/.cpanm /tmp/*
 
-RUN cpanm install Statistics::R::IO \
-	&& rm -fr ./cpanm /root/.cpanm /tmp/*
-
 # ==================================================================
 # Phase 5 - Install webwork2 and pg which were downloaded to /opt/base/ in phase 1
 # Option: Install the OPL in the image also (about 850 MB)
