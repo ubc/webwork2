@@ -46,6 +46,22 @@ sub updateCourse
 	return 0;
 }
 
+# Users report cases where LTI launch would fail unless they clear browser
+# cache & cookies. So these headers should force browsers to make new requests
+# instead of using any cache.
+sub _addCacheControlHeaders ($c, $ce) {
+	# using 'no-cache' instead of 'no-store' as it'll force a reload if there's
+	# an existing old resp cached before this header was added, as recommended
+	# by MDN: 
+	# https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#provide_up-to-date_content_every_time
+	$c->res->headers->cache_control('no-cache, private');
+	# mark every response as already expired, in case people are still somehow
+	# using really old browsers that talks in HTTP 1.0(?!)
+	$c->res->headers->expires(0);
+}
+
+# Another attempt at solving the same issue as _addCacheControlHeaders, users
+# were still having issues, so this probably wasn't the issue
 sub _addCorsHeaders ($c, $ce) {
 	my $originHeader = $c->req->headers->header('Origin');
 	my $allowHeader = $c->req->headers->header('Access-Control-Allow-Headers');
@@ -81,6 +97,7 @@ async sub options ($c)
 	}));
 
 	$c->_addCorsHeaders($ce);
+	$c->_addCacheControlHeaders($ce);
 
 	$c->rendered(204);
 }

@@ -47,6 +47,8 @@ async sub run ($c)
 	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
 	# in case we were sent a CORS request, add appropriate response headers
 	$c->_addCorsHeaders($ce);
+	# make sure browsers don't cache lti authentication requests
+	$c->_addCacheControlHeaders($ce);
 
 	$c->{parser} = LTI1p3::Parser::LaunchParser->new($ce, $c->param("id_token"));
 	my $parser = $c->{parser};
