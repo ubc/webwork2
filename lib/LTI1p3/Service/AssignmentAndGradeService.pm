@@ -585,6 +585,9 @@ sub _sendGradePayloadsAsync
 			'Content-Type' => 'application/json',
 			'Authorization' => "Bearer $access_token"
 		], $gradePayload);
+		my $ua = LWP::UserAgent->new();
+		# fix for INC4907926, make LWP::UserAgent add user-agent headers for us
+		$HTTPRequest = $ua->prepare_request($HTTPRequest);
 		$async->add($HTTPRequest);
 
 		$extralog->logAGSRequest("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".$gradePayload);
