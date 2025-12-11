@@ -634,16 +634,9 @@ sub _generateGradePayloads
 			timestamp => $nowTimestamp,
 			activityProgress => $grade_to_update->{activity_progress},
 			gradingProgress => $grade_to_update->{grading_progress},
-			# Canvas specific LTI extension
-			"https://canvas.instructure.com/lti/submission" => {
-				# Canvas does not use 'timestamp' to set submission time,
-				# submission time gets set to the time Canvas receives the
-				# score. This means that if grade sync gets delayed, Canvas
-				# will wrongly mark students as being late. We can override
-				# this by using 'submitted_at' to set submission time to
-				# the actual time the student submitted.
-				submitted_at => $submittedTimestamp
-			}
+			submission => {
+				submittedAt => $submittedTimestamp
+			},
 		};
 		my $json_payload = JSON->new->canonical->encode($params);
 
@@ -714,11 +707,7 @@ sub _getGradeRecord
 	my ($timestamp, $status, $total_right, $total) = $self->grade_set($set, $user_id, $isVersioned);
 	if (between($set->open_date, $set->due_date)) {
 		$grading_progress = 'FullyGraded';
-		if ($status == 1) {
-			$activity_progress = 'Submitted';
-		} else {
-			$activity_progress = 'InProgress';
-		}
+		$activity_progress = 'Submitted';
 	} elsif (after($set->due_date)) {
 		$activity_progress = 'Completed';
 		$grading_progress = 'FullyGraded';
