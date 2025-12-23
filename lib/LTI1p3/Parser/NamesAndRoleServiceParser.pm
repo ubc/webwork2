@@ -103,7 +103,7 @@ sub get_user_identifier {
 				$data_ref = $data_ref->{$user_identifier_part};
 			}
 
-			if (!defined($data_ref) || ref($data_ref) eq 'HASH' || ref($data_ref) eq 'ARRAY' || $data_ref eq '') {
+			if (!defined($data_ref) || ref($data_ref) eq 'HASH' || ref($data_ref) eq 'ARRAY' || $data_ref eq '' || rindex($data_ref, '$Canvas', 0) == 0) {
 				# fallback is to use lti_user_id (useful for LMS preview users)
 				return $member->{"user_id"};
 			}
@@ -146,7 +146,7 @@ sub get_student_number {
 				$data_ref = $data_ref->{$student_number_part};
 			}
 
-			if (!defined($data_ref) || ref($data_ref) eq 'HASH' || ref($data_ref) eq 'ARRAY' || $data_ref eq '') {
+			if (!defined($data_ref) || ref($data_ref) eq 'HASH' || ref($data_ref) eq 'ARRAY' || $data_ref eq '' || rindex($data_ref, '$Canvas', 0) == 0) {
 				return '';
 			}
 
