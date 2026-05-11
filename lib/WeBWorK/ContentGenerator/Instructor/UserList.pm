@@ -90,7 +90,7 @@ use constant FORM_TITLES => {
 	delete          => x('Delete'),
 	save_password   => x('Save Password'),
 	cancel_password => x('Cancel Password'),
-	lti            => x('Canvas Sync'),
+	lti            => x('LMS Sync'),
 };
 
 # permissions needed to perform a given action

@@ -170,7 +170,7 @@ sub getNamesAndRole {
 		debug("Beginning Names And Roles Service request for url: $request_url");
 
 		my $ua = LWP::UserAgent->new();
-		$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.membershipcontainer+json' );
+		$ua->default_header( 'Accept' => 'application/vnd.ims.lti-nrps.v2.membershipcontainer+json' );
 		$ua->default_header( 'Authorization' => "Bearer $access_token");
 		my $res = $ua->get($request_url);
 
