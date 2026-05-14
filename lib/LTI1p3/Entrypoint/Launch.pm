@@ -65,6 +65,7 @@ async sub run ($c)
 	# check if user wants to go directly to an assignment/quiz
 	my $set_id_custom_claim = $parser->get_claim_param("custom", "set");
 	if ($set_id_custom_claim) {
+		debug('Custom claim wants to go to assignment: '. $set_id_custom_claim);
 		# not perfect sanitization, but need something
 		$set_id_custom_claim = $parser->sanitizeSetName($set_id_custom_claim);
 		$c->{setId} = $set_id_custom_claim;

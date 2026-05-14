@@ -38,6 +38,8 @@ use HTTP::Async;
 use LTI1p3::Service::AccessTokenRequest;
 use LTI1p3::ExtraLog;
 
+use Mojo::URL;
+
 #$WeBWorK::Debug::Enabled = 1;
 
 # This package is used for managing and sending grades back to the LMS
@@ -297,6 +299,7 @@ sub _performAssignmentAndGradeRequests {
 		my $lineitems_url = $lti_resource_link->lineitems_url();
 		# if there isn't a line item url already, create one
 		if (!defined($lineitem_url) || $lineitem_url eq '') {
+			$extralog->logAGSRequest("Need to create a Lineitem");
 			# skip if cannot modify line items
 			next if !$lti_resource_link->scope_lineitem();
 
@@ -305,6 +308,7 @@ sub _performAssignmentAndGradeRequests {
 
 			my $ua = LWP::UserAgent->new();
 			$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.lineitem+json' );
+			$ua->default_header( 'Content-Type' => 'application/vnd.ims.lis.v2.lineitem+json' );
 			$ua->default_header( 'Authorization' => "Bearer $access_token");
 			my $params = {
 				scoreMaximum => 1.0,
@@ -315,7 +319,10 @@ sub _performAssignmentAndGradeRequests {
 
 			$extralog->logAGSRequest("Assignment and Grades Service (LineItems POST) request url: $lineitems_url, params: ".Dumper($params));
 			debug("Assignment and Grades Service (LineItems POST) request url: $lineitems_url, params: ".Dumper($params));
-			my $res = $ua->post($lineitems_url, $params);
+			my $res = $ua->post(
+				$lineitems_url,
+				'Content' => JSON->new->canonical->encode($params),
+			);
 
 			if ($res->is_success) {
 				my $data = from_json($res->content);
@@ -340,6 +347,7 @@ sub _performAssignmentAndGradeRequests {
 				next;
 			}
 		} elsif ($lti_resource_link->scope_lineitem()) {
+			debug("Scope lineitem");
 			my $ua = LWP::UserAgent->new();
 			$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.lineitem+json' );
 			$ua->default_header( 'Authorization' => "Bearer $access_token");
@@ -404,17 +412,21 @@ sub _performAssignmentAndGradeRequests {
 		if ($lti_resource_link->scope_result_readonly()) {
 
 			my $lti_results = {};
-                        my $request_filter = scalar @grades_to_update > 1 ? "" : "?user_id=$grades_to_update[0]->{lti_user_id}";
-                        my $lineitem_results_url = "$lineitem_url/results".$request_filter;
+			my $lineitemResultsUrl = Mojo::URL->new($lineitem_url);
+			if (scalar @grades_to_update == 1) { # single user update
+				$lineitemResultsUrl->query(
+					['user_id' => $grades_to_update[0]->{lti_user_id}]);
+			}
+			$lineitemResultsUrl->path($lineitemResultsUrl->path . '/results');
 			my $request_error = 0;
 			while (1) {
 				my $ua = LWP::UserAgent->new();
 				$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.resultcontainer+json' );
 				$ua->default_header( 'Authorization' => "Bearer $access_token");
 
-				$extralog->logAGSRequest("Assignment and Grades Service (LineItem Result GET) request url: $lineitem_results_url");
-				debug("Assignment and Grades Service (LineItem Result GET) request url: $lineitem_results_url");
-				my $res = $ua->get($lineitem_results_url);
+				$extralog->logAGSRequest("Assignment and Grades Service (LineItem Result GET) request url: $lineitemResultsUrl");
+				debug("Assignment and Grades Service (LineItem Result GET) request url: $lineitemResultsUrl");
+				my $res = $ua->get("$lineitemResultsUrl");
 
 				if ($res->is_success) {
 					my $data = from_json($res->content);
@@ -441,7 +453,7 @@ sub _performAssignmentAndGradeRequests {
 							}
 						}
 						if (defined($next_request_url)) {
-							$lineitem_results_url = $next_request_url;
+							$lineitemResultsUrl = $next_request_url;
 							next;
 						}
 					}
@@ -579,10 +591,12 @@ sub _sendGradePayloadsAsync
 	my ($self, $extralog, $lineitem_url, $access_token, $gradePayloads) = @_;
 	my $async = HTTP::Async->new;
 	$async->slots( 10 );
+	my $lineitemScoresUrl = Mojo::URL->new($lineitem_url);
+	$lineitemScoresUrl->path($lineitemScoresUrl->path . '/scores');
 	foreach my $gradePayload (@$gradePayloads) {
-		my $HTTPRequest = HTTP::Request->new('POST', "$lineitem_url/scores", [
+		my $HTTPRequest = HTTP::Request->new('POST', "$lineitemScoresUrl", [
 			'Accept' => 'application/vnd.ims.lis.v1.score+json',
-			'Content-Type' => 'application/json',
+			'Content-Type' => 'application/vnd.ims.lis.v1.score+json',
 			'Authorization' => "Bearer $access_token"
 		], $gradePayload);
 		my $ua = LWP::UserAgent->new();
