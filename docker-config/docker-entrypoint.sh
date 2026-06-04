@@ -204,6 +204,12 @@ cd $WEBWORK_ROOT
 # SKIPS the deletion of symbolic links.  This change significantly speeds up
 # Docker startup time on production servers with many files/courses.
 
+# Best-effort (set +e): when an EFS access point enforces a non-root PosixUser
+# (uid=33), the container is squashed to www-data on the mount and cannot chown
+# — files are already born www-data-owned, so these become no-ops, and a benign
+# EPERM must NOT abort startup under `set -eo pipefail`. On a uid=0 access point
+# these still run as root exactly as before.
+set +e
 chown -R www-data:www-data logs tmp DATA
 chmod -R ug+w logs tmp DATA
 chown  www-data:www-data htdocs/tmp
@@ -213,6 +219,7 @@ chmod ug+w htdocs/tmp
 # might not be correct.
 # chown www-data:www-data  $APP_ROOT/courses
 chown www-data:www-data  $APP_ROOT/courses/admin/*
+set -e
 
 # Symbolic links which have no target outside the Docker container
 # cause problems during the rebuild process on some systems.
