@@ -24,7 +24,7 @@
 						'If "PDF" is selected, then a PDF file will be generated for download, unless there are '
 							. 'errors.  If errors occur generating a PDF file or "TeX Source" is selected then a '
 							. 'zip file will be generated for download that contains the TeX source file and '
-							. 'resources needed for generating the PDF file using pdflatex.'
+							. 'resources needed for generating the PDF file using LaTeX.'
 					),
 					bs_placement => 'top',
 					bs_toggle    => 'popover'
@@ -32,8 +32,8 @@
 				role     => 'button',
 				tabindex => 0,
 				begin =%>
-				<i class="icon fas fa-question-circle" data-alt="<%= maketext('Help Icon') %>" aria-hidden="true">
-				</i>
+				<i class="icon fas fa-question-circle" aria-hidden="true"></i>
+				<span class="visually-hidden"><%= maketext('Hardcopy Format Help') =%></span>
 			<% end =%>
 		<% end =%>
 		<div class="col-auto">

@@ -1,18 +1,3 @@
-###############################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package Mojolicious::WeBWorK::Tasks::LTIMassUpdate;
 use Mojo::Base 'Minion::Job', -signatures;
 
@@ -22,27 +7,29 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 
 # Perform a mass update of grades via LTI.
-sub run ($job, $courseID, $userID = '', $setID = '') {
-	# Establish a lock guard that only allow 1 job at a time (technichally more than one could run at a time if a job
+sub run ($job, $userID = '', $setIDs = '') {
+	# Establish a lock guard that only allows 1 job at a time (technically more than one could run at a time if a job
 	# takes more than an hour to complete).  As soon as a job completes (or fails) the lock is released and a new job
-	# can start.  New jobs retry every minute until they can aquire their own lock.
+	# can start.  New jobs retry every minute until they can acquire their own lock.
 	return $job->retry({ delay => 60 }) unless my $guard = $job->minion->guard('lti_mass_update', 3600);
 
+	my $courseID = $job->info->{notes}{courseID};
+	return $job->fail('The course id was not passed when this job was enqueued.') unless $courseID;
+
 	my $ce = eval { WeBWorK::CourseEnvironment->new({ courseName => $courseID }) };
-	return $job->fail("Could not construct course environment for $courseID.") unless $ce;
+	return $job->fail('Could not construct course environment.') unless $ce;
 
-	my $db = WeBWorK::DB->new($ce->{dbLayout});
-	return $job->fail("Could not obtain database connection for $courseID.") unless $db;
+	$job->{language_handle} = WeBWorK::Localize::getLoc($ce->{language} || 'en');
 
-	if ($setID && $userID && $ce->{LTIGradeMode} eq 'homework') {
-		$job->app->log->info("LTI Mass Update: Starting grade update for user $userID and set $setID.");
-	} elsif ($setID && $ce->{LTIGradeMode} eq 'homework') {
-		$job->app->log->info("LTI Mass Update: Starting grade update for all users assigned to set $setID.");
-	} elsif ($userID) {
-		$job->app->log->info("LTI Mass Update: Starting grade update of all sets assigned to user $userID.");
-	} else {
-		$job->app->log->info('LTI Mass Update: Starting grade update for all sets and users.');
-	}
+	my $db = WeBWorK::DB->new($ce);
+	return $job->fail($job->maketext('Could not obtain database connection.')) unless $db;
+
+	my @messages;
+	my $job_logger = sub {
+		my ($log, $level, @lines) = @_;
+		push @messages, $lines[-1];
+	};
+	$job->app->log->on(message => $job_logger);
 
 	# Pass a fake controller object that will work for the grader.
 	my $grader =
@@ -52,10 +39,16 @@ sub run ($job, $courseID, $userID = '', $setID = '') {
 
 	# Determine what needs to be updated.
 	my %updateUsers;
-	if ($setID && $userID && $ce->{LTIGradeMode} eq 'homework') {
-		$updateUsers{$userID} = [$setID];
-	} elsif ($setID && $ce->{LTIGradeMode} eq 'homework') {
-		%updateUsers = map { $_ => [$setID] } $db->listSetUsers($setID);
+	if ($setIDs && $ce->{LTIGradeMode} eq 'homework') {
+		if ($userID) {
+			$updateUsers{$userID} = ref($setIDs) eq 'ARRAY' ? $setIDs : [$setIDs];
+		} else {
+			if (ref($setIDs) eq 'ARRAY') {
+				%updateUsers = map { $_ => $setIDs } $db->listUsers;
+			} else {
+				%updateUsers = map { $_ => [$setIDs] } $db->listSetUsers($setIDs);
+			}
+		}
 	} else {
 		if ($ce->{LTIGradeMode} eq 'course') {
 			%updateUsers = map { $_ => 'update_course_grade' } ($userID || $db->listUsers);
@@ -76,8 +69,47 @@ sub run ($job, $courseID, $userID = '', $setID = '') {
 		}
 	}
 
-	$job->app->log->info("Updated grades via LTI for course $courseID.");
-	return $job->finish("Updated grades via LTI for course $courseID.");
+	if ($ce->{LTIGradeMode} eq 'homework') {
+		if ($setIDs && ref($setIDs) eq 'ARRAY') {
+			my $nSets = scalar(@$setIDs);
+			if ($userID) {
+				unshift(
+					@messages,
+					$job->maketext(
+						'Updated grades via LTI for user [_1] for [_2] [plural,_2,set].',
+						$userID, $nSets
+					)
+				);
+			} else {
+				unshift(@messages,
+					$job->maketext('Updated grades via LTI for all users for [_1] [plural,_1,set].', $nSets));
+			}
+		} elsif ($setIDs) {
+			if ($userID) {
+				unshift(@messages,
+					$job->maketext('Updated grades via LTI for user [_1] and set [_2].', $userID, $setIDs));
+			} else {
+				unshift(@messages, $job->maketext('Updated grades via LTI all users assigned to set [_1].', $setIDs));
+			}
+		} elsif ($userID) {
+			unshift(@messages, $job->maketext('Updated grades via LTI of all sets assigned to user [_1].', $userID));
+		} else {
+			unshift(@messages, $job->maketext('Updated grades via LTI for all sets and users.'));
+		}
+	} elsif ($userID) {
+		unshift(@messages, $job->maketext('Updated course grade for user [_1].', $userID));
+	} else {
+		unshift(@messages, $job->maketext('Updated course grade for all users.'));
+	}
+
+	$job->app->log->unsubscribe(message => $job_logger);
+
+	$job->app->log->info($messages[0]);
+	return $job->finish(@messages > 1 ? \@messages : $messages[0]);
+}
+
+sub maketext ($job, @args) {
+	return &{ $job->{language_handle} }(@args);
 }
 
 1;

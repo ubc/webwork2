@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::Utils::SortRecords;
 use parent qw(Exporter);
 
@@ -57,7 +42,7 @@ use constant PRESET_SORTS => {
 	'WeBWorK::DB::Record::User' => [
 		[
 			'lnfn' => {
-				name   => 'last name, first name',
+				name   => 'last_name, first_name',
 				fields => [qw/last_name first_name/],
 			}
 		],
@@ -74,7 +59,7 @@ Given the name of a record class, returns the sort methods available for that
 class.
 
 The return value is a reference to a list of two element lists. The first
-element in each list is a a string description of the sort method and the second
+element in each list is a string description of the sort method and the second
 element is the sort name.  The return value is suitable for passing as the
 second value argument to the Mojolicious select_field tag helper method.
 
@@ -89,9 +74,9 @@ sub getSortsForClass {
 
 	my @class_presets = exists PRESET_SORTS->{$class} ? @{ PRESET_SORTS->{$class} } : ();
 
-	my @fields  = map { [ "Field: $_" => $_, $_ eq $default_sort ? (selected => undef) : () ] } $class->FIELDS;
-	my @presets = map { [ "Preset: $_->[1]{name}" => $_->[0], $_->[0] eq $default_sort ? (selected => undef) : () ] }
-		@class_presets;
+	my @fields = map { [ $_ => $_, $_ eq $default_sort ? (selected => undef) : () ] } $class->FIELDS;
+	my @presets =
+		map { [ $_->[1]{name} => $_->[0], $_->[0] eq $default_sort ? (selected => undef) : () ] } @class_presets;
 
 	return [ @fields, @presets ];
 }

@@ -3,17 +3,17 @@ package Caliper::Entity;
 ##### Library Imports #####
 use strict;
 use warnings;
+
+use Digest::SHA qw(sha1_base64);
+
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use Data::Dumper;
 use WeBWorK::Utils::Tags;
-use Digest::SHA qw(sha1_base64);
-
+use WeBWorK::Utils::Sets qw(grade_set grade_gateway);
 use Caliper::ResourceIri;
 use Caliper::Sensor;
 use Caliper::Actor;
-use WeBWorK::Utils qw(grade_set grade_gateway);
 
 sub webwork_app {
 	my ($ce, $db) = @_;
@@ -289,8 +289,7 @@ sub answer {
 	my $resource_iri = Caliper::ResourceIri->new($ce);
 
 	my $last_answer_id =
-		$db->latestProblemPastAnswer($ce->{"courseName"}, $user_id, ($version_id ? "$set_id,v$version_id" : $set_id),
-			$problem_id);
+		$db->latestProblemPastAnswer($user_id, ($version_id ? "$set_id,v$version_id" : $set_id), $problem_id);
 	my $last_answer = $db->getPastAnswer($last_answer_id);
 	my @answers     = split(/\t/, $last_answer->answer_string());
 
@@ -326,14 +325,10 @@ sub answer_attempt {
 		? $db->getMergedProblemVersion($user_id, $set_id, $version_id, $problem_id)
 		: $db->getMergedProblem($user_id, $set_id, $problem_id);
 	my $last_answer_id =
-		$db->latestProblemPastAnswer($ce->{"courseName"}, $user_id, ($version_id ? "$set_id,v$version_id" : $set_id),
-			$problem_id);
+		$db->latestProblemPastAnswer($user_id, ($version_id ? "$set_id,v$version_id" : $set_id), $problem_id);
 	my $last_answer = $db->getPastAnswer($last_answer_id);
-	my $attempt =
-		$version_id
-		? $version_id
-		: scalar $db->listProblemPastAnswers($ce->{"courseName"}, $user_id, $set_id, $problem_id);
-	my $score = $problem_user->status || 0;
+	my $attempt     = $version_id ? $version_id : scalar $db->listProblemPastAnswers($user_id, $set_id, $problem_id);
+	my $score       = $problem_user->status || 0;
 	$score = 0 if ($score > 1 || $score < 0);
 
 	my $answer_attempt = {
@@ -373,7 +368,7 @@ sub problem_set_attempt {
 	} else {
 		my @problem_ids = $db->listGlobalProblems($set_id);
 		for my $problem_id (@problem_ids) {
-			$attempt += scalar $db->listProblemPastAnswers($ce->{"courseName"}, $user_id, $set_id, $problem_id);
+			$attempt += scalar $db->listProblemPastAnswers($user_id, $set_id, $problem_id);
 		}
 	}
 
@@ -381,7 +376,7 @@ sub problem_set_attempt {
 	my $extensions = { 'attempt_score' => $score, };
 
 	if ($version_id) {
-		$extensions->{'gateway_score'} = grade_gateway($db, $problem_set_user, $problem_set_user->set_id, $user_id);
+		$extensions->{'gateway_score'} = grade_gateway($db, $problem_set_user->set_id, $user_id);
 	}
 
 	my $problem_set_attempt = {

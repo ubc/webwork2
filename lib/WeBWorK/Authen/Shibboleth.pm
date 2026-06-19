@@ -1,25 +1,9 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::Authen::Shibboleth;
-use base qw/WeBWorK::Authen/;
+use Mojo::Base 'WeBWorK::Authen', -signatures;
 
 =head1 NAME
 
 WeBWorK::Authen::Shibboleth - Authentication plug in for Shibboleth.
-This is basd on Cosign.pm
 
 to use: include in localOverrides.conf or course.conf
   $authen{user_module} = "WeBWorK::Authen::Shibboleth";
@@ -46,36 +30,37 @@ $shibboleth{attributes} = [
 
 =cut
 
-use strict;
-use warnings;
+use Digest;
 
-use WeBWorK::Debug;
+use WeBWorK::Debug qw(debug);
 
-# this is similar to the method in the base class, except that Shibboleth
-# ensures that we don't get to the address without a login.  this means
-# that we can't allow guest logins, but don't have to do any password
-# checking or cookie management.
+sub request_has_data_for_this_verification_module ($self) {
+	my $c = $self->{c};
 
-sub get_credentials {
-	my ($self) = @_;
-	my $c      = $self->{c};
-	my $ce     = $c->ce;
-	my $db     = $c->db;
-
-	if ($ce->{shiboff} || $c->param('bypassShib')) {
-		return $self->SUPER::get_credentials(@_);
+	# Skip if shiboff is set in the course environment or the bypassShib param is set.
+	if ($c->ce->{shiboff} || ($c->ce->{shibboleth}{bypass_query} && $c->param($c->ce->{shibboleth}{bypass_query}))) {
+		debug('Shibboleth authen module bypass detected. Going to next authentication module.');
+		return 0;
 	}
 
-	debug("Shib is on!");
+	return 1;
+}
 
-	# set external auth parameter so that Login.pm knows
-	#    not to rely on internal logins if there's a check_user
-	#    failure.
+sub get_credentials ($self) {
+	my $c  = $self->{c};
+	my $ce = $c->ce;
+	my $db = $c->db;
+
+	$c->stash(disable_cookies => 1);
 	$self->{external_auth} = 1;
 
-	if ($c->param("user") && !$c->param("force_passwd_authen")) {
-		return $self->SUPER::get_credentials(@_);
-	}
+	debug('Checking for shibboleth authentication headers.');
+
+	my $user_id;
+	$user_id = $c->req->headers->header($ce->{shibboleth}{mapping}{user_id}) if $ce->{shibboleth}{mapping}{user_id};
+
+	if (defined $user_id && $user_id ne '') {
+		debug("Got shibboleth header ($ce->{shibboleth}{mapping}{user_id}) and user_id ($user_id)");
 
 	if ( defined ($ENV{$ce->{shibboleth}{session_header}})) {
 		debug('Got shib header and looking for user_id');
@@ -126,10 +111,9 @@ sub get_credentials {
 		}
 	}
 
-	debug("Couldn't shib header or user_id");
-	my $go_to = $ce->{shibboleth}{login_script} . "?target=" . $c->url_for->to_abs;
-	$self->{redirect} = $go_to;
-	$c->redirect_to($go_to);
+	debug('Unable to obtain user id from Shibboleth header.');
+	$self->{redirect} = $ce->{shibboleth}{login_script} . '?target=' . $c->url_for->to_abs;
+	$c->redirect_to($self->{redirect});
 	return 0;
 }
 
@@ -145,84 +129,34 @@ sub checkPassword {
 	}
 }
 
-# disable cookie functionality
-sub maybe_send_cookie {
-	my ($self, @args) = @_;
-	if ($self->{c}->ce->{shiboff}) {
-		return $self->SUPER::maybe_send_cookie(@_);
-	} else {
-		# nothing to do here
-	}
+sub logout_user ($self) {
+	$self->{redirect} = $self->{c}->ce->{shibboleth}{logout_script};
+	return;
 }
 
-sub fetchCookie {
-	my ($self, @args) = @_;
-	if ($self->{c}->ce->{shiboff}) {
-		return $self->SUPER::fetchCookie(@_);
-	} else {
-		# nothing to do here
-	}
-}
-
-sub sendCookie {
-	my ($self, @args) = @_;
-	if ($self->{c}->ce->{shiboff}) {
-		return $self->SUPER::sendCookie(@_);
-	} else {
-		# nothing to do here
-	}
-}
-
-sub killCookie {
-	my ($self, @args) = @_;
-	if ($self->{c}->ce->{shiboff}) {
-		return $self->SUPER::killCookie(@_);
-	} else {
-		# nothing to do here
-	}
-}
-
-# this is a bit of a cheat, because it does the redirect away from the
-#   logout script or what have you, but I don't see a way around that.
-sub forget_verification {
-	my ($self, @args) = @_;
-	my $c = $self->{c};
-
-	if ($c->ce->{shiboff}) {
-		return $self->SUPER::forget_verification(@_);
-	} else {
-		$self->{was_verified} = 0;
-		$self->{redirect}     = $c->ce->{shibboleth}{logout_script};
-	}
-}
-
-# returns ($sessionExists, $keyMatches, $timestampValid)
-# if $updateTimestamp is true, the timestamp on a valid session is updated
-# override function: allow shib to handle the session time out
-sub check_session {
-	my ($self, $userID, $possibleKey, $updateTimestamp) = @_;
+sub check_session ($self, $userID, $possibleKey, $updateTimestamp) {
 	my $ce = $self->{c}->ce;
 	my $db = $self->{c}->db;
 
-	if ($ce->{shiboff}) {
-		return $self->SUPER::check_session(@_);
-	} else {
-		my $Key = $db->getKey($userID);    # checked
-		return 0 unless defined $Key;
+	my $Key = $db->getKey($userID);
+	return 0 unless defined $Key;
 
-		my $keyMatches     = (defined $possibleKey and $possibleKey eq $Key->key);
-		my $timestampValid = (time <= $Key->timestamp() + $ce->{sessionKeyTimeout});
-		if ($ce->{shibboleth}{manage_session_timeout}) {
-			# always valid to allow shib to take control of timeout
-			$timestampValid = 1;
-		}
+	# This is filled in just in case it is needed somewhere, but is not used in the Shibboleth authentication process.
+	$self->{session_key} = $Key->{key};
 
-		if ($keyMatches and $timestampValid and $updateTimestamp) {
-			$Key->timestamp(time);
-			$db->putKey($Key);
-		}
-		return (1, $keyMatches, $timestampValid);
+	my $currentTime = time;
+	my $timestampValid =
+		$ce->{shibboleth}{manage_session_timeout} ? 1 : time <= $Key->timestamp + $ce->{sessionTimeout};
+
+	if ($timestampValid && $updateTimestamp) {
+		$Key->timestamp($currentTime);
+		$self->{c}->stash->{'webwork2.database_session'} = { $Key->toHash };
+		$self->{c}->stash->{'webwork2.database_session'}{session}{flash} =
+			delete $self->{c}->stash->{'webwork2.database_session'}{session}{new_flash}
+			if $self->{c}->stash->{'webwork2.database_session'}{session}{new_flash};
 	}
+
+	return (1, 1, $timestampValid);
 }
 
 1;

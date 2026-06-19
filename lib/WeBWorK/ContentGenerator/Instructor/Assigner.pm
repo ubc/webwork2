@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::ContentGenerator::Instructor::Assigner;
 use Mojo::Base 'WeBWorK::ContentGenerator', -signatures;
 
@@ -62,7 +47,7 @@ sub pre_header_initialize ($c) {
 
 			if (@results) {    # Can't get here?
 				$c->addbadmessage(
-					$c->c('The following error(s) occured while assigning:',
+					$c->c('The following error(s) occurred while assigning:',
 						$c->tag('ul', $c->c(map { $c->tag('li', $_) } @results)->join('')))->join('')
 				);
 			}

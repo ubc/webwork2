@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::Debug;
 use parent qw(Exporter);
 
@@ -20,7 +5,7 @@ use strict;
 use warnings;
 
 use Date::Format;
-use Time::HiRes qw/gettimeofday/;
+use Time::HiRes    qw/gettimeofday/;
 use WeBWorK::Utils qw/undefstr/;
 
 our @EXPORT = qw(debug);
@@ -94,9 +79,10 @@ Write @messages to the debugging log.
 
 sub debug {
 	my @message = @_;
-	@message = undefstr('###UNDEF###', @message);
 
 	if ($Enabled) {
+		@message = undefstr('###UNDEF###', @message);
+
 		my ($package, $filename, $line, $subroutine) = caller(1);
 		return if defined $AllowSubroutineOutput and not $subroutine =~ m/$AllowSubroutineOutput/;
 		return if defined $DenySubroutineOutput  and $subroutine     =~ m/$DenySubroutineOutput/;

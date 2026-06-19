@@ -12,7 +12,7 @@
 	<!-- Request ID: <%= $c->req->request_id %> -->
 	<div style="text-align:left">
 		<h1>WeBWorK error</h1>
-		<p>An error occured while processing your request.</p>
+		<p>An error occurred while processing your request.</p>
 		<p>
 			For help, please send an email to WeBWorK support\
 			% # $ENV{WEBWORK_SERVER_ADMIN} is set from $webwork_server_admin_email in site.conf.

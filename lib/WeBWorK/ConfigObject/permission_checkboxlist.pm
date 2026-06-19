@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2021 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.	 See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::ConfigObject::permission_checkboxlist;
 use Mojo::Base 'WeBWorK::ConfigObject', -signatures;
 use WeBWorK::Utils 'role_and_above';
@@ -51,9 +36,10 @@ sub comparison_value ($self, $val) {
 	return join(',', @{ $val // [] });
 }
 
-sub entry_widget ($self, $default) {
-	my $c = $self->{c};
-	$default = role_and_above($self->{c}->ce->{userRoles}, $default) unless ref($default) eq 'ARRAY';
+sub entry_widget ($self, $default, $is_secret = 0) {
+	my $c         = $self->{c};
+	my $userRoles = $self->{c}->ce->{userRoles};
+	$default = role_and_above($userRoles, $default) unless ref($default) eq 'ARRAY';
 	return $c->c(
 		map {
 			$c->tag(
@@ -72,7 +58,7 @@ sub entry_widget ($self, $default) {
 					)->join('')
 				)
 			)
-		} ('guest', 'student', 'login_proctor', 'grade_proctor', 'ta', 'professor', 'admin')
+		} grep { $_ ne 'nobody' } sort { $userRoles->{$a} <=> $userRoles->{$b} } keys(%$userRoles)
 	)->join('');
 }
 

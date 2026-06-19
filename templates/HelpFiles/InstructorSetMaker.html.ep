@@ -1,18 +1,3 @@
-%################################################################################
-%# WeBWorK Online Homework Delivery System
-%# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-%#
-%# This program is free software; you can redistribute it and/or modify it under
-%# the terms of either: (a) the GNU General Public License as published by the
-%# Free Software Foundation; either version 2, or (at your option) any later
-%# version, or (b) the "Artistic License" which comes with this package.
-%#
-%# This program is distributed in the hope that it will be useful, but WITHOUT
-%# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-%# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-%# Artistic License for more details.
-%################################################################################
-%
 % layout 'help_macro';
 % title maketext('Library Broswer Help');
 %
@@ -38,7 +23,7 @@
 			. q{haven't been vetted as thoroughly as OPL problems. If you want hints or solutions included while }
 			. 'browsing select the appropriate box.') =%>
 	</dd>
-	<dt><%= maketext('File Manager') %></dt>
+	<dt><%= maketext('Course Files') %></dt>
 	<dd><%= maketext('This option shows all pg problems in the course directory structure.')%></dd>
 	<dt><%= maketext('Course Sets') %></dt>
 	<dd><%= maketext('This option shows all problems in sets that have been created in the course.') %></dd>
@@ -55,6 +40,6 @@
 	</dd>
 </dl>
 <p class="mb-0">
-	<%= maketext('The "Edit Target Set" button at the top of the page will take you to the Problem Set Editor '
+	<%= maketext('The "Edit Target Set" button at the top of the page will take you to the Set Detail page '
 		. 'which will allow you to edit dates, assign users and other information about the problem set.') =%>
 </p>

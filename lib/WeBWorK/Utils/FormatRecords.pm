@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::Utils::FormatRecords;
 use parent qw(Exporter);
 
@@ -55,7 +40,8 @@ use warnings;
 
 use Carp;
 
-use WeBWorK::Utils qw/format_set_name_display/;
+use WeBWorK::Utils::Sets                                    qw/format_set_name_display/;
+use WeBWorK::ContentGenerator::Instructor::ProblemSetDetail qw/FIELD_PROPERTIES/;
 
 our @EXPORT_OK = qw(
 	getFormatsForClass
@@ -65,23 +51,9 @@ our @EXPORT_OK = qw(
 use constant PRESET_FORMATS => {
 	'WeBWorK::DB::Record::User' => [
 		[
-			'uid_lnfn' => {
-				name          => 'user_id - last_name, first_name',
-				field_order   => [qw/user_id last_name first_name/],
-				format_string => '%s - %s, %s',
-			}
-		],
-		[
-			'lnfn_uid' => {
-				name          => 'last_name, first_name (user_id)',
-				field_order   => [qw/last_name first_name user_id/],
-				format_string => '%s, %s (%s)',
-			}
-		],
-		[
-			'lnfn_section' => {
-				name          => 'last_name, first_name (section)',
-				field_order   => [qw/last_name first_name section/],
+			'lnfn_email' => {
+				name          => 'last_name, first_name (email_address)',
+				field_order   => [qw/last_name first_name email_address/],
 				format_string => '%s, %s (%s)',
 			}
 		],
@@ -93,6 +65,13 @@ use constant PRESET_FORMATS => {
 			}
 		],
 		[
+			'lnfn_section' => {
+				name          => 'last_name, first_name (section)',
+				field_order   => [qw/last_name first_name section/],
+				format_string => '%s, %s (%s)',
+			}
+		],
+		[
 			'lnfn_secrec' => {
 				name          => 'last_name, first_name (section/recitation)',
 				field_order   => [qw/last_name first_name section recitation/],
@@ -100,19 +79,49 @@ use constant PRESET_FORMATS => {
 			}
 		],
 		[
-			'lnfn_email' => {
-				name          => 'last_name, first_name (email_address)',
-				field_order   => [qw/last_name first_name email_address/],
+			'lnfn_uid' => {
+				name          => 'last_name, first_name (user_id)',
+				field_order   => [qw/last_name first_name user_id/],
 				format_string => '%s, %s (%s)',
+			}
+		],
+		[
+			'uid_lnfn' => {
+				name          => 'user_id - last_name, first_name',
+				field_order   => [qw/user_id last_name first_name/],
+				format_string => '%s - %s, %s',
 			}
 		],
 	],
 	'WeBWorK::DB::Record::Set' => [
 		[
+			'type_sid_due' => {
+				name            => 'assignment_type: set_id, due_date',
+				field_order     => [qw/assignment_type set_id due_date/],
+				format_function => sub {
+					join('',
+						FIELD_PROPERTIES()->{assignment_type}{labels}{ $_[1] },
+						': ', format_set_name_display($_[2]),
+						', ', $_[0]->formatDateTime($_[3]));
+				}
+			}
+		],
+		[
+			'due_sid' => {
+				name            => 'due_date: set_id',
+				field_order     => [qw/due_date set_id/],
+				format_function => sub {
+					join('', $_[0]->formatDateTime($_[1]), ': ', format_set_name_display($_[2]));
+				}
+			}
+		],
+		[
 			'sid' => {
 				name            => 'set_id',
 				field_order     => [qw/set_id/],
-				format_function => \&format_set_name_display
+				format_function => sub {
+					return format_set_name_display($_[1]);
+				}
 			}
 		],
 	],
@@ -128,7 +137,7 @@ Given the name of a record class, returns the preset formats available for that
 class.
 
 The return value is a reference to a list of two element lists. The first
-element in each list is a a string description of a format name and the second
+element in each list is a string description of a format name and the second
 element is the format name.  The return value is suitable for passing as the
 second value argument to the Mojolicious select_field tag helper method.
 
@@ -151,7 +160,7 @@ sub getFormatsForClass {
 	return \@presets;
 }
 
-=item formatRecords($preset_format, @records)
+=item formatRecords($c, $preset_format, @records)
 
 Given the name of a preset format and an array of database records, returns a
 reference to a list of two element lists. The first element in each list is a
@@ -159,15 +168,16 @@ formatted string representing the record, and the second element is a string
 that is obtained by joining the key fields of the database record with
 exclamation marks.
 
-The C<$preset_format> must be provided.  It must either be one of the presets
-defined above, or the name of a field in the database record class.
+The arguments C<$c> and C<$preset_format> must be provided. C<$c> must be a
+C<WeBWorK::Controller> object, and C<$preset_format> must either be one of the
+presets defined above, or the name of a field in the database record class.
 
 =back
 
 =cut
 
 sub formatRecords {
-	my ($preset_format, @records) = @_;
+	my ($c, $preset_format, @records) = @_;
 
 	return unless @records;
 
@@ -211,8 +221,13 @@ sub formatRecords {
 	if ($format_function) {
 		# If a format_function was passed, then call it on each record.
 		for my $value (@records) {
-			push(@formattedRecords,
-				[ $format_function->(map { $value->$_ } @field_order), join('!', map { $value->$_ } @keyfields) ]);
+			push(
+				@formattedRecords,
+				[
+					$format_function->($c, map { $value->$_ } @field_order),
+					join('!', map { $value->$_ } @keyfields)
+				]
+			);
 		}
 	} else {
 		# Otherwise, use sprintf and format_string.

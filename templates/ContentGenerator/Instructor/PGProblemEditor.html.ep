@@ -1,14 +1,13 @@
-% use WeBWorK::Utils qw(not_blank x format_set_name_display getAssetURL);
-% use WeBWorK::HTML::CodeMirrorEditor
-	% qw(generate_codemirror_html generate_codemirror_controls_html output_codemirror_static_files);
+% use Mojo::URL;
+% use Mojo::Util qw(url_escape);
 %
-% my $codemirrorMode = 'PG';
-% if ($c->{file_type}) {
-%	$codemirrorMode = 'htmlmixed' if ($c->{file_type} eq 'course_info');
-%	$codemirrorMode = 'xml'       if ($c->{file_type} eq 'hardcopy_theme');
-% }
+% use WeBWorK::Utils qw(not_blank x getAssetURL);
+% use WeBWorK::Utils::Files qw(readFile);
+% use WeBWorK::Utils::Sets qw(format_set_name_display);
+% use WeBWorK::HTML::CodeMirrorEditor qw(generate_codemirror_html output_codemirror_static_files);
+%
 % content_for js => begin
-	<%= output_codemirror_static_files($c, $codemirrorMode) =%>
+	<%= output_codemirror_static_files($c) =%>
 	<%= javascript getAssetURL($ce, 'js/ActionTabs/actiontabs.js'),           defer => undef =%>
 	<%= javascript getAssetURL($ce, 'js/PGProblemEditor/pgproblemeditor.js'), defer => undef =%>
 % end
@@ -23,6 +22,11 @@
 	% last;
 % }
 %
+% if (!$c->{file_type}) {
+	%= include("ContentGenerator/Instructor/PGProblemEditor/file_chooser");
+	% last;
+% }
+%
 % if (stash('file_error')) {
 	<div class="alert alert-danger p-1 mb-0"><%= stash('file_error') %></div>
 	% last;
@@ -30,6 +34,7 @@
 %
 % my %titles = (
 	% blank_problem                => x('Editing <strong>new problem</strong> template "[_1]".'),
+	% sample_problem               => x('Editing <strong>sample problem</strong> file "[_1]".'),
 	% set_header                   => x('Editing <strong>set header</strong> file "[_1]".'),
 	% hardcopy_header              => x('Editing <strong>hardcopy header</strong> file "[_1]".'),
 	% hardcopy_theme               => x('Editing <strong>hardcopy theme</strong> file "[_1]".'),
@@ -68,7 +73,7 @@
 <%= $fileInfo->() %>
 %
 <%= form_for current_route, method => 'POST', id => 'editor', name => 'editor',
-   	enctype => 'application/x-www-form-urlencoded', class => 'col-12', begin =%>
+	enctype => 'application/x-www-form-urlencoded', class => 'col-12', begin =%>
 	<%= $c->hidden_authen_fields =%>
 	<%= hidden_field file_type => $c->{file_type} =%>
 	<%= hidden_field courseID => $c->{courseID} =%>
@@ -85,6 +90,9 @@
 	% }
 	% if (not_blank($c->{tempFilePath})) {
 		<%= hidden_field temp_file_path => $c->{tempFilePath} =%>
+	% }
+	% if ($c->{file_type} eq 'sample_problem' && param('sampleProblemFile')) {
+		<%= hidden_field sampleProblemFile => param('sampleProblemFile') =%>
 	% }
 	% if ($c->{file_type} eq 'hardcopy_theme') {
 		<%= hidden_field hardcopy_theme => param('hardcopy_theme') =%>
@@ -111,24 +119,16 @@
 				class  => 'reference-link btn btn-sm btn-info',
 				data   => { bs_toggle => 'tooltip', bs_placement => 'top' } =%>
 			% # PGML lab problem rendered as an unattached problem in a new window.
-			% if (-e "$ce->{courseDirs}{templates}/PGMLLab/PGML-lab.pg") {
-				<%= link_to maketext('PGML') => $c->systemLink(
-						url_for('problem_detail', setID => 'Undefined_Set', problemID => 1),
-						params => {
-							displayMode    => $ce->{pg}{options}{displayMode},
-							problemSeed    => 1234,
-							editMode       => 'temporaryFile',
-							sourceFilePath => 'PGMLLab/PGML-lab.pg'
-						}
-					),
-					target => 'PGML',
-					title  => maketext(
-						'PG markdown syntax used to format WeBWorK questions. '
-						. 'This interactive lab can help you to learn the techniques.'
-					),
-					class  => 'reference-link btn btn-sm btn-info',
-					data   => { bs_toggle => 'tooltip', bs_placement => 'top' } =%>
-			% }
+			% my $pgml_lab_source = readFile("$ce->{webworkDirs}{assets}/pg/PGMLLab/PGML-lab.pg");
+			<%= tag 'button', type => 'button',
+				title  => maketext(
+					'PG markdown syntax used to format WeBWorK questions. '
+					. 'This interactive lab can help you to learn the techniques.'
+				),
+				id => 'pgml-lab',
+				class  => 'reference-link btn btn-sm btn-info',
+				data   => { source => url_escape($pgml_lab_source), bs_toggle => 'tooltip', bs_placement => 'top' },
+				'PGML' =%>
 			% # http://webwork.maa.org/wiki/Category:Authors
 			<%= link_to maketext('Author Info') => $ce->{webworkURLs}{AuthorHelpURL},
 				target => 'author_info',
@@ -136,11 +136,16 @@
 				class  => 'reference-link btn btn-sm btn-info',
 				data   => { bs_toggle => 'tooltip', bs_placement => 'top' } =%>
 			% # Only show the report bugs in problem button if editing an OPL or Contrib problem.
-			% if ($c->{editFilePath} =~ m|^$ce->{courseDirs}{templates}/([^/]*)/|
-				% && ($1 eq 'Library' || $1 eq 'Contrib')) {
+			% if ($ce->{webworkURLs}{OPLBugReporter}
+				% && $c->{editFilePath} =~ m|^$ce->{courseDirs}{templates}/([^/]*)/|
+				% && ($1 eq 'Library' || $1 eq 'Contrib'))
+			% {
 				<%= link_to maketext('Report Bugs in this Problem') =>
-						"$ce->{webworkURLs}{bugReporter}?product=Problem%20libraries"
-						. "&component=$1&bug_file_loc=$c->{editFilePath}_with_problemSeed=$c->{problemSeed}",
+						Mojo::URL->new($ce->{webworkURLs}{OPLBugReporter})
+							->query(
+								title => $c->getRelativeSourceFilePath($c->{editFilePath}),
+								body  => "Problem Seed: " . (param('action.view.seed') // $c->{problemSeed})
+							),
 					target => 'bug_report',
 					title  => maketext(
 						'Report bugs in a WeBWorK question/problem using this link. '
@@ -154,7 +159,12 @@
 	% }
 	<div class="row mb-2">
 		<div class="col-lg-6 col-md-12 order-last order-lg-first">
-			<%= generate_codemirror_html($c, 'problemContents', $problemContents, $codemirrorMode) =%>
+			<%= generate_codemirror_html(
+				$c,
+				'problemContents',
+				$problemContents,
+				{ course_info => 'html', hardcopy_theme => 'xml' }->{ $c->{file_type} } // 'pg'
+			) =%>
 		</div>
 		<div class="col-lg-6 col-md-12 mb-lg-0 mb-2 order-first order-lg-last">
 			<div class="p-0" id="pgedit-render-area">
@@ -166,7 +176,6 @@
 			</div>
 		</div>
 	</div>
-	<%= generate_codemirror_controls_html($c) =%>
 	<%= $fileInfo->() %>
 	%
 	% # Output action forms

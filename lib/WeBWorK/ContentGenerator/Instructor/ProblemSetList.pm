@@ -1,20 +1,6 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::ContentGenerator::Instructor::ProblemSetList;
 use Mojo::Base 'WeBWorK::ContentGenerator', -signatures;
+use WeBWorK::Utils::Instructor qw(getDefList);
 
 =head1 NAME
 
@@ -30,7 +16,7 @@ What do we want to be able to do here?
 filter sort edit publish import create delete
 
 Filter what sets are shown:
-	- none, all, selected
+	- all, selected
 	- matching set_id, visible to students, hidden from students
 
 Sort sets by:
@@ -86,10 +72,7 @@ use WeBWorK::Utils qw(timeToSec listFilesRecursive jitar_id_to_seq seq_to_jitar_
 use WeBWorK::Utils::Instructor qw(assignSetToUser assignSetToAllUsers addProblemToSet);
 use LTI1p3::Service::AssignmentAndGradeService;
 
-use constant HIDE_SETS_THRESHOLD                   => 500;
-use constant DEFAULT_VISIBILITY_STATE              => 1;
-use constant DEFAULT_ENABLED_REDUCED_SCORING_STATE => 0;
-use constant ONE_WEEK                              => 60 * 60 * 24 * 7;
+use constant HIDE_SETS_THRESHOLD => 500;
 
 use constant EDIT_FORMS   => [qw(save_edit cancel_edit)];
 use constant VIEW_FORMS   => [qw(filter sort edit publish import export score create delete lti)];
@@ -144,6 +127,15 @@ use constant FIELD_TYPES => {
 	enable_reduced_scoring => 'check'
 };
 
+use constant SORTABLE_FIELDS => {
+	set_id               => 1,
+	open_date            => 1,
+	reduced_scoring_date => 1,
+	due_date             => 1,
+	answer_date          => 1,
+	visible              => 1
+};
+
 sub pre_header_initialize ($c) {
 	my $db         = $c->db;
 	my $authz      = $c->authz;
@@ -158,18 +150,8 @@ sub pre_header_initialize ($c) {
 	$c->{totalUsers} = $db->countUsers;
 
 	if (defined $c->param('action') && $c->param('action') eq 'score' && $authz->hasPermissions($user, 'score_sets')) {
-		my $scope = $c->param('action.score.scope');
-		my @setsToScore;
-
-		if ($scope eq 'none') {
-			return;
-		} elsif ($scope eq 'all') {
-			@setsToScore = @{ $c->{allSetIDs} };
-		} elsif ($scope eq 'visible') {
-			@setsToScore = @{ $c->param('visibleSetIDs') };
-		} elsif ($scope eq 'selected') {
-			@setsToScore = $c->param('selected_sets');
-		}
+		my $scope       = $c->param('action.score.scope');
+		my @setsToScore = $scope eq 'all' ? @{ $c->{allSetIDs} } : $c->param('selected_sets');
 
 		return unless @setsToScore;
 
@@ -191,12 +173,14 @@ sub initialize ($c) {
 	my $user       = $c->param('user');
 
 	# Make sure these are defined for the templats.
-	$c->stash->{fieldNames}  = VIEW_FIELD_ORDER();
-	$c->stash->{formsToShow} = VIEW_FORMS();
-	$c->stash->{formTitles}  = FORM_TITLES();
-	$c->stash->{formPerms}   = FORM_PERMS();
-	$c->stash->{fieldTypes}  = FIELD_TYPES();
-	$c->stash->{sets}        = [];
+	$c->stash->{fieldNames}     = VIEW_FIELD_ORDER();
+	$c->stash->{formsToShow}    = VIEW_FORMS();
+	$c->stash->{formTitles}     = FORM_TITLES();
+	$c->stash->{formPerms}      = FORM_PERMS();
+	$c->stash->{fieldTypes}     = FIELD_TYPES();
+	$c->stash->{sortableFields} = SORTABLE_FIELDS();
+	$c->stash->{sets}           = [];
+	$c->stash->{setDefList}     = [];
 
 	# Determine if the user has permisson to do anything here.
 	return unless $authz->hasPermissions($user, 'access_instructor_tools');
@@ -228,8 +212,10 @@ sub initialize ($c) {
 		$c->{selectedSetIDs} = [];
 	}
 
-	$c->{primarySortField}   = $c->param("primarySortField")   || "due_date";
-	$c->{secondarySortField} = $c->param("secondarySortField") || "open_date";
+	$c->{primarySortField}   = $c->param('primarySortField')   || 'due_date';
+	$c->{primarySortOrder}   = $c->param('primarySortOrder')   || 'ASC';
+	$c->{secondarySortField} = $c->param('secondarySortField') || 'open_date';
+	$c->{secondarySortOrder} = $c->param('secondarySortOrder') || 'ASC';
 
 	# Call action handler
 	my $actionID = $c->param("action");
@@ -243,15 +229,13 @@ sub initialize ($c) {
 			my $actionHandler = "${actionID}_handler";
 			my ($success, $action_result) = $c->$actionHandler;
 			if ($success) {
-				$c->addgoodmessage($c->b($c->maketext('Result of last action performed: [_1]', $action_result)));
+				$c->addgoodmessage($c->b($action_result));
 			} else {
-				$c->addbadmessage($c->b($c->maketext('Result of last action performed: [_1]', $action_result)));
+				$c->addbadmessage($c->b($action_result));
 			}
 		} else {
 			$c->addbadmessage($c->maketext('You are not authorized to perform this action.'));
 		}
-	} else {
-		$c->addgoodmessage($c->maketext("Please select action to be performed."));
 	}
 
 	$c->stash->{fieldNames} =
@@ -261,12 +245,32 @@ sub initialize ($c) {
 			[ grep { !/enable_reduced_scoring|reduced_scoring_date/ } @{ $c->stash->{fieldNames} } ];
 	}
 
+	# A scalar reference must be used for the order by clause in getGlobalSetsWhere due to a very limited override of
+	# the SQL::Abstract _order_by method in WeBWorK::DB::Utils::SQLAbstractIdentTrans. Since scalar references bypass
+	# the SQL::Abstract injection guard, care must be taken to ensure that only the allowed values are used.
+	die 'Possible SQL injection attempt detected.'
+		unless SORTABLE_FIELDS()->{ $c->{primarySortField} }
+		&& SORTABLE_FIELDS()->{ $c->{secondarySortField} }
+		&& ($c->{primarySortOrder} eq 'ASC'   || $c->{primarySortOrder} eq 'DESC')
+		&& ($c->{secondarySortOrder} eq 'ASC' || $c->{secondarySortOrder} eq 'DESC');
+
 	$c->stash->{formsToShow} = $c->{editMode} ? EDIT_FORMS() : $c->{exportMode} ? EXPORT_FORMS() : VIEW_FORMS();
+	$c->stash->{setDefList}  = [ getDefList($ce) ] unless $c->{editMode} || $c->{exportMode};
+
 	# Get requested sets in the requested order.
 	$c->stash->{sets} = [
 		@{ $c->{visibleSetIDs} }
-		? $db->getGlobalSetsWhere({ set_id => $c->{visibleSetIDs} },
-			[ $c->{primarySortField}, $c->{secondarySortField} ])
+		? $db->getGlobalSetsWhere(
+			{ set_id => $c->{visibleSetIDs} },
+			\(
+				"$c->{primarySortField} $c->{primarySortOrder}, "
+					. "$c->{secondarySortField} $c->{secondarySortOrder}"
+					. (
+						$c->{primarySortField} ne 'set_id'
+						&& $c->{secondarySortField} ne 'set_id' ? ', set_id ASC' : ''
+					)
+			)
+			)
 		: ()
 	];
 
@@ -290,16 +294,13 @@ sub filter_handler ($c) {
 	my $scope = $c->param('action.filter.scope');
 
 	if ($scope eq "all") {
-		$result = $c->maketext("showing all sets");
+		$result = $c->maketext('Showing all sets.');
 		$c->{visibleSetIDs} = $c->{allSetIDs};
-	} elsif ($scope eq "none") {
-		$result = $c->maketext("showing no sets");
-		$c->{visibleSetIDs} = [];
 	} elsif ($scope eq "selected") {
-		$result = $c->maketext("showing selected sets");
+		$result = $c->maketext('Showing selected sets.');
 		$c->{visibleSetIDs} = [ $c->param('selected_sets') ];
 	} elsif ($scope eq "match_ids") {
-		$result = $c->maketext("showing matching sets");
+		$result = $c->maketext('Showing matching sets.');
 		my @searchTerms = map { format_set_name_internal($_) } split /\s*,\s*/, $c->param('action.filter.set_ids');
 		my $regexTerms  = join('|', @searchTerms);
 		my @setIDs      = grep {/$regexTerms/i} @{ $c->{allSetIDs} };
@@ -316,80 +317,84 @@ sub filter_handler ($c) {
 }
 
 sub sort_handler ($c) {
-	my $primary   = $c->param('action.sort.primary');
-	my $secondary = $c->param('action.sort.secondary');
+	if (defined $c->param('labelSortMethod') || defined $c->param('labelSortOrder')) {
+		if (defined $c->param('labelSortOrder')) {
+			$c->{ $c->param('labelSortOrder') . 'SortOrder' } =
+				$c->{ $c->param('labelSortOrder') . 'SortOrder' } eq 'ASC' ? 'DESC' : 'ASC';
+		} elsif ($c->param('labelSortMethod') eq $c->{primarySortField}) {
+			$c->{primarySortOrder} = $c->{primarySortOrder} eq 'ASC' ? 'DESC' : 'ASC';
+		} else {
+			$c->{secondarySortField} = $c->{primarySortField};
+			$c->{secondarySortOrder} = $c->{primarySortOrder};
+			$c->{primarySortField}   = $c->param('labelSortMethod');
+			$c->{primarySortOrder}   = 'ASC';
+		}
 
-	$c->{primarySortField}   = $primary;
-	$c->{secondarySortField} = $secondary;
+		$c->param('action.sort.primary',         $c->{primarySortField});
+		$c->param('action.sort.primary.order',   $c->{primarySortOrder});
+		$c->param('action.sort.secondary',       $c->{secondarySortField});
+		$c->param('action.sort.secondary.order', $c->{secondarySortOrder});
+	} else {
+		$c->{primarySortField}   = $c->param('action.sort.primary');
+		$c->{primarySortOrder}   = $c->param('action.sort.primary.order');
+		$c->{secondarySortField} = $c->param('action.sort.secondary');
+		$c->{secondarySortOrder} = $c->param('action.sort.secondary.order');
+	}
 
 	my %names = (
-		set_id      => $c->maketext("Set Name"),
-		open_date   => $c->maketext("Open Date"),
-		due_date    => $c->maketext("Close Date"),
-		answer_date => $c->maketext("Answer Date"),
-		visible     => $c->maketext("Visibility"),
+		set_id               => $c->maketext("Set Name"),
+		open_date            => $c->maketext("Open Date"),
+		reduced_scoring_date => $c->maketext("Reduced Scoring Date"),
+		due_date             => $c->maketext("Close Date"),
+		answer_date          => $c->maketext("Answer Date"),
+		visible              => $c->maketext("Visibility"),
 	);
 
-	return (1, $c->maketext("Sort by [_1] and then by [_2]", $names{$primary}, $names{$secondary}));
+	return (
+		1,
+		$c->maketext(
+			'Sets sorted by [_1] in [plural,_2,ascending,descending] order, '
+				. 'and then by [_3] in [plural,_4,ascending,descending] order.',
+			$names{ $c->{primarySortField} },
+			$c->{primarySortOrder} eq 'ASC' ? 1 : 2,
+			$names{ $c->{secondarySortField} },
+			$c->{secondarySortOrder} eq 'ASC' ? 1 : 2
+		)
+	);
 }
 
 sub edit_handler ($c) {
-	my $result;
-
 	my $scope = $c->param('action.edit.scope');
-	if ($scope eq "all") {
-		$result = $c->maketext("editing all sets");
-		$c->{visibleSetIDs} = $c->{allSetIDs};
-	} elsif ($scope eq "visible") {
-		$result = $c->maketext("editing listed sets");
-		# leave visibleSetIDs alone
-	} elsif ($scope eq "selected") {
-		$result = $c->maketext("editing selected sets");
-		$c->{visibleSetIDs} = [ $c->param('selected_sets') ];
-	}
 	$c->{editMode} = 1;
 
-	return (1, $result);
+	if ($scope eq 'all') {
+		$c->{visibleSetIDs} = $c->{allSetIDs};
+		return (1, $c->maketext('Editing all sets.'));
+	}
+
+	$c->{visibleSetIDs} = [ $c->param('selected_sets') ];
+	return (1, $c->maketext('Editing selected sets.'));
 }
 
 sub publish_handler ($c) {
-	my $db = $c->db;
-
-	my @result;
-
-	my $scope = $c->param('action.publish.scope');
-	my $value = $c->param('action.publish.value');
-
-	my @setIDs;
-
-	if ($scope eq "none") {
-		@setIDs = ();
-		@result = (0, $c->maketext("No change made to any set"));
-	} elsif ($scope eq "all") {
-		@setIDs = @{ $c->{allSetIDs} };
-		@result =
-			$value
-			? (1, $c->maketext("All sets made visible for all students"))
-			: (1, $c->maketext("All sets hidden from all students"));
-	} elsif ($scope eq "visible") {
-		@setIDs = @{ $c->{visibleSetIDs} };
-		@result =
-			$value
-			? (1, $c->maketext("All listed sets were made visible for all the students"))
-			: (1, $c->maketext("All listed sets were hidden from all the students"));
-	} elsif ($scope eq "selected") {
-		@setIDs = $c->param('selected_sets');
-		@result =
-			$value
-			? (1, $c->maketext("All selected sets made visible for all students"))
-			: (1, $c->maketext("All selected sets hidden from all students"));
-	}
+	my $db     = $c->db;
+	my $value  = $c->param('action.publish.value');
+	my $scope  = $c->param('action.publish.scope');
+	my @setIDs = $scope eq 'all' ? @{ $c->{allSetIDs} } : $c->param('selected_sets');
 
 	# Can we use UPDATE here, instead of fetch/change/store?
 	my @sets = $db->getGlobalSets(@setIDs);
 	map { $_->visible($value); $db->putGlobalSet($_); } @sets;
 
-	return @result;
+	if ($scope eq 'all') {
+		return $value
+			? (1, $c->maketext('All sets made visible for all students.'))
+			: (1, $c->maketext('All sets hidden from all students.'));
+	}
+
+	return $value
+		? (1, $c->maketext('All selected sets made visible for all students.'))
+		: (1, $c->maketext('All selected sets hidden from all students.'));
 }
 
 sub score_handler ($c) {
@@ -399,16 +404,12 @@ sub score_handler ($c) {
 }
 
 sub delete_handler ($c) {
-	my $db = $c->db;
+	my $db      = $c->db;
+	my $confirm = $c->param('action.delete.confirm');
 
-	my $scope = $c->param('action.delete.scope');
+	return (1, $c->maketext('Deleted [_1] sets.', 0)) unless ($confirm eq 'yes');
 
-	my @setIDsToDelete = ();
-
-	if ($scope eq "selected") {
-		@setIDsToDelete = @{ $c->{selectedSetIDs} };
-	}
-
+	my @setIDsToDelete = @{ $c->{selectedSetIDs} };
 	my %allSetIDs      = map { $_ => 1 } @{ $c->{allSetIDs} };
 	my %visibleSetIDs  = map { $_ => 1 } @{ $c->{visibleSetIDs} };
 	my %selectedSetIDs = map { $_ => 1 } @{ $c->{selectedSetIDs} };
@@ -424,8 +425,7 @@ sub delete_handler ($c) {
 	$c->{visibleSetIDs}  = [ keys %visibleSetIDs ];
 	$c->{selectedSetIDs} = [ keys %selectedSetIDs ];
 
-	my $num = @setIDsToDelete;
-	return (1, $c->maketext('deleted [_1] sets', $num));
+	return (1, $c->maketext('Deleted [_1] sets.', scalar @setIDsToDelete));
 }
 
 sub create_handler ($c) {
@@ -454,37 +454,25 @@ sub create_handler ($c) {
 	) if $db->existsGlobalSet($newSetID);
 
 	my $newSetRecord = $db->newGlobalSet;
-	my $oldSetID     = $c->{selectedSetIDs}->[0];
 
 	my $type = $c->param('action.create.type');
-	# It's convenient to set the due date two weeks from now so that it is
-	# not accidentally available to students.
-
-	my $dueDate    = time + 2 * ONE_WEEK();
-	my $display_tz = $ce->{siteDefaults}{timezone};
-	my $fDueDate   = $c->formatDateTime($dueDate, $display_tz, "%m/%d/%Y at %I:%M%P");
-	my $dueTime    = $ce->{pg}{timeAssignDue};
-
-	# We replace the due time by the one from the config variable
-	# and try to bring it back to unix time if possible
-	$fDueDate =~ s/\d\d:\d\d(am|pm|AM|PM)/$dueTime/;
-
-	$dueDate = $c->parseDateTime($fDueDate, $display_tz);
 
 	if ($type eq "empty") {
+		my $dueDate = getDefaultSetDueDate($ce);
+
 		$newSetRecord->set_id($newSetID);
 		$newSetRecord->set_header("defaultHeader");
 		$newSetRecord->hardcopy_header("defaultHeader");
-		#Rest of the dates are set according to to course configuration
 		$newSetRecord->open_date($dueDate - 60 * $ce->{pg}{assignOpenPriorToDue});
 		$newSetRecord->reduced_scoring_date($dueDate - 60 * $ce->{pg}{ansEvalDefaults}{reducedScoringPeriod});
 		$newSetRecord->due_date($dueDate);
 		$newSetRecord->answer_date($dueDate + 60 * $ce->{pg}{answersOpenAfterDueDate});
-		$newSetRecord->visible(DEFAULT_VISIBILITY_STATE());    # don't want students to see an empty set
-		$newSetRecord->enable_reduced_scoring(DEFAULT_ENABLED_REDUCED_SCORING_STATE());
+		$newSetRecord->visible(1);
+		$newSetRecord->enable_reduced_scoring(0);
 		$newSetRecord->assignment_type('default');
 		$db->addGlobalSet($newSetRecord);
 	} elsif ($type eq "copy") {
+		my $oldSetID = $c->{selectedSetIDs}[0];
 		return (0, $c->maketext('Failed to duplicate set: no set selected for duplication!')) unless $oldSetID =~ /\S/;
 		$newSetRecord = $db->getGlobalSet($oldSetID);
 		$newSetRecord->set_id($newSetID);
@@ -516,6 +504,7 @@ sub create_handler ($c) {
 			}
 		}
 	}
+
 	# Assign set to current active user.
 	my $userName = $c->param('user');
 	assignSetToUser($db, $userName, $newSetRecord);    # Cures weird date error when no-one assigned to set.
@@ -539,49 +528,42 @@ sub create_handler ($c) {
 }
 
 sub import_handler ($c) {
-	my ($added, $skipped) = $c->importSetsFromDef(
-		$c->param('action.import.number') > 1
-		? ''    # Cannot assign set names to multiple imports.
-		: format_set_name_internal($c->param('action.import.name')),
+	my ($added, $skipped, $errors) = importSetsFromDef(
+		$c->ce,
+		$c->db,
+		[ $c->param('action.import.source') ],
+		$c->{allSetIDs},
 		$c->param('action.import.assign'),
 		$c->param('action.import.start.date') // 0,
-		$c->param('action.import.source')
+		# Cannot assign set names to multiple imports.
+		$c->param('action.import.number') > 1 ? '' : format_set_name_internal($c->param('action.import.name')),
 	);
 
 	# Make new sets visible.
 	push @{ $c->{visibleSetIDs} }, @$added;
 	push @{ $c->{allSetIDs} },     @$added;
 
-	my $numAdded   = @$added;
-	my $numSkipped = @$skipped;
-
 	return (
-		1,
-		$c->maketext(
-			'[_1] sets added, [_2] sets skipped. Skipped sets: ([_3])', $numAdded,
-			$numSkipped,                                                join(', ', @$skipped)
-		)
+		@$skipped ? 0 : 1,
+		$c->c(
+			$c->maketext('[quant,_1,set] added, [quant,_2,set] skipped.', scalar(@$added), scalar(@$skipped)),
+			@$errors
+			? $c->tag('ul', class => 'my-1', $c->c(map { $c->tag('li', $c->maketext(@$_)) } @$errors)->join(''))
+			: ''
+		)->join('')
 	);
 }
 
 # this does not actually export any files, rather it sends us to a new page in order to export the files
 sub export_handler ($c) {
-	my $result;
-
 	my $scope = $c->param('action.export.scope');
-	if ($scope eq "all") {
-		$result = $c->maketext("All sets were selected for export.");
-		$c->{selectedSetIDs} = $c->{visibleSetIDs} = $c->{allSetIDs};
-	} elsif ($scope eq "visible") {
-		$result = $c->maketext("Visible sets were selected for export.");
-		$c->{selectedSetIDs} = $c->{visibleSetIDs};
-	} elsif ($scope eq "selected") {
-		$result = $c->maketext("Sets were selected for export.");
-		$c->{selectedSetIDs} = $c->{visibleSetIDs} = [ $c->param('selected_sets') ];
-	}
-	$c->{exportMode} = 1;
+	$c->{selectedSetIDs} = $scope eq 'all' ? $c->{allSetIDs} : [ $c->param('selected_sets') ];
+	$c->{visibleSetIDs}  = $c->{selectedSetIDs};
+	$c->{exportMode}     = 1;
 
-	return (1, $result);
+	return $scope eq 'all'
+		? (1, $c->maketext('All sets have been marked for export.'))
+		: (1, $c->maketext('Selected sets were marked for export.'));
 }
 
 sub cancel_export_handler ($c) {
@@ -594,36 +576,31 @@ sub cancel_export_handler ($c) {
 	}
 	$c->{exportMode} = 0;
 
-	return (0, $c->maketext('export abandoned'));
+	return (0, $c->maketext('Export abandoned.'));
 }
 
 sub save_export_handler ($c) {
-	my @setIDsToExport = @{ $c->{selectedSetIDs} };
+	my ($exported, $skipped, $reason) =
+		exportSetsToDef($c->ce, $c->db, @{ $c->{selectedSetIDs} });
 
-	my %filenames = map { $_ => ($c->param("set.$_") || $_) } @setIDsToExport;
-
-	my ($exported, $skipped, $reason) = $c->exportSetsToDef(%filenames);
-
-	if (defined $c->param("prev_visible_sets")) {
-		$c->{visibleSetIDs} = [ $c->param("prev_visible_sets") ];
-	} elsif (defined $c->param("no_prev_visble_sets")) {
+	if (defined $c->param('prev_visible_sets')) {
+		$c->{visibleSetIDs} = [ $c->param('prev_visible_sets') ];
+	} elsif (defined $c->param('no_prev_visble_sets')) {
 		$c->{visibleSetIDs} = [];
 	}
 
 	$c->{exportMode} = 0;
 
-	my $numExported = @$exported;
-	my $numSkipped  = @$skipped;
-
-	my @reasons = map { "set $_ - " . $reason->{$_} } keys %$reason;
-
 	return (
-		!$numSkipped,
-		$c->b($c->maketext(
-			'[_1] sets exported, [_2] sets skipped. Skipped sets: ([_3])',
-			$numExported, $numSkipped,
-			$numSkipped ? $c->tag('ul', $c->c(map { $c->tag('li', $_) } @reasons)->join('')) : ''
-		))
+		@$skipped ? 0 : 1,
+		$c->c(
+			$c->maketext('[quant,_1,set] exported, [quant,_2,set] skipped.', scalar(@$exported), scalar(@$skipped)),
+			@$skipped ? $c->tag(
+				'ul',
+				class => 'my-1',
+				$c->c(map { $c->tag('li', "set $_ - " . $c->maketext(@{ $reason->{$_} })) } keys %$reason)->join('')
+			) : ''
+		)->join('')
 	);
 }
 
@@ -637,7 +614,7 @@ sub cancel_edit_handler ($c) {
 	}
 	$c->{editMode} = 0;
 
-	return (0, $c->maketext('changes abandoned'));
+	return (0, $c->maketext('Changes abandoned.'));
 }
 
 sub save_edit_handler ($c) {
@@ -674,20 +651,20 @@ sub save_edit_handler ($c) {
 		my $curr_time        = time;
 		my $seconds_per_year = 31_556_926;
 		my $cutoff           = $curr_time + $seconds_per_year * 10;
-		return (0, $c->maketext("Error: open date cannot be more than 10 years from now in set [_1]", $setID))
+		return (0, $c->maketext('Error: Open date cannot be more than 10 years from now in set [_1].', $setID))
 			if $Set->open_date > $cutoff;
-		return (0, $c->maketext("Error: close date cannot be more than 10 years from now in set [_1]", $setID))
+		return (0, $c->maketext('Error: Close date cannot be more than 10 years from now in set [_1].', $setID))
 			if $Set->due_date > $cutoff;
-		return (0, $c->maketext("Error: answer date cannot be more than 10 years from now in set [_1]", $setID))
+		return (0, $c->maketext('Error: Answer date cannot be more than 10 years from now in set [_1].', $setID))
 			if $Set->answer_date > $cutoff;
 
 		# Check that the open, due and answer dates are in increasing order.
 		# Bail if this is not correct.
 		if ($Set->open_date > $Set->due_date) {
-			return (0, $c->maketext("Error: Close date must come after open date in set [_1]", $setID));
+			return (0, $c->maketext('Error: Close date must come after open date in set [_1].', $setID));
 		}
 		if ($Set->due_date > $Set->answer_date) {
-			return (0, $c->maketext("Error: Answer date must come after close date in set [_1]", $setID));
+			return (0, $c->maketext('Error: Answer date must come after close date in set [_1].', $setID));
 		}
 
 		# check that the reduced scoring date is in the right place
@@ -707,7 +684,7 @@ sub save_edit_handler ($c) {
 			return (
 				0,
 				$c->maketext(
-					"Error: Reduced scoring date must come between the open date and close date in set [_1]",
+					'Error: Reduced scoring date must come between the open date and close date in set [_1].',
 					$setID
 				)
 			);

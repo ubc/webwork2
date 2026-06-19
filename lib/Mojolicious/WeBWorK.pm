@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package Mojolicious::WeBWorK;
 use Mojo::Base 'Mojolicious', -signatures, -async_await;
 
@@ -24,10 +9,13 @@ Mojolicious::WeBWorK - Mojolicious app for WeBWorK 2.
 
 use Env qw(WEBWORK_SERVER_ADMIN);
 
+use Mojo::JSON qw(encode_json);
+
 use WeBWorK;
 use WeBWorK::CourseEnvironment;
-use WeBWorK::Utils qw(x writeTimingLogEntry);
+use WeBWorK::Utils::Logs   qw(writeTimingLogEntry);
 use WeBWorK::Utils::Routes qw(setup_content_generator_routes);
+use WeBWorK::Utils::Files  qw(path_is_subdir);
 
 use LTI1p3::Lti1p3Router;
 
@@ -49,6 +37,8 @@ sub startup ($app) {
 
 	# ubc custom, increase the file upload limit (in bytes), defaults to 1GiB
 	$app->max_request_size($ENV{MAX_REQUEST_SIZE} // 1073741824);
+
+	$app->sessions->serialize(sub { return encode_json($_[0]) });
 
 	# Set constants from the configuration.
 	# ubc custom, allow env var to override debug conf
@@ -92,13 +82,12 @@ sub startup ($app) {
 	# url_for_asset controller method.
 	unshift(@{ $app->static->paths }, $webwork_htdocs_dir);
 
-	# Add the themes directory to the template search paths.
-	push(@{ $app->renderer->paths }, $ce->{webworkDirs}{themes});
-
-	# Setup the Minion job queue.
+	# Setup the Minion job queue. Make sure that any task added here is represented in the TASK_NAMES hash in
+	# WeBWorK::ContentGenerator::Instructor::JobManager.
 	$app->plugin(Minion => { $ce->{job_queue}{backend} => $ce->{job_queue}{database_dsn} });
-	$app->minion->add_task(lti_mass_update       => 'Mojolicious::WeBWorK::Tasks::LTIMassUpdate');
-	$app->minion->add_task(send_instructor_email => 'Mojolicious::WeBWorK::Tasks::SendInstructorEmail');
+	$app->minion->add_task(lti_mass_update        => 'Mojolicious::WeBWorK::Tasks::LTIMassUpdate');
+	$app->minion->add_task(send_instructor_email  => 'Mojolicious::WeBWorK::Tasks::SendInstructorEmail');
+	$app->minion->add_task(send_achievement_email => 'Mojolicious::WeBWorK::Tasks::AchievementNotification');
 
 	# Provide the ability to serve data as a file download.
 	$app->plugin('RenderFile');
@@ -182,15 +171,14 @@ sub startup ($app) {
 
 	$app->hook(
 		after_dispatch => sub ($c) {
-			$SIG{__WARN__} = $c->stash->{orig_sig_warn} if defined $c->stash->{orig_sig_warn};
+			$SIG{__WARN__} = ref($c->stash->{orig_sig_warn}) eq 'CODE' ? $c->stash->{orig_sig_warn} : 'DEFAULT';
 
 			if ($c->isa('WeBWorK::ContentGenerator') && $c->ce) {
+				$c->authen->store_session if $c->authen;
 				writeTimingLogEntry(
 					$c->ce,
 					'[' . $c->url_for . ']',
-					sprintf('runTime = %.3f sec', $c->timing->elapsed('content_generator_rendering')) . ' '
-						. $c->ce->{dbLayoutName},
-					''
+					sprintf('runTime = %.3f sec', $c->timing->elapsed('content_generator_rendering'))
 				);
 			}
 		}
@@ -206,9 +194,11 @@ sub startup ($app) {
 	$r->any(
 		"$webwork_htdocs_url/*static" => sub ($c) {
 			my $webwork_htdocs_file = "$webwork_htdocs_dir/" . $c->stash('static');
-			return $c->reply->file($webwork_htdocs_file) if -r $webwork_htdocs_file;
+			return $c->reply->file($webwork_htdocs_file)
+				if -r $webwork_htdocs_file && path_is_subdir($webwork_htdocs_file, $webwork_htdocs_dir);
 			my $pg_htdocs_file = "$ENV{PG_ROOT}/htdocs/" . $c->stash('static');
-			return $c->reply->file($pg_htdocs_file) if -r $pg_htdocs_file;
+			return $c->reply->file($pg_htdocs_file)
+				if -r $pg_htdocs_file && path_is_subdir($pg_htdocs_file, "$ENV{PG_ROOT}/htdocs/");
 			return $c->render(data => 'File not found', status => 404);
 		}
 	);
@@ -217,7 +207,8 @@ sub startup ($app) {
 	$r->any(
 		"$pg_htdocs_url/*static" => sub ($c) {
 			my $pg_htdocs_file = "$ENV{PG_ROOT}/htdocs/" . $c->stash('static');
-			return $c->reply->file($pg_htdocs_file) if -r $pg_htdocs_file;
+			return $c->reply->file($pg_htdocs_file)
+				if -r $pg_htdocs_file && path_is_subdir($pg_htdocs_file, "$ENV{PG_ROOT}/htdocs/");
 			return $c->render(data => 'File not found', status => 404);
 		}
 	);
@@ -225,8 +216,9 @@ sub startup ($app) {
 	# Provide access to course-specific resources.
 	$r->any(
 		"$webwork_courses_url/#course/*static" => sub ($c) {
-			my $file = "$webwork_courses_dir/" . $c->stash('course') . '/html/' . $c->stash('static');
-			return $c->reply->file($file) if -r $file;
+			my $course_html_dir = "$webwork_courses_dir/" . $c->stash('course') . '/html/';
+			my $file            = $course_html_dir . $c->stash('static');
+			return $c->reply->file($file) if -r $file && path_is_subdir($file, $course_html_dir);
 			return $c->render(data => 'File not found', status => 404);
 		}
 	);
@@ -235,7 +227,7 @@ sub startup ($app) {
 	$r->any(
 		"$ce->{webworkURLs}{htdocs_temp}/*static" => sub ($c) {
 			my $file = "$ce->{webworkDirs}{htdocs_temp}/" . $c->stash('static');
-			return $c->reply->file($file) if -r $file;
+			return $c->reply->file($file) if -r $file && path_is_subdir($file, "$ce->{webworkDirs}{htdocs_temp}/");
 			return $c->render(data => 'File not found', status => 404);
 		}
 	);
@@ -257,13 +249,26 @@ sub startup ($app) {
 		}
 	}
 
+	# Letsencrypt renewal route.
+	if ($config->{enable_certbot_webroot_routes}) {
+		$r->any(
+			"/.well-known/*static" => sub ($c) {
+				my $file = "$ce->{webworkDirs}{tmp}/.well-known/" . $c->stash('static');
+				return $c->reply->file($file)
+					if -r $file && path_is_subdir($file, "$ce->{webworkDirs}{tmp}/.well-known/");
+				return $c->render(data => 'File not found', status => 404);
+			}
+		);
+	}
+
 	# Note that these routes must come last to support the case that $webwork_url is '/'.
 
 	my $cg_r = $r->under($webwork_url)->name('root');
 	$cg_r->get('/')->to('Home#go')->name('root');
 
 	# The course admin route is set up here because of its special stash value.
-	$cg_r->any('/admin')->to('CourseAdmin#go', courseID => 'admin')->name('course_admin');
+	$cg_r->any("/$ce->{admin_course_id}")->to('CourseAdmin#go', courseID => $ce->{admin_course_id})
+		->name('course_admin');
 
 	setup_content_generator_routes($cg_r);
 

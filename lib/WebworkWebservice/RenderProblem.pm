@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WebworkWebservice::RenderProblem;
 
 use strict;
@@ -24,12 +9,11 @@ use Mojo::Util qw(url_unescape);
 
 use WeBWorK::Debug;
 use WeBWorK::CourseEnvironment;
-use WeBWorK::PG;
 use WeBWorK::DB;
-use WeBWorK::Utils qw(decode_utf8_base64);
+use WeBWorK::DB::Utils        qw(global2user fake_set fake_problem);
+use WeBWorK::Utils            qw(decode_utf8_base64);
+use WeBWorK::Utils::Files     qw(readFile);
 use WeBWorK::Utils::Rendering qw(renderPG);
-use WeBWorK::DB::Utils qw(global2user);
-use WeBWorK::Utils::Tasks qw(fake_set fake_problem);
 
 our $UNIT_TESTS_ON = 0;
 
@@ -190,18 +174,16 @@ async sub renderProblem {
 	my $r_problem_source;
 	if ($rh->{problemSource}) {
 		$r_problem_source = \(decode_utf8_base64($rh->{problemSource}) =~ tr/\r/\n/r);
-		$problemRecord->source_file(defined $rh->{fileName} ? $rh->{fileName} : $rh->{sourceFilePath});
-	} elsif (defined $rh->{rawProblemSource}) {
+		$problemRecord->source_file($rh->{fileName} ? $rh->{fileName} : $rh->{sourceFilePath});
+	} elsif ($rh->{rawProblemSource}) {
 		$r_problem_source = \$rh->{rawProblemSource};
-		$problemRecord->source_file(defined $rh->{fileName} ? $rh->{fileName} : $rh->{sourceFilePath});
+		$problemRecord->source_file($rh->{fileName} ? $rh->{fileName} : $rh->{sourceFilePath});
 	} elsif ($rh->{uriEncodedProblemSource}) {
 		$r_problem_source = \(url_unescape($rh->{uriEncodedProblemSource}));
-		$problemRecord->source_file(defined $rh->{fileName} ? $rh->{fileName} : $rh->{sourceFilePath});
+		$problemRecord->source_file($rh->{fileName} ? $rh->{fileName} : $rh->{sourceFilePath});
 	} elsif (defined $rh->{sourceFilePath} && $rh->{sourceFilePath} =~ /\S/) {
 		$problemRecord->source_file($rh->{sourceFilePath});
-		$r_problem_source =
-			\(WeBWorK::PG::IO::read_whole_file($ce->{courseDirs}{templates} . '/' . $rh->{sourceFilePath}));
-		$problemRecord->source_file('RenderProblemFooBar') unless defined($problemRecord->source_file);
+		$r_problem_source = \(readFile($ce->{courseDirs}{templates} . '/' . $rh->{sourceFilePath}));
 	}
 
 	if ($UNIT_TESTS_ON) {
@@ -225,16 +207,39 @@ async sub renderProblem {
 		effectivePermissionLevel => $rh->{effectivePermissionLevel} || $rh->{permissionLevel} || 0,
 		useMathQuill             => $ce->{pg}{specialPGEnvironmentVars}{entryAssist} eq 'MathQuill',
 		useMathView              => $ce->{pg}{specialPGEnvironmentVars}{entryAssist} eq 'MathView',
-		isInstructor             => $rh->{isInstructor}       // 0,
-		forceScaffoldsOpen       => $rh->{forceScaffoldsOpen} // 0,
+		isInstructor             => $rh->{isInstructor} // 0,
+		forceScaffoldsOpen       => $rh->{WWcorrectAnsOnly} ? 1 : ($rh->{forceScaffoldsOpen} // 0),
 		QUIZ_PREFIX              => $rh->{answerPrefix},
-		debuggingOptions         => {
+		showFeedback             => $rh->{previewAnswers} || $rh->{WWsubmit} || $rh->{WWcorrectAns},
+		showAttemptAnswers       => $rh->{WWcorrectAnsOnly} ? 0
+		: ($rh->{showAttemptAnswers} // $ce->{pg}{options}{showEvaluatedAnswers}),
+		showAttemptPreviews => (
+			$rh->{WWcorrectAnsOnly} ? 0
+			: ($rh->{showAttemptPreviews} // ($rh->{previewAnswers} || $rh->{WWsubmit} || $rh->{WWcorrectAns}))
+		),
+		showAttemptResults      => $rh->{showAttemptResults} // ($rh->{WWsubmit} || $rh->{WWcorrectAns}),
+		forceShowAttemptResults => (
+			$rh->{WWcorrectAnsOnly} ? 1
+			: (
+				$rh->{forceShowAttemptResults}
+					|| ($rh->{isInstructor}
+						&& ($rh->{showAttemptResults} // ($rh->{WWsubmit} || $rh->{WWcorrectAns})))
+			)
+		),
+		showMessages => (
+			$rh->{WWcorrectAnsOnly} ? 0
+			: ($rh->{showMessages} // ($rh->{previewAsnwers} || $rh->{WWsubmit} || $rh->{WWcorrectAns}))
+		),
+		showCorrectAnswers =>
+			($rh->{WWcorrectAnsOnly} ? 1 : ($rh->{showCorrectAnswers} // ($rh->{WWcorrectAns} ? 2 : 0))),
+		debuggingOptions => {
 			show_resource_info          => $rh->{show_resource_info}          // 0,
 			view_problem_debugging_info => $rh->{view_problem_debugging_info} // 0,
 			show_pg_info                => $rh->{show_pg_info}                // 0,
 			show_answer_hash_info       => $rh->{show_answer_hash_info}       // 0,
 			show_answer_group_info      => $rh->{show_answer_group_info}      // 0
-		}
+		},
+		defined $rh->{problem_data} && $rh->{problem_data} ne '' ? (problemData => $rh->{problem_data}) : ()
 	};
 
 	$ce->{pg}{specialPGEnvironmentVars}{problemPreamble}  = { TeX => '', HTML => '' } if $rh->{noprepostambles};
@@ -252,6 +257,7 @@ async sub renderProblem {
 		errors                  => $pg->{errors},
 		pg_warnings             => $pg->{warnings},
 		PG_ANSWERS_HASH         => $pg->{PG_ANSWERS_HASH},
+		PERSISTENCE_HASH        => $pg->{PERSISTENCE_HASH},
 		problem_result          => $pg->{result},
 		problem_state           => $pg->{state},
 		flags                   => $pg->{flags},

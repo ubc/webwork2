@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::ContentGenerator::Instructor::ProblemGrader;
 use Mojo::Base 'WeBWorK::ContentGenerator', -signatures, -async_await;
 
@@ -25,8 +10,9 @@ manually grading webwork problems.
 
 use HTML::Entities;
 
-use WeBWorK::Utils qw(sortByName wwRound format_set_name_display jitar_id_to_seq getTestProblemPosition);
+use WeBWorK::Utils::JITAR     qw(jitar_id_to_seq);
 use WeBWorK::Utils::Rendering qw(renderPG);
+use WeBWorK::Utils::Sets      qw(get_test_problem_position format_set_name_display);
 
 async sub initialize ($c) {
 	my $authz      = $c->authz;
@@ -47,7 +33,7 @@ async sub initialize ($c) {
 		unless $c->stash->{set}
 		&& $c->stash->{problem}
 		&& $authz->hasPermissions($userID, 'access_instructor_tools')
-		&& $authz->hasPermissions($userID, 'score_sets');
+		&& $authz->hasPermissions($userID, 'problem_grader');
 
 	# Get all users of the set, and restrict to the sections or recitations that are allowed for the user if such
 	# restrictions are defined.  For gateway sets only get users for which versions exist.  The users are sorted by
@@ -99,10 +85,9 @@ async sub initialize ($c) {
 			next unless defined $_->{problem};
 			my $versionID = ref($_->{problem}) =~ /::ProblemVersion/ ? $_->{problem}->version_id : 0;
 			my $userPastAnswerID =
-				$db->latestProblemPastAnswer($courseName, $user->user_id, $setID . ($versionID ? ",v$versionID" : ''),
-					$problemID);
+				$db->latestProblemPastAnswer($user->user_id, $setID . ($versionID ? ",v$versionID" : ''), $problemID);
 			$_->{past_answer} = $db->getPastAnswer($userPastAnswerID) if ($userPastAnswerID);
-			($_->{problemNumber}, $_->{pageNumber}) = getTestProblemPosition($db, $_->{problem}) if $versionID;
+			($_->{problemNumber}, $_->{pageNumber}) = get_test_problem_position($db, $_->{problem}) if $versionID;
 
 		}
 	}

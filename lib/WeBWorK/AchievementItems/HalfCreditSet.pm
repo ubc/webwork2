@@ -1,87 +1,62 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::AchievementItems::HalfCreditSet;
 use Mojo::Base 'WeBWorK::AchievementItems', -signatures;
 
 # Item to give half credit on all problems in a homework set.
 
-use WeBWorK::Utils qw(between x nfreeze_base64 thaw_base64 format_set_name_display);
+use WeBWorK::Utils           qw(x wwRound);
+use WeBWorK::Utils::DateTime qw(after);
 
 sub new ($class) {
 	return bless {
 		id          => 'HalfCreditSet',
 		name        => x('Lesser Tome of Enlightenment'),
-		description => x('Gives half credit on every problem in a set.')
+		description => x('Increases the score of every problem in an assignment by 50%, to a maximum of 100%.')
 	}, $class;
 }
 
-sub print_form ($self, $sets, $setProblemCount, $c) {
-	my @openSets;
+sub can_use($self, $set, $records) {
+	return 0
+		unless $set->assignment_type eq 'default'
+		&& after($set->open_date);
 
-	for my $i (0 .. $#$sets) {
-		push(@openSets, [ format_set_name_display($sets->[$i]->set_id) => $sets->[$i]->set_id ])
-			if (between($sets->[$i]->open_date, $sets->[$i]->due_date) && $sets->[$i]->assignment_type eq 'default');
+	my $total     = 0;
+	my $old_grade = 0;
+	my $new_grade = 0;
+	for my $problem (@$records) {
+		$old_grade += $problem->status * $problem->value;
+		$new_grade += ($problem->status > 0.5 ? 1 : $problem->status + 0.5) * $problem->value;
+		$total     += $problem->value;
 	}
-
-	return $c->c(
-		$c->tag('p', $c->maketext('Please choose the set for which all problems should have half credit added.')),
-		WeBWorK::AchievementItems::form_popup_menu_row(
-			$c,
-			id         => 'hcs_set_id',
-			label_text => $c->maketext('Set Name'),
-			values     => \@openSets,
-			menu_attr  => { dir => 'ltr' }
-		)
-	)->join('');
+	$self->{old_grade} = 100 * wwRound(2, $old_grade / $total);
+	$self->{new_grade} = 100 * wwRound(2, $new_grade / $total);
+	return $self->{old_grade} == 100 ? 0 : 1;
 }
 
-sub use_item ($self, $userName, $c) {
+sub print_form ($self, $set, $records, $c) {
+	return $c->tag(
+		'p',
+		$c->maketext(
+			q(Increase this assignment's grade from [_1]% to [_2]%.),
+			$self->{old_grade}, $self->{new_grade}
+		)
+	);
+}
+
+sub use_item ($self, $set, $records, $c) {
 	my $db = $c->db;
-	my $ce = $c->ce;
 
-	# Validate data
-
-	my $globalUserAchievement = $db->getGlobalUserAchievement($userName);
-	return 'No achievement data?!?!?!' unless $globalUserAchievement->frozen_hash;
-
-	my $globalData = thaw_base64($globalUserAchievement->frozen_hash);
-	return "You are $self->{id} trying to use an item you don't have" unless $globalData->{ $self->{id} };
-
-	my $setID = $c->param('hcs_set_id');
-	return 'You need to input a Set Name' unless defined $setID;
-
-	my @probIDs = $db->listUserProblems($userName, $setID);
-
-	for my $probID (@probIDs) {
-		my $problem = $db->getUserProblem($userName, $setID, $probID);
-
-		# Add .5 to grade with max of 1.
-		if ($problem->status < .5) {
-			$problem->status($problem->status + .5);
-		} else {
-			$problem->status(1);
-		}
-		$db->putUserProblem($problem);
+	my %userProblems =
+		map { $_->problem_id => $_ } $db->getUserProblemsWhere({ user_id => $set->user_id, set_id => $set->set_id });
+	for my $problem (@$records) {
+		my $userProblem = $userProblems{ $problem->problem_id };
+		$problem->status($problem->status > 0.5 ? 1 : $problem->status + 0.5);
+		$problem->sub_status($problem->status);
+		$userProblem->status($problem->status);
+		$userProblem->sub_status($problem->status);
+		$db->putUserProblem($userProblem);
 	}
 
-	$globalData->{ $self->{id} }--;
-	$globalUserAchievement->frozen_hash(nfreeze_base64($globalData));
-	$db->putGlobalUserAchievement($globalUserAchievement);
-
-	return;
+	return $c->maketext(q(Assignment's grade increased from [_1] to [_2].), $self->{old_grade}, $self->{new_grade});
 }
 
 1;

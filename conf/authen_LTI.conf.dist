@@ -4,32 +4,32 @@
 # Configuration for using LTI authentication.
 # To enable this file, uncomment the appropriate lines in localOverrides.conf
 # The settings in this file apply to both LTI 1.1 and LTI 1.3 authentication.
-# The settings specific to the LTI 1.1 authenticatio are in authen_LTI_1_1.conf.
-# The settings specific to the LTI 1.3 authenticatio are in authen_LTI_1_3.conf.
+# The settings specific to the LTI 1.1 authentication are in authen_LTI_1_1.conf.
+# The settings specific to the LTI 1.3 authentication are in authen_LTI_1_3.conf.
 ################################################################################################
 
-# Set debug_lti_parameters to 1 to have LTI calling parameters printed to HTML page for
-# debugging.  This is useful when setting things up for the first time because different LMS
-# systems have different parameters
+# Set debug_lti_parameters to 1 to enable LTI debugging.  This is useful when setting things up
+# for the first time because different LMS systems have different parameters.  Note that for LTI
+# 1.1 these debug messages will be displayed in the HTML page.  However, for LTI 1.3 none of the
+# debug messages will be displayed in the HTML page due to the nature of how LTI 1.3
+# authentication works with automatic form submissions and redirects. These messages can be
+# found in the webwork2 app log in that case.
 $debug_lti_parameters = 0;
 
-# To get more information on passing grades back to the LMS enmass set debug_lti_grade_passback
+# To get more information on passing grades back to the LMS en mass set debug_lti_grade_passback
 # to one.  And set the LTIMassUpdateInterval to 60 (seconds).
 $debug_lti_grade_passback = 0;
 
 # This will print into the webwork2 app log the success or failure of updating each user/set.
 
-# Setting both debug_lti_parameters and debug_lti_grade_passback will cause the full request and
-# response between the LMS and WW to be printed into webwork2 app log file for each user/set
-# update of the grade.
+# Setting both debug_lti_parameters and debug_lti_grade_passback will cause the full requests
+# and responses between the LMS and WW to be printed into webwork2 app log file for each
+# user/set update of the grade.
 
 # The switches above can be set in course.conf to enable debugging for just one course.
 
 # If you want even more information enable the debug facility in the webwork2.mojolicious.yml
 # file.  This will print extensive debugging messages for all courses.
-
-# Note that for LTI 1.3 not all debug message will make it back to the HTML page due to the
-# nature of how LTI 1.3 authentication works with automatic form submissions and redirects.
 
 ################################################################################################
 # Authentication settings
@@ -40,9 +40,20 @@ $debug_lti_grade_passback = 0;
 # the LTIAdvantage will be used.  If you know a site will not use one or the other, it can be
 # commented out. Failover to Basic_TheLastOption is necessary to authenticate with cookie keys.
 $authen{user_module} = [
-	{ '*' => 'WeBWorK::Authen::LTIAdvantage' },          # first try LTI 1.3
-	{ '*' => 'WeBWorK::Authen::LTIAdvanced' },           # next try LTI 1.1
-	{ '*' => 'WeBWorK::Authen::Basic_TheLastOption' }    # fallback authorization method
+	'WeBWorK::Authen::LTIAdvantage',          # first try LTI 1.3
+	'WeBWorK::Authen::LTIAdvanced',           # next try LTI 1.1
+	'WeBWorK::Authen::Basic_TheLastOption'    # fallback authorization method
+];
+
+# List of authentication modules that may be used to enter the admin course.
+# This is used instead of $authen{user_module} when logging into the admin course.
+# Since the admin course provides overall power to add/delete courses, access
+# to this course should be protected by the best possible authentication you
+# have available to you.
+$authen{admin_module} = [
+	#'WeBWorK::Authen::LTIAdvantage',
+	#'WeBWorK::Authen::LTIAdvanced',
+	'WeBWorK::Authen::Basic_TheLastOption'
 ];
 
 # Include configurations.  You must uncomment at least one of the following. You may uncomment
@@ -104,7 +115,7 @@ $external_auth = 0;
 # address should be the address of that set in the Course.  Students will receive a grade for
 # each Link/Assignment which is determined by their percentage homework grade on the Set which
 # the Link/Assignment points to.  Students need to use the Link/Assignment in the LMS at least
-# once to enable grade passback.  In particular when working in this mode it is recommended that
+# once to enable grade pass back.  In particular when working in this mode it is recommended that
 # you only allow students to log in via the LMS.
 
 # Note: For both of these modes only the grades are passed back.  In particular nothing else
@@ -115,7 +126,7 @@ $external_auth = 0;
 # Site Administrator Note for LTI 1.3:  This uses OAuth2 RSA private/public keys.  These keys
 # are automatically generated the first time that they are needed.  It is recommended that new
 # keys are generated on a regular basis.  At this point, key rotation is not automatic for
-# webwork2.  Howevever, it is simple.  Delete the files $webwork2_dir/DATA/lti_private_key.json
+# webwork2.  However, it is simple.  Delete the files $webwork2_dir/DATA/lti_private_key.json
 # and $webwork2_dir/DATA/lti_public_key.json.  New keys will then be automatically generated the
 # next time they are needed.  Probably a good rule of thumb (for now) is to do this at the
 # beginning of every term.
@@ -124,19 +135,84 @@ $LTIGradeMode = '';
 #$LTIGradeMode = 'course';
 #$LTIGradeMode = 'homework';
 
-# When set this variable sends grades back to the LMS every time a user submits an answer.  This
-# keeps students grades up to date but can be a drain on the server.
-$LTIGradeOnSubmit = 1;
+# There are several controls for when to report scores to the LMS. Sometimes these controls
+# interact with each other, and the details of how they work may depend on whether $LTIGradeMode
+# is set to 'course' or 'homework'. So it is recommended to understand all of them and then
+# decide how to set them.
 
-# If CheckPrior is set to 1 then the current LMS grade will be checked first, and if the grade
-# has not changed then the grade will not be updated.  This is intended to reduce changes to LMS
-# records when no real grade change occurred.  It requires a 2 round process, first querying the
-# current grade from the LMS and then when needed making the grade submission.
+# If $LTICheckPrior is 1, then any time WeBWorK is about to send a score to the LMS, it will
+# first request from the LMS what that score currently is. Then if there is no significant
+# difference between the LMS score and the WeBWorK score, WeBWorK will not follow through with
+# updating the LMS score. This is to avoid frequent insignificant updates to a student's scores
+# in the LMS. With some LMSs, students may receive notifications each time a score is updated,
+# and setting this variable will prevent too many notifications for them. This does create a
+# two-phase process, first querying the current score from the LMS and then actually updating
+# the score (if there is a significant difference).
+
+# Additional details:
+# - If the LMS score is not 100%, but the WeBWorK score is, then even if the LMS score is only
+#   insignificantly less than 100%, it will be updated anyway.
+# - If the LMS score is null and the WeBWorK score is 0, this is considered an insignificant
+#   difference and the LMS score will not be updated to 0. However if it is after the
+#   $LTISendScoresAfterDate (described below), then the null score will be updated to 0 anyway.
+# - "Significant" means an absolute difference of 0.001, or 0.1%. At this time this is not
+#   configurable.
 $LTICheckPrior = 0;
 
-# The system periodically updates student grades on the LMS.  This variable controls how often
-# that happens.  Set to -1 to disable.
-$LTIMassUpdateInterval = 86400;    #in seconds
+# If $LTIGradeOnSubmit is set to 1, then each time a user submits an answer or scores a test,
+# that will trigger WeBWorK possibly reporting a score to the LMS. See $LTICheckPrior for one
+# reason that WeBWorK might not ultimately send a score. But there are other reasons too.
+# WeBWorK will send the score (the assignment's score if $LTIGradeMode is 'homework' or the
+# overall course score if $LTIGradeMode is 'course') to the LMS only if either the assignment's
+# $LTISendGradesEarlyThreshold (described below) has been met or if it is past that assignment's
+# $LTISendScoresAfterDate (also described below).
+$LTIGradeOnSubmit = 1;
+
+# In addition to scores possibly being sent to the LMS upon submission, they can be sent by an
+# instructor or admin user using the LTI Grades Update Tool. And thirdly, the system can
+# periodically update student scores on the LMS on its own. For all three possible triggers for
+# scores to be passed to the LMS, $LTISendScoresAfterDate and $LTISendGradesEarlyThreshold can
+# affect what is sent. $LTISendScoresAfterDate can be 'open_date', 'reduced_scoring_date',
+# 'due_date', 'answer_date', or 'never'. For a given assignment, if it is after the
+# $LTISendScoresAfterDate, then WeBWorK will send scores. If $LTISendScoresAfterDate is 'never',
+# then there is no date after which WeBWorK is guaranteed to send scores. In that case, scores
+# are only sent when a set's $LTISendGradesEarlyThreshold is met (see below).
+# - For 'course' grade passback mode, the assignment will be included in the overall course
+#   grade calculation.
+# - For 'homework' grade passback mode, the assignment's score will be sent.
+
+# If $LTISendScoresAfterDate is 'reduced_scoring_date' and an assignment has no reduced scoring
+# date or reduced scoring is disabled for that assignment, the fallback is to use the due date.
+
+# For a given assignment, if $LTISendScoresAfterDate is 'never' or if it is before the date
+# specified by $LTISendScoresAfterDate, WeBWorK may send a score to the LMS depending on the
+# value of $LTISendGradesEarlyThreshold. This variable can either be the string 'attempted' or a
+# number from 0 to 1. If this variable is 'attempted', a given set must have been attempted for
+# the threshold to have been met, and then the score can be used even if it is before the
+# $LTISendScoresAfterDate. For a non-test set, 'attempted' just means that some exercise in the
+# set was attempted using the Submit button. For a test, 'attempted' means that either there is
+# one version with a graded submission, or there are at least two versions.
+
+# If $LTISendGradesEarlyThreshold is a number from 0 to 1, the score for an assignment needs to
+# have reached that number for the threshold to be met, and then the score can be used even if
+# it is before the $LTISendScoresAfterDate.
+
+#$LTISendScoresAfterDate = 'open_date';
+$LTISendScoresAfterDate = 'reduced_scoring_date';
+#$LTISendScoresAfterDate = 'due_date';
+#$LTISendScoresAfterDate = 'answer_date';
+#$LTISendScoresAfterDate = 'never';
+
+$LTISendGradesEarlyThreshold = 'attempted';
+#$LTISendGradesEarlyThreshold = 0;
+#$LTISendGradesEarlyThreshold = 0.7;
+#$LTISendGradesEarlyThreshold = 1;
+
+# The system periodically updates student scores on the LMS. If it has been at least this many
+# seconds since the last mass passback event and someone in the course does anything to load a
+# page, then a new mass passback job will begin. Set this to -1 to disable mass passback.
+$LTIMassUpdateInterval = 86400;
+
 
 ################################################################################################
 # Add an 'LTI' tab to the Course Configuration page
@@ -147,9 +223,11 @@ $LTIMassUpdateInterval = 86400;    #in seconds
 # to some of the LTI settings. You may leave some of the variables commented out if you would
 # like to omit them from the options in this tab.  If all variables are left commented out, then
 # the tab will not be shown.  Note that the default values for the variables that will be shown
-# in the LTI tab are the values that are set above.  Further note that only the variables listed
-# in LTIConfigValues.config may be added to the LTI config tab.  In addition, only the variables
-# that pertain to the active LTI version will be shown in the tab.
+# in the LTI tab are the values that are set above.  Further note that only the commented out
+# variables listed below may be added to the LTI config tab.  In addition, only the variables that
+# pertain to the active LTI version will be shown in the tab. Warning: Allowing users to modify
+# the BasicConsumerSecret for LTI 1.1 or the IDs, URLs, etc for LTI 1.3 can expose the values
+# of the variables and allow users to lock themselves out of logging in via an LMS.
 @LTIConfigVariables = (
 	#'LTI{v1p1}{LMS_name}',
 	#'LTI{v1p3}{LMS_name}',
@@ -157,8 +235,38 @@ $LTIMassUpdateInterval = 86400;    #in seconds
 	#'LTI{v1p3}{LMS_url}',
 	#'external_auth',
 	#'LTIGradeMode',
+	#'LTICheckPrior',
+	#'LTIGradeOnSubmit',
+	#'LTISendScoresAfterDate',
+	#'LTISendGradesEarlyThreshold',
+	#'LTIMassUpdateInterval',
 	#'LMSManageUserData',
-	#'debug_lti_parameters'
+	#'LTI{v1p1}{BasicConsumerSecret}',
+	#'LTI{v1p3}{PlatformID}',
+	#'LTI{v1p3}{ClientID}',
+	#'LTI{v1p3}{DeploymentID}',
+	#'LTI{v1p3}{PublicKeysetURL}',
+	#'LTI{v1p3}{AccessTokenURL}',
+	#'LTI{v1p3}{AccessTokenAUD}',
+	#'LTI{v1p3}{AuthReqURL}',
+	#'debug_lti_parameters',
+	#'lms_context_id'
 );
+
+# By default only admin users can modify the LTI secrets and lms_context_id. The following
+# permissions need to be modified to allow other users the permission to modify the values.
+#$permissionLevels{'change_config_LTI{v1p1}{BasicConsumerSecret}'} = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{PlatformID}'}          = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{ClientID}'}            = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{DeploymentID}'}        = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{PublicKeysetURL}'}     = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{AccessTokenURL}'}      = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{AccessTokenAUD}'}      = "admin",
+#$permissionLevels{'change_config_LTI{v1p3}{AuthReqURL}'}          = "admin",
+#$permissionLevels{'change_config_lms_context_id'}                 = "admin",
+
+# Note that the lms_context_id is actually a database setting. It must be set for a course in
+# order for the instructor to utilize LTI content selection. This can also be set in the admin
+# course.
 
 1;    # final line of the file to reassure perl that it was read properly.

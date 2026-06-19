@@ -1,27 +1,14 @@
-%################################################################################
-%# WeBWorK Online Homework Delivery System
-%# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-%#
-%# This program is free software; you can redistribute it and/or modify it under
-%# the terms of either: (a) the GNU General Public License as published by the
-%# Free Software Foundation; either version 2, or (at your option) any later
-%# version, or (b) the "Artistic License" which comes with this package.
-%#
-%# This program is distributed in the hope that it will be useful, but WITHOUT
-%# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-%# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-%# Artistic License for more details.
-%################################################################################
-%
 % layout 'help_macro';
-% title maketext('Set Assigner Help');
+% title maketext('Assigner Tool Help');
 %
 <p>
-	<%= maketext('Select Users from the left column and sets from the right column and assign or '
-		. 'unassign the given sets. The list of users or the list of sets can be reordered under the "sort" '
-		. 'option or the format of the user or set list.  Additionally, the set lists can be filtered '
-		. '(by section number or recitation).  The displayed user and set lists will only be updated '
-		. 'upon clicking "Change Display Settings".') =%>
+	<%= maketext('Select users from the left column and sets from the right column and assign or '
+		. 'unassign the given sets. The list of users or the list of sets can be reordered using the "Sort By" '
+		. 'option, and presented using a chosen "Format".  Additionally, the user and set lists can be filtered. '
+		. 'If multiple filters are selected and the "Intersection" radio button is used, the filters will '
+		. 'be applied in sequence, narrowing the results list.  If the "Union" button is used, the updated '
+		. 'list will be the union of all results lists from the multiple filters.'
+		. 'The displayed user and set lists will only be updated upon clicking "Refresh List".') =%>
 </p>
 <p class="mb-0">
 	<%= maketext('Multiple users or sets may be selected by holding down the shift key or the ctrl key while '

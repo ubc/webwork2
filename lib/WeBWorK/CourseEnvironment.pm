@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::CourseEnvironment;
 
 =head1 NAME
@@ -34,7 +19,7 @@ and course.conf files.
  	courseName          => "name_of_course",
  });
 
- my $timeout = $courseEnv->{sessionKeyTimeout};
+ my $timeout = $courseEnv->{sessionTimeout};
  my $mode    = $courseEnv->{pg}->{options}->{displayMode};
  # etc...
 
@@ -56,7 +41,7 @@ use Carp;
 use Opcode qw(empty_opset);
 
 use WeBWorK::WWSafe;
-use WeBWorK::Utils qw(readFile);
+use WeBWorK::Utils::Files qw(readFile);
 use WeBWorK::Debug;
 
 =head1 CONSTRUCTION
@@ -82,6 +67,8 @@ environment file. If found, the file is read and added to the environment.
 
 =cut
 
+our @errors;
+
 sub new {
 	my ($invocant, $seedVars) = @_;
 	my $class = ref($invocant) || $invocant;
@@ -94,19 +81,28 @@ sub new {
 	$seedVars->{pg_dir}      //= $WeBWorK::SeedCE{pg_dir}      // $ENV{PG_ROOT};
 
 	$seedVars->{courseName} ||= '___';    # prevents extraneous error messages
+	$seedVars->{courseName} =~ s/'.*$//;
 
 	# The following line is a work around for a bug that occurs on some systems.  See
 	# https://rt.cpan.org/Public/Bug/Display.html?id=77916 and
 	# https://github.com/openwebwork/webwork2/pull/2098#issuecomment-1619812699.
 	my %dummy = %+;
 
+	my @warnings;
+	my $outer_sig_warn = $SIG{__WARN__};
+	local $SIG{__WARN__} = sub { push(@warnings, $_[0]); };
+
 	my $safe = WeBWorK::WWSafe->new;
 	$safe->permit('rand');
+
 	# seed course environment with initial values
 	while (my ($var, $val) = each %$seedVars) {
-		$val = "" if not defined $val;
+		$val //= '';
 		$safe->reval("\$$var = '$val';");
 	}
+
+	local @errors = ();
+	$safe->share('@errors');
 
 	# Compile the "include" function with all opcodes available.
 	my $include = q[ sub include {
@@ -115,16 +111,22 @@ sub new {
 		# This regex matches any string that begins with "../",
 		# ends with "/..", contains "/../", or is "..".
 		if ($fullPath =~ m!(?:^|/)\.\.(?:/|$)!) {
-			die "Included file $file has potentially insecure path: contains \"..\"";
+			push(@errors, qq{Included file $file has potentially insecure path: contains ".."});
+			die;
 		} else {
 			local @INC = ();
 			my $result = do $fullPath;
-			if ($!) {
-				die "Failed to read include file $fullPath (has it been created from the corresponding .dist file?): $!";
-			} elsif ($@) {
-				die "Failed to compile include file $fullPath: $@";
-			} elsif (not $result) {
-				die "Include file $fullPath did not return a true value.";
+			if ($@) {
+				push(@errors, "Failed to compile include file $fullPath: $@");
+				die;
+			} elsif ($!) {
+				push(@errors,
+					"Failed to read include file $fullPath "
+						. "(has it been created from the corresponding .dist file?): $!");
+				die;
+			} elsif (!$result) {
+				push(@errors, "Include file $fullPath did not return a true value.");
+				die;
 			}
 		}
 	} ];
@@ -147,11 +149,16 @@ sub new {
 	my $globalFileContents = readFile($globalEnvironmentFile);
 	$safe->share_from('main', [qw(%ENV)]);
 	$safe->reval($globalFileContents);
-	# warn "end the evaluation\n";
 
 	# if that evaluation failed, we can't really go on...
 	# we need a global environment!
-	$@ and croak "Could not evaluate global environment file $globalEnvironmentFile: $@";
+	if ($@ || @errors) {
+		# Make sure any warnings that occurred are passed back to the global warning handler.
+		local $SIG{__WARN__} = ref($outer_sig_warn) eq 'CODE' ? $outer_sig_warn : 'DEFAULT';
+		warn $_ for @warnings;
+		croak "Could not evaluate global environment file $globalEnvironmentFile: $errors[0]" if @errors;
+		croak "Could not evaluate global environment file $globalEnvironmentFile: $@";
+	}
 
 	# determine location of courseEnvironmentFile and simple configuration file
 	# pull it out of $safe's symbol table ad hoc
@@ -172,6 +179,10 @@ sub new {
 		my $courseWebConfigContents = eval { readFile($courseWebConfigFile) };    # catch exceptions
 		$@ or $safe->reval($courseWebConfigContents);
 	}
+
+	# Pass any warnings that occurred back to the global warning handler.
+	local $SIG{__WARN__} = ref($outer_sig_warn) eq 'CODE' ? $outer_sig_warn : 'DEFAULT';
+	warn $_ for @warnings;
 
 	# get the safe compartment's namespace as a hash
 	no strict 'refs';
@@ -206,19 +217,15 @@ sub new {
 	}
 	# #	We'll get the pg version here and read it into the safe symbol table
 	if (-r $PG_version_file) {
-		#print STDERR ( "\n\nread PG_version file $PG_version_file\n\n");
 		my $PG_version_file_contents = readFile($PG_version_file) // '';
 		$safe->reval($PG_version_file_contents);
-		#print STDERR ("\n contents: $PG_version_file_contents");
 
 		no strict 'refs';
 		my %symbolHash2 = %{ $safe->root . "::" };
-		#print STDERR "symbolHash".join(' ', keys %symbolHash2);
 		use strict 'refs';
 		$self->{PG_VERSION} = ${ *{ $symbolHash2{PG_VERSION} } };
 	} else {
 		$self->{PG_VERSION} = "unknown";
-		#croak "Cannot read PG version file $PG_version_file";
 		warn "Cannot read PG version file $PG_version_file";
 	}
 
@@ -254,28 +261,16 @@ sub new {
 
 =head1 ACCESS
 
-There are no formal accessor methods. However, since the course environemnt is
-a hash of hashes and arrays, is exists as the self hash of an instance
-variable:
+The course environment is a hash and variables in the course environment can be
+accessed via its hash keys.  For example:
 
-	$ce->{someKey}{someOtherKey};
+    $ce->{someKey}{someOtherKey};
 
-=head1 EXPERIMENTAL ACCESS METHODS
+=head1 METHODS
 
-This is an experiment in extending CourseEnvironment to know a little more about
-its contents, and perform useful operations for me.
+=head2 status_abbrev_to_name
 
-There is a set of operations that require certain data from the course
-environment. Most of these are un Utils.pm. I've been forced to pass $ce into
-them, so that they can get their data out. But some things are so intrinsically
-linked to the course environment that they might as well be methods in this
-class.
-
-=head2 STATUS METHODS
-
-=over
-
-=item status_abbrev_to_name($status_abbrev)
+Usage: C<< $ce->status_abbrev_to_name($status_abbrev) >>
 
 Given the abbreviation for a status, return the name. Returns undef if the
 abbreviation is not found.
@@ -292,7 +287,9 @@ sub status_abbrev_to_name {
 	return $ce->{_status_abbrev_to_name}{$status_abbrev};
 }
 
-=item status_name_to_abbrevs($status_name)
+=head2 status_name_to_abbrevs
+
+Usage: C<< $ce->status_name_to_abbrevs($status_name) >>
 
 Returns the list of abbreviations for a given status. Returns an empty list if
 the status is not found.
@@ -310,7 +307,9 @@ sub status_name_to_abbrevs {
 	return @{ $ce->{statuses}{$status_name}{abbrevs} };
 }
 
-=item status_has_behavior($status_name, $behavior)
+=head2 status_has_behavior
+
+Usage: C<< $ce->status_has_behavior($status_name, $behavior) >>
 
 Return true if $status_name lists $behavior.
 
@@ -340,7 +339,9 @@ sub status_has_behavior {
 	}
 }
 
-=item status_abbrev_has_behavior($status_abbrev, $behavior)
+=head2 status_abbrev_has_behavior
+
+Usage: C<< status_abbrev_has_behavior($status_abbrev, $behavior) >>
 
 Return true if the status abbreviated by $status_abbrev lists $behavior.
 
@@ -365,10 +366,21 @@ sub status_abbrev_has_behavior {
 	}
 }
 
-=back
+=head2 two_factor_authentication_enabled
+
+Usage: C<< $ce->two_factor_authentication_enabled >>
+
+Returns true if two factor authentication is enabled for this course.
 
 =cut
 
-1;
+sub two_factor_authentication_enabled {
+	my $ce = shift;
+	return 0                                                           if $ce->{external_auth};
+	return grep { $_ eq $ce->{courseName} } @{ $ce->{twoFA}{enabled} } if (ref($ce->{twoFA}{enabled}) eq 'ARRAY');
+	return 1 if $ce->{twoFA}{enabled} ^ $ce->{twoFA}{enabled} && $ce->{courseName} eq $ce->{twoFA}{enabled};
+	return 0 if $ce->{twoFA}{enabled} ^ $ce->{twoFA}{enabled};
+	return $ce->{twoFA}{enabled};
+}
 
-# perl doesn't look like line noise. line noise has way more alphanumerics.
+1;

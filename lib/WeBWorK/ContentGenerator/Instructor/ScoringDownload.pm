@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::ContentGenerator::Instructor::ScoringDownload;
 use Mojo::Base 'WeBWorK::ContentGenerator', -signatures;
 
@@ -36,7 +21,7 @@ sub pre_header_initialize ($c) {
 	# the parameter 'getFile" needs to be sanitized. (see bug #3793 )
 	# See checkName in FileManager.pm for a more complete sanitization.
 	if ($authz->hasPermissions($user, "score_sets")) {
-		unless ($file eq WeBWorK::ContentGenerator::Instructor::FileManager::checkName($file)) {    #
+		if ($c->WeBWorK::ContentGenerator::Instructor::FileManager::checkName($file)) {
 			$c->addbadmessage($c->maketext("Your file name is not valid! "));
 			$c->addbadmessage($c->maketext(
 				"A file name cannot begin with a dot, it cannot be empty, it cannot contain a "

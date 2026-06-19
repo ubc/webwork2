@@ -7,7 +7,7 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
-use JSON;
+use Mojo::JSON  qw(encode_json);
 use Time::HiRes qw/gettimeofday/;
 use Date::Format;
 
