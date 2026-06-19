@@ -212,6 +212,63 @@ sub databaseLayout ($courseName) {
 			schema => "WeBWorK::DB::Schema::NewSQL::Std",
 			params => { tableOverride => "${courseName}_global_user_achievement" },
 		},
+
+		# UBC custom tables. These were historically defined in conf/database.conf.dist,
+		# which upstream removed when the layout moved into this module. They back UBC's
+		# own LTI 1.3 (LTI Advantage) stack (lib/LTI1p3) and DelayedJob workers, and are
+		# kept alongside upstream's lti_launch_data/lti_course_map (different tables).
+		lti_resource_link => {
+			record => "WeBWorK::DB::Record::LTI1p3::ResourceLink",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { tableOverride => "${courseName}_lti_resource_link" },
+		},
+		lti_user => {
+			record => "WeBWorK::DB::Record::LTI1p3::User",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { tableOverride => "${courseName}_lti_user" },
+		},
+		lti_contexts => {
+			record => "WeBWorK::DB::Record::LTI1p3::Contexts",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+		lti_nonces => {
+			record => "WeBWorK::DB::Record::LTI1p3::Nonces",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+		lti_access_tokens => {
+			record => "WeBWorK::DB::Record::LTI1p3::AccessTokens",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+
+		# UBC DelayedJob worker tables (TheSchwartz-style job queue).
+		funcmap => {
+			record => "WeBWorK::DB::Record::DelayedJob::Funcmap",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+		job => {
+			record => "WeBWorK::DB::Record::DelayedJob::Job",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+		note => {
+			record => "WeBWorK::DB::Record::DelayedJob::Note",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+		error => {
+			record => "WeBWorK::DB::Record::DelayedJob::Error",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
+		exitstatus => {
+			record => "WeBWorK::DB::Record::DelayedJob::Exitstatus",
+			schema => "WeBWorK::DB::Schema::NewSQL::Std",
+			params => { non_native => 1 },
+		},
 	};
 }
 
