@@ -180,6 +180,7 @@ sub verify {
 		$self->maybe_send_cookie;
 		$self->set_params;
 	} else {
+		my $log_error = $self->{log_error};
 		if (defined $log_error) {
 			$self->write_log_entry("LOGIN FAILED $log_error");
 		}
@@ -927,6 +928,12 @@ sub killSession {
 		debug('Killed cookie in killSession'); # ubc debug
 		$self->killCookie();
 	}
+
+	# Clear the database session so that store_session() (run in the after_dispatch
+	# hook) deletes the session key instead of re-persisting it. Without this, logout
+	# does not invalidate the server-side session under 2.20's session handling.
+	# (Upstream 2.20 had this line in killSession; it was dropped during the merge.)
+	delete $c->stash->{'webwork2.database_session'};
 
 	return;
 }
