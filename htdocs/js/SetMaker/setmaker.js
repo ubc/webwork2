@@ -22,11 +22,14 @@
 		toastContainer.innerHTML =
 			'<div class="toast bg-white" role="alert" aria-live="assertive" aria-atomic="true">' +
 			'<div class="toast-header">' +
-			`<strong class="me-auto">${title}</strong>` +
+			'<strong class="me-auto"></strong>' +
 			'<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="close"></button>' +
 			'</div>' +
-			`<div class="toast-body alert ${good ? 'alert-success' : 'alert-danger'} mb-0 text-center">${msg}</div>` +
+			`<div class="toast-body alert ${good ? 'alert-success' : 'alert-danger'} mb-0 text-center"></div>` +
 			'</div>';
+		// Set the title and message with textContent so DOM text cannot be reinterpreted as HTML.
+		toastContainer.querySelector('strong').textContent = title;
+		toastContainer.querySelector('.toast-body').textContent = msg;
 		document.body.prepend(toastContainer);
 		const bsToast = new bootstrap.Toast(toastContainer.firstElementChild);
 		toastContainer.addEventListener('hidden.bs.toast', () => {

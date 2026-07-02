@@ -1,6 +1,9 @@
 ---
 name: Lint Code Base
 
+permissions:
+  contents: read
+
 defaults:
   run:
     shell: bash
