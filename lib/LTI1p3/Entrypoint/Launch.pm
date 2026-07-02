@@ -58,12 +58,10 @@ async sub run ($c) {
 				$c->maketext("Your launch request has expired. Please click on the LTI link again."))
 				->rendered(400);
 		} else {
-			return $c->reply->exception(
-				$c->maketext(
-					"Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:"
-						. $parser->{error}
-				)
-			)->rendered(400);
+			return $c->reply->exception($c->maketext(
+				"Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:"
+					. $parser->{error}
+			))->rendered(400);
 		}
 	}
 

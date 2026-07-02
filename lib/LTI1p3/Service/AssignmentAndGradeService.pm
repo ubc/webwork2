@@ -912,8 +912,7 @@ sub grade_set {
 # enabled.
 sub handleErrorConcludedCourse {
 	my ($self, $res, $ltiResourceLink) = @_;
-	my $isConcludedCourseError =
-		$res->status_line eq '422 Unprocessable Entity'
+	my $isConcludedCourseError = $res->status_line eq '422 Unprocessable Entity'
 		&& $res->content eq
 		'{"errors":{"type":"unprocessable_entity","message":"This course has concluded. AGS requests will no longer be accepted for this course."}}';
 	if (!$isConcludedCourseError) { return 0; }
