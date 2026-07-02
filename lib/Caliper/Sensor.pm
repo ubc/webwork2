@@ -7,7 +7,7 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
-use Mojo::JSON  qw(encode_json);
+use JSON::PP    ();
 use Time::HiRes qw/gettimeofday/;
 use Date::Format;
 
@@ -55,7 +55,7 @@ sub sendEvents {
 	}
 
 	if ($self->{ce}->{delayed_job}{enabled}) {
-		my $json_array_of_events = JSON->new->canonical->encode($array_of_events);
+		my $json_array_of_events = JSON::PP->new->canonical->encode($array_of_events);
 		my $delayed_job_service  = DelayedJob::Service->new($c->ce);
 		$delayed_job_service->sendEvents($c, $json_array_of_events);
 	} else {
@@ -83,7 +83,7 @@ sub _sendEvents {
 			'data'        => $event_chunk,
 		};
 
-		my $json_payload = encode('UTF-8', JSON->new->canonical->encode($envelope));
+		my $json_payload = encode('UTF-8', JSON::PP->new->canonical->encode($envelope));
 		# debug("Caliper event json_payload: " . $json_payload);
 
 		my $HTTPRequest = HTTP::Request->new(
