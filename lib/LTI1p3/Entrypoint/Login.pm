@@ -39,7 +39,7 @@ async sub run ($c)
 	my $ce = $c->ce(WeBWorK::CourseEnvironment->new({
 		webwork_dir => $ENV{WEBWORK_ROOT},
 	}));
-	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
+	my $db = $c->db(new WeBWorK::DB($ce));
 	# in case we were sent a CORS request, add appropriate response headers
 	$c->_addCorsHeaders($ce);
 	# make sure browsers don't cache lti authentication requests

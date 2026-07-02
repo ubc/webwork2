@@ -25,7 +25,7 @@ LTI1p3::Service::AccessTokenRequest
 use strict;
 use warnings;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(grade_set grade_gateway grade_all_sets wwRound);
+use WeBWorK::Utils qw(wwRound);
 use HTTP::Request;
 use LWP::UserAgent;
 use HTML::Entities;
@@ -47,7 +47,7 @@ use LTI1p3::ExtraLog;
 sub new {
 	my ($invocant, $ce, $client_id, $scopes) = @_;
 	my $class = ref($invocant) || $invocant;
-	my $db = new WeBWorK::DB($ce->{dbLayout});
+	my $db = new WeBWorK::DB($ce);
 	my $self = {
 		ce => $ce,
 		db => $db,

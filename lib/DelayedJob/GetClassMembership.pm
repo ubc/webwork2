@@ -34,7 +34,7 @@ sub work {
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
-    my $db = new WeBWorK::DB($ce->{dbLayout});
+    my $db = new WeBWorK::DB($ce);
 
     my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
     my $membership = $names_and_roles_service->getAllNamesAndRole();

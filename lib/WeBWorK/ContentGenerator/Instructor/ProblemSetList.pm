@@ -67,8 +67,11 @@ LTI:
 use Mojo::File;
 
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(timeToSec listFilesRecursive jitar_id_to_seq seq_to_jitar_id x
-	format_set_name_internal format_set_name_display);
+use WeBWorK::Utils           qw(x);
+use WeBWorK::Utils::DateTime qw(timeToSec);
+use WeBWorK::Utils::Files    qw(listFilesRecursive);
+use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq seq_to_jitar_id);
+use WeBWorK::Utils::Sets     qw(format_set_name_internal format_set_name_display);
 use WeBWorK::Utils::Instructor qw(assignSetToUser assignSetToAllUsers addProblemToSet);
 use LTI1p3::Service::AssignmentAndGradeService;
 

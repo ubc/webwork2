@@ -21,7 +21,7 @@ sub work {
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
-    my $db = new WeBWorK::DB($ce->{dbLayout});
+    my $db = new WeBWorK::DB($ce);
 
     my $user_id = $args->{user_id};
     my $set_id = $args->{set_id};

@@ -12,7 +12,7 @@ use Data::Dumper;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(runtime_use readFile cryptPassword);
+use WeBWorK::Utils qw(cryptPassword);
 use WeBWorK::DB::Utils qw(initializeUserProblem);
 
 # Constructor

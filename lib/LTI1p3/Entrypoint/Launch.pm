@@ -5,7 +5,7 @@ use Mojo::Base 'LTI1p3::Entrypoint', -strict, -signatures, -async_await;
 
 use Data::Dumper;
 use URI::Escape;
-use WeBWorK::Utils qw(before after between formatDateTime);
+use WeBWorK::Utils::DateTime qw(before after between formatDateTime);
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
@@ -44,7 +44,7 @@ async sub run ($c)
 	my $ce = $c->ce(WeBWorK::CourseEnvironment->new({
 		webwork_dir => $ENV{WEBWORK_ROOT},
 	}));
-	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
+	my $db = $c->db(new WeBWorK::DB($ce));
 	# in case we were sent a CORS request, add appropriate response headers
 	$c->_addCorsHeaders($ce);
 	# make sure browsers don't cache lti authentication requests
@@ -114,7 +114,7 @@ async sub run ($c)
 		# set request ce and db to courseID
 		$c->stash('courseID', $course_id);
 		$c->ce($tmpce);
-		$c->db(new WeBWorK::DB($c->ce->{dbLayout}));
+		$c->db(new WeBWorK::DB($c->ce));
 		$db = $c->db;
 
 		my $authz = WeBWorK::Authz->new($c);
@@ -165,7 +165,7 @@ async sub run ($c)
 					my $display_name = $c->getSetId();
 					$display_name =~ s/_/ /g;
 					$c->flash(lti1p3bad =>  
-						$display_name." not open yet, will open on " . formatDateTime($set->open_date, $tmpce->{siteDefaults}{timezone}, $tmpce->{studentDateDisplayFormat})
+						$display_name." not open yet, will open on " . formatDateTime($set->open_date, $tmpce->{studentDateDisplayFormat}, $tmpce->{siteDefaults}{timezone})
 					);
 				} elsif ( $set->assignment_type() eq 'proctored_gateway' ) {
 					$redir .= "/proctored_test_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");

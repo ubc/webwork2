@@ -45,7 +45,7 @@ pod2usage(1) if $help;
 my $ce = WeBWorK::CourseEnvironment->new({
 	webwork_dir => $ENV{WEBWORK_ROOT},
 });
-my $db = new WeBWorK::DB($ce->{dbLayout});
+my $db = new WeBWorK::DB($ce);
 
 # set env var SINGLE_COURSE_SYNC to a Webwork course ID to make this script
 # update only that course. We run this script in a docker container, so can
@@ -77,7 +77,7 @@ foreach my $course_id (@course_ids) {
 		webwork_dir => $ENV{WEBWORK_ROOT},
 		courseName => $course_id
 	});
-	my $tmp_db = new WeBWorK::DB($tmp_ce->{dbLayout});
+	my $tmp_db = new WeBWorK::DB($tmp_ce);
 
 	# skip grade sync if disabled for course
 	if (!$tmp_ce->{lti_advantage}{cron_roster_sync}) {

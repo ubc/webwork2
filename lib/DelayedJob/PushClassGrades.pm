@@ -24,7 +24,7 @@ sub work {
             webwork_dir => $ENV{WEBWORK_ROOT},
             courseName => $courseName,
         });
-    my $db = new WeBWorK::DB($ce->{dbLayout});
+    my $db = new WeBWorK::DB($ce);
 
     my $assignment_and_grade_service = LTI1p3::Service::AssignmentAndGradeService->new($ce, $db);
     $assignment_and_grade_service->pushAllAssignmentGrades();

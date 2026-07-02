@@ -29,7 +29,7 @@ use HTTP::Request;
 use LWP::UserAgent;
 use Digest::SHA qw(sha1_base64);
 use Data::Dumper;
-use WeBWorK::Utils qw(before after between formatDateTime);
+use WeBWorK::Utils::DateTime qw(before after between formatDateTime);
 use JSON;
 
 use HTTP::Request::Common;
@@ -634,8 +634,8 @@ sub _generateGradePayloads
 		# LTI AGS spec technically requires subsecond precision. But since
 		# the original timestamp is a unix timestamp with only second
 		# precision, I've just stuck .000 to it.
-		my $nowTimestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
-		my $submittedTimestamp = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
+		my $nowTimestamp = formatDateTime(time(), "%Y-%m-%dT%H:%M:%S.000%z", $ce->{siteDefaults}{timezone});
+		my $submittedTimestamp = formatDateTime($grade_to_update->{timestamp}, "%Y-%m-%dT%H:%M:%S.000%z", $ce->{siteDefaults}{timezone});
 		my $params = {
 			userId => $lti_user_id,
 			scoreGiven => $grade,

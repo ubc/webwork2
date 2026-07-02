@@ -75,7 +75,7 @@ sub _actAsWebworkController($c, $courseName) {
 	# controller need to have the things that the authen module needs to use
 	$c->stash('courseID', $courseName);
 	$c->ce(WeBWorK::CourseEnvironment->new({ courseName => $courseName }));
-	$c->db(WeBWorK::DB->new($c->ce->{dbLayout}));
+	$c->db(WeBWorK::DB->new($c->ce));
 	my $authz = WeBWorK::Authz->new($c);
 	$c->authz($authz);
 	my $authen = WeBWorK::Authen::Saml2->new($c);

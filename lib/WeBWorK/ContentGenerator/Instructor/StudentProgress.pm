@@ -8,8 +8,10 @@ WeBWorK::ContentGenerator::Instructor::StudentProgress - Display Student Progres
 =cut
 
 # 'decodeAnswers', 'before' needed for submit draft tests
-use WeBWorK::Utils qw(jitar_id_to_seq wwRound grade_set format_set_name_display decodeAnswers before);
-use WeBWorK::Utils::Grades qw(list_set_versions);
+use WeBWorK::Utils           qw(wwRound grade_set decodeAnswers);
+use WeBWorK::Utils::DateTime qw(before);
+use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq);
+use WeBWorK::Utils::Sets     qw(format_set_name_display list_set_versions);
 
 use WeBWorK::Debug;
 use WeBWorK::Utils::Rendering qw(getTranslatorDebuggingOptions renderPG);

@@ -25,7 +25,7 @@ LTI1p3::Service::NamesAndRoleService
 use strict;
 use warnings;
 use WeBWorK::Debug;
-use WeBWorK::Utils qw(grade_set grade_gateway grade_all_sets wwRound);
+use WeBWorK::Utils qw(wwRound);
 use Net::OAuth;
 use HTTP::Request;
 use LWP::UserAgent;
