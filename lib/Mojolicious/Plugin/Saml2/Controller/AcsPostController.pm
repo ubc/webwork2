@@ -12,44 +12,39 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 
-async sub post($c) {
+async sub post ($c) {
 	debug('SAML2 is on!');
 	# check required params
 	my $samlResp = $c->param('SAMLResponse');
 	if (!$samlResp) {
-		return $c->reply->exception('Unauthorized - Missing SAMLResponse')
-			->rendered(401);
+		return $c->reply->exception('Unauthorized - Missing SAMLResponse')->rendered(401);
 	}
 	my $relayState = $c->param('RelayState');
 	if (!$relayState) {
-		return $c->reply->exception('Unauthorized - Missing RelayState')
-			->rendered(401);
+		return $c->reply->exception('Unauthorized - Missing RelayState')->rendered(401);
 	}
 	$relayState = decode_json($relayState);
 
-	my $idp = $c->saml2->getIdp();
+	my $idp  = $c->saml2->getIdp();
 	my $conf = $c->saml2->getConf();
 
 	# verify response is signed by the IdP and decode it
-	my $postBinding = Net::SAML2::Binding::POST->new(
-		cacert => $c->saml2->getIdpCertFile()
-	);
-	my $decodedXml = $postBinding->handle_response($samlResp);
-	my $assertion = Net::SAML2::Protocol::Assertion->new_from_xml(
-		xml => $decodedXml,
+	my $postBinding = Net::SAML2::Binding::POST->new(cacert => $c->saml2->getIdpCertFile());
+	my $decodedXml  = $postBinding->handle_response($samlResp);
+	my $assertion   = Net::SAML2::Protocol::Assertion->new_from_xml(
+		xml      => $decodedXml,
 		key_file => $c->saml2->getSpSigningKeyFile()
 	);
 
 	# get the authReqId we generated when we sent the user to the IdP
 	my $authReqId = $c->session->{authReqId};
-	delete $c->session->{authReqId}; # delete from session to avoid replay
+	delete $c->session->{authReqId};    # delete from session to avoid replay
 
 	# verify the response has the same authReqId which means it's responding to
 	# the auth request we generated, also checks that timestamps are valid
 	my $valid = $assertion->valid($conf->{sp}{entity_id}, $authReqId);
 	if (!$valid) {
-		return $c->reply->exception('Unauthorized - Invalid timestamp or issuer')
-			->rendered(401);
+		return $c->reply->exception('Unauthorized - Invalid timestamp or issuer')->rendered(401);
 	}
 
 	debug('Got valid response and looking for username');
@@ -65,12 +60,10 @@ async sub post($c) {
 		}
 		return $c->redirect_to($relayState->{url});
 	}
-	return $c->reply
-		->exception('Unauthorized - User not found in ' . $relayState->{course})
-		->rendered(401);
+	return $c->reply->exception('Unauthorized - User not found in ' . $relayState->{course})->rendered(401);
 }
 
-sub _actAsWebworkController($c, $courseName) {
+sub _actAsWebworkController ($c, $courseName) {
 	# we need to call Webwork authen module to create the auth session, so our
 	# controller need to have the things that the authen module needs to use
 	$c->stash('courseID', $courseName);
@@ -82,7 +75,7 @@ sub _actAsWebworkController($c, $courseName) {
 	$c->authen($authen);
 }
 
-sub _getUserId($c, $attributeKeys, $assertion, $relayState) {
+sub _getUserId ($c, $attributeKeys, $assertion, $relayState) {
 	my $ce = $c->{ce};
 	my $db = $c->{db};
 	my $user;
@@ -95,8 +88,7 @@ sub _getUserId($c, $attributeKeys, $assertion, $relayState) {
 				return $possibleUserId;
 			}
 		}
-	}
-	else {
+	} else {
 		# if no attributes were defined, then we try using the NameID
 		if ($db->getUser($assertion->nameid)) { return $assertion->nameid; }
 	}

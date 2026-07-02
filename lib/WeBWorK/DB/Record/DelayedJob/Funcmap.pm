@@ -27,8 +27,8 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		funcid => { type=>"INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT" },
-		funcname => { type=>"VARCHAR(255) NOT NULL", key=>1 },
+		funcid   => { type => "INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT" },
+		funcname => { type => "VARCHAR(255) NOT NULL", key => 1 },
 	);
 }
 

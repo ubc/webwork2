@@ -31,8 +31,7 @@ sub startup ($app) {
 	# Configure the application
 	#$app->secrets($config->{secrets});
 	# ubc custom, take secret from env var
-	my $secrets = $ENV{WEBWORK_SECRET} ? [$ENV{WEBWORK_SECRET}] :
-									     $config->{secrets};
+	my $secrets = $ENV{WEBWORK_SECRET} ? [ $ENV{WEBWORK_SECRET} ] : $config->{secrets};
 	$app->secrets($secrets);
 
 	# ubc custom, increase the file upload limit (in bytes), defaults to 1GiB

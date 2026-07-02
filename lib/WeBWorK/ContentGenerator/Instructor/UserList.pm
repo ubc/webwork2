@@ -74,7 +74,7 @@ use constant FORM_TITLES => {
 	delete          => x('Delete'),
 	save_password   => x('Save Password'),
 	cancel_password => x('Cancel Password'),
-	lti            => x('LMS Sync'),
+	lti             => x('LMS Sync'),
 };
 
 # permissions needed to perform a given action
@@ -87,7 +87,7 @@ use constant FORM_PERMS => {
 	export        => 'modify_classlist_files',
 	add           => 'modify_student_data',
 	delete        => 'modify_student_data',
-		lti => "modify_student_data",
+	lti           => "modify_student_data",
 };
 
 use constant SORT_SUBS => {
@@ -231,15 +231,15 @@ sub pre_header_initialize ($c) {
 	# ubc custom: the %allUsers pointer has stale data after LTI classlist
 	# sync, so we use the updated data in $c->{allUsers}
 	#$c->{allUserIDs} = [ keys %allUsers ];
-	$c->{allUserIDs} = [ keys %{$c->{allUsers}} ];
+	$c->{allUserIDs} = [ keys %{ $c->{allUsers} } ];
 
 	# Always have a definite sort order in case the first three sorts don't determine things.
 	$c->{sortedUserIDs} = [
-		map  { $_->user_id }
-		sort { &$primarySortSub || &$secondarySortSub || &$ternarySortSub || byLastName || byFirstName || byUserID }
-		# ubc custom: %allUsers pointer has stale data after LTI classlist sync
-		#grep { $c->{visibleUserIDs}{ $_->user_id } } (values %allUsers)
-		grep { $c->{visibleUserIDs}{ $_->user_id } } (values %{$c->{allUsers}})
+		map      { $_->user_id }
+			sort { &$primarySortSub || &$secondarySortSub || &$ternarySortSub || byLastName || byFirstName || byUserID }
+			# ubc custom: %allUsers pointer has stale data after LTI classlist sync
+			#grep { $c->{visibleUserIDs}{ $_->user_id } } (values %allUsers)
+			grep { $c->{visibleUserIDs}{ $_->user_id } } (values %{ $c->{allUsers} })
 	];
 
 	return;
@@ -622,16 +622,16 @@ sub save_password_handler ($c) {
 }
 
 sub lti_handler ($c) {
-	my $ce  = $c->ce;
+	my $ce = $c->ce;
 	my $db = $c->db;
 
 	my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
-	my $membership = $names_and_roles_service->getAllNamesAndRole();
+	my $membership              = $names_and_roles_service->getAllNamesAndRole();
 	unless ($membership) {
 		return $c->maketext("There was an issue fetching the class roster. [_1]", $names_and_roles_service->{error});
 	}
 	my $updater = LTI1p3::Importer::CourseUpdater->new($ce, $db, $membership);
-	my $ret = $updater->updateCourse();
+	my $ret     = $updater->updateCourse();
 	if ($ret) {
 		return $c->maketext("Update class roster failed: [_1]", $ret);
 	}

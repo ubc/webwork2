@@ -184,7 +184,7 @@ sub verify {
 		if (defined $log_error) {
 			$self->write_log_entry("LOGIN FAILED $log_error");
 		}
-		$self->write_log_entry("^^ Killed cookie in verify"); # ubc debug
+		$self->write_log_entry("^^ Killed cookie in verify");    # ubc debug
 		$self->maybe_kill_cookie;
 		$c->stash(authen_error => $self->{error}) if $self->{error} && $self->{error} =~ /\S/;
 	}
@@ -298,8 +298,10 @@ sub get_credentials {
 
 	if (defined $cookieUser and defined $c->param("user")) {
 		if ($cookieUser ne $c->param("user")) {
-			$self->write_log_entry("^^ Killed cookie, cookieUser = $cookieUser and paramUser = ". $c->param("user") . " are different."); # ubc debug
-			#croak ("cookieUser = $cookieUser and paramUser = ". $c->param("user") . " are different.");
+			$self->write_log_entry("^^ Killed cookie, cookieUser = $cookieUser and paramUser = "
+					. $c->param("user")
+					. " are different.");    # ubc debug
+				#croak ("cookieUser = $cookieUser and paramUser = ". $c->param("user") . " are different.");
 			$self->maybe_kill_cookie;    # use parameter "user" rather than cookie "user";
 		}
 		# Use session key for verification
@@ -585,7 +587,7 @@ sub maybe_send_cookie {
 	if ($used_cookie || $unused_valid_cookie || $user_requests_cookie || $session_management_via_cookies) {
 		$self->sendCookie($self->{user_id}, $self->{session_key});
 	} else {
-		debug('Killed cookie in maybe_send_cookie'); # ubc debug
+		debug('Killed cookie in maybe_send_cookie');    # ubc debug
 		$self->killCookie;
 	}
 
@@ -925,7 +927,7 @@ sub killSession {
 
 	$self->forget_verification;
 	if ($ce->{session_management_via} eq "session_cookie") {
-		debug('Killed cookie in killSession'); # ubc debug
+		debug('Killed cookie in killSession');    # ubc debug
 		$self->killCookie();
 	}
 

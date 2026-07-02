@@ -30,7 +30,7 @@ SAML2 auth.
 
 =cut
 
-sub request_has_data_for_this_verification_module($self) {
+sub request_has_data_for_this_verification_module ($self) {
 	my $c = $self->{c};
 	# skip if Saml2 plugin config is missing, as this means the plugin isn't loaded
 	if (!-e "$ENV{WEBWORK_ROOT}/conf/authen_saml2.yml") {
@@ -48,43 +48,42 @@ sub request_has_data_for_this_verification_module($self) {
 	return 1;
 }
 
-sub do_verify($self) {
+sub do_verify ($self) {
 	if ($self->{saml2UserId}) {
 		# we have a saml response, need to create a session for the user
 		return $self->SUPER::do_verify();
 	}
 	# user doesn't have an existing session, send them to IdP for login
-	my $c = $self->{c};
+	my $c  = $self->{c};
 	my $ce = $c->{ce};
 	debug('User needs to go to the IdP for login');
 	debug('If login successful, user should be in course: ' . $ce->{courseName});
 	debug('With the URL ' . $c->req->url);
 	$c->saml2->sendLoginRequest($c->req->url->to_string, $ce->{courseName});
-	
+
 	# we fail verify for this request but doesn't matter cause the user gets
 	# redirected to the IdP
 	return 0;
 }
 
-sub get_credentials($self) {
+sub get_credentials ($self) {
 	if (!$self->{saml2UserId}) { return 0; }
 	# user has been authed by the IdP
-	$self->{user_id} = $self->{saml2UserId};
-	$self->{login_type} = "normal";
+	$self->{user_id}           = $self->{saml2UserId};
+	$self->{login_type}        = "normal";
 	$self->{credential_source} = "SAML2";
-	$self->{session_key} = undef;
-	$self->{initial_login} = 1;
+	$self->{session_key}       = undef;
+	$self->{initial_login}     = 1;
 	return 1;
 }
 
-sub authenticate($self) {
+sub authenticate ($self) {
 	# idp has authenticated us, so we can just return 1
 	return 1;
 }
 
-sub setSaml2UserId($self, $userId) {
+sub setSaml2UserId ($self, $userId) {
 	$self->{saml2UserId} = $userId;
 }
-
 
 1;

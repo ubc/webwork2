@@ -67,11 +67,11 @@ LTI:
 use Mojo::File;
 
 use WeBWorK::Debug;
-use WeBWorK::Utils           qw(x);
-use WeBWorK::Utils::DateTime qw(timeToSec);
-use WeBWorK::Utils::Files    qw(listFilesRecursive);
-use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq seq_to_jitar_id);
-use WeBWorK::Utils::Sets     qw(format_set_name_internal format_set_name_display);
+use WeBWorK::Utils             qw(x);
+use WeBWorK::Utils::DateTime   qw(timeToSec);
+use WeBWorK::Utils::Files      qw(listFilesRecursive);
+use WeBWorK::Utils::JITAR      qw(jitar_id_to_seq seq_to_jitar_id);
+use WeBWorK::Utils::Sets       qw(format_set_name_internal format_set_name_display);
 use WeBWorK::Utils::Instructor qw(assignSetToUser assignSetToAllUsers addProblemToSet);
 use LTI1p3::Service::AssignmentAndGradeService;
 
@@ -96,7 +96,7 @@ use constant FORM_TITLES => {
 	delete        => x("Delete"),
 	save_export   => x("Save Export"),
 	cancel_export => x("Cancel Export"),
-	lti            => x("Canvas Sync")
+	lti           => x("Canvas Sync")
 };
 
 use constant VIEW_FIELD_ORDER =>
@@ -116,7 +116,7 @@ use constant FORM_PERMS => {
 	score       => "score_sets",
 	create      => "create_and_delete_problem_sets",
 	delete      => "create_and_delete_problem_sets",
-		lti => "create_and_delete_problem_sets",
+	lti         => "create_and_delete_problem_sets",
 };
 
 # Note that these are the only fields that are ever shown on this page.
@@ -719,7 +719,10 @@ sub lti_handler ($c) {
 	if ($assignment_and_grade_service->{error}) {
 		return (
 			0,
-			$c->maketext("There was an issue pushing the class grades. [_1]", $assignment_and_grade_service->{error})
+			$c->maketext(
+				"There was an issue pushing the class grades. [_1]",
+				$assignment_and_grade_service->{error}
+			)
 		);
 	}
 	return (1, $c->maketext("Successfully updated class grades."));

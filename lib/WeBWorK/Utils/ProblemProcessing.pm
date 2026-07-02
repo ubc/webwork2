@@ -224,7 +224,8 @@ async sub process_and_log_answer ($c) {
 						my $delayed_job_service = DelayedJob::Service->new($ce);
 						$delayed_job_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
 					} else {
-						my $assignment_and_grade_service = LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
+						my $assignment_and_grade_service =
+							LTIAdvantage::Service::AssignmentAndGradeService->new($ce, $db);
 						$assignment_and_grade_service->pushUserGradesOnSubmit($problem->user_id, $problem->set_id);
 						if ($assignment_and_grade_service->{error}) {
 							$scoreRecordedMessage .= $c->maketext(" Your score was not successfully sent to the LMS");

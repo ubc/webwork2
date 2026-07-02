@@ -32,12 +32,11 @@ sub request_has_data_for_this_verification_module ($self) {
 }
 
 sub do_verify ($self) {
-	my $c    = $self->{c};
-	
+	my $c = $self->{c};
+
 	if ($c->param('bypassShib')) {
 		debug('Bypassing external auth to use internal login');
-	}
-	else {
+	} else {
 		# make Login.pm tell users to use external auth, don't make internal
 		# login available
 		$self->{external_auth} = 1;

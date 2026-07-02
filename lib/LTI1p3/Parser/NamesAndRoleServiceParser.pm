@@ -8,14 +8,13 @@ use WeBWorK::Debug;
 use Data::Dumper;
 
 ##### Exported Functions #####
-sub new
-{
+sub new {
 	my ($class, $client_id, $ce, $data) = @_;
 
 	my $self = {
 		client_id => $client_id,
-		ce => $ce,
-		data => $data
+		ce        => $ce,
+		data      => $data
 	};
 	bless $self, $class;
 	return $self;
@@ -28,7 +27,7 @@ sub get_members {
 
 	my @members = ();
 
-	for my $member (@{$data->{'members'}}) {
+	for my $member (@{ $data->{'members'} }) {
 		# Each membership has a status of either Active or Inactive.
 		# If the status is not specified then a status of Active must be assumed.
 		if (defined($member->{"status"}) && $member->{"status"} eq "Inactive") {
@@ -50,12 +49,12 @@ sub get_user_info {
 
 	my $user = {};
 
-	$user->{'loginid'} = $self->get_user_identifier($member);
-	$user->{'client_id'} = $client_id;
+	$user->{'loginid'}     = $self->get_user_identifier($member);
+	$user->{'client_id'}   = $client_id;
 	$user->{'lti_user_id'} = $member->{"user_id"};
-	$user->{'firstname'} = $member->{"given_name"};
-	$user->{'lastname'} = $member->{"family_name"};
-	$user->{'email'} = $member->{"email"};
+	$user->{'firstname'}   = $member->{"given_name"};
+	$user->{'lastname'}    = $member->{"family_name"};
+	$user->{'email'}       = $member->{"email"};
 
 	# convert from internal perl UTF8 to binary UTF8, note that this means
 	# I'm expecting these to go straight into the database, not be used in
@@ -64,7 +63,7 @@ sub get_user_info {
 	utf8::encode($user->{'lastname'});
 
 	# set user permissions
-	$user->{'studentid'} = '';
+	$user->{'studentid'}  = '';
 	$user->{'permission'} = $self->get_permissions($member);
 	if ($user->{'permission'} == $ce->{userRoles}{student}) {
 		$user->{'studentid'} = $self->get_student_number($member);
@@ -85,12 +84,12 @@ sub get_user_identifier {
 
 		# check general member fields
 		if (scalar @user_identifier_parts eq 1) {
-			if (defined($member->{$user_identifier_parts[0]})) {
-				return $member->{$user_identifier_parts[0]};
+			if (defined($member->{ $user_identifier_parts[0] })) {
+				return $member->{ $user_identifier_parts[0] };
 			}
 		}
 
-		for my $message (@{$member->{"message"}}) {
+		for my $message (@{ $member->{"message"} }) {
 			unless ($message->{"https://purl.imsglobal.org/spec/lti/claim/message_type"} eq "LtiResourceLinkRequest") {
 				next;
 			}
@@ -103,7 +102,12 @@ sub get_user_identifier {
 				$data_ref = $data_ref->{$user_identifier_part};
 			}
 
-			if (!defined($data_ref) || ref($data_ref) eq 'HASH' || ref($data_ref) eq 'ARRAY' || $data_ref eq '' || rindex($data_ref, '$Canvas', 0) == 0) {
+			if (!defined($data_ref)
+				|| ref($data_ref) eq 'HASH'
+				|| ref($data_ref) eq 'ARRAY'
+				|| $data_ref eq ''
+				|| rindex($data_ref, '$Canvas', 0) == 0)
+			{
 				# fallback is to use lti_user_id (useful for LMS preview users)
 				return $member->{"user_id"};
 			}
@@ -128,12 +132,12 @@ sub get_student_number {
 
 		# check general member fields
 		if (scalar @student_number_parts eq 1) {
-			if (defined($member->{$student_number_parts[0]})) {
-				return $member->{$student_number_parts[0]};
+			if (defined($member->{ $student_number_parts[0] })) {
+				return $member->{ $student_number_parts[0] };
 			}
 		}
 
-		for my $message (@{$member->{"message"}}) {
+		for my $message (@{ $member->{"message"} }) {
 			unless ($message->{"https://purl.imsglobal.org/spec/lti/claim/message_type"} eq "LtiResourceLinkRequest") {
 				next;
 			}
@@ -146,7 +150,12 @@ sub get_student_number {
 				$data_ref = $data_ref->{$student_number_part};
 			}
 
-			if (!defined($data_ref) || ref($data_ref) eq 'HASH' || ref($data_ref) eq 'ARRAY' || $data_ref eq '' || rindex($data_ref, '$Canvas', 0) == 0) {
+			if (!defined($data_ref)
+				|| ref($data_ref) eq 'HASH'
+				|| ref($data_ref) eq 'ARRAY'
+				|| $data_ref eq ''
+				|| rindex($data_ref, '$Canvas', 0) == 0)
+			{
 				return '';
 			}
 
@@ -174,13 +183,13 @@ sub get_permissions {
 	my ($self, $member) = @_;
 	my $ce = $self->{ce};
 
-	my @roles = @{$member->{"roles"}};
+	my @roles = @{ $member->{"roles"} };
 
-	my $is_admin = 0;
-	my $is_instructor = 0;
+	my $is_admin             = 0;
+	my $is_instructor        = 0;
 	my $is_content_developer = 0;
-	my $is_ta = 0;
-	my $is_student = 0;
+	my $is_ta                = 0;
+	my $is_student           = 0;
 
 	foreach my $role (@roles) {
 		# supports long and short formats. ex:

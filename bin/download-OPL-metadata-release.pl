@@ -32,12 +32,12 @@ my $ce = WeBWorK::CourseEnvironment->new({ webwork_dir => $ENV{WEBWORK_ROOT} });
 die "The WeBWorK temporary directory $ce->{webworkDirs}{tmp} does not exist or is not writable."
 	if (!-d $ce->{webworkDirs}{tmp} || !-w $ce->{webworkDirs}{tmp});
 
-$ENV{OPL_REPO_RELEASE_API_URL} = 'https://api.github.com/repos/ubc/webwork-open-problem-library/releases/latest' if (!defined($ENV{OPL_REPO_RELEASE_API_URL}));
-my $releaseDataFF =
-	File::Fetch->new(uri => $ENV{OPL_REPO_RELEASE_API_URL});
-my $file        = $releaseDataFF->fetch(to => $ce->{webworkDirs}{tmp}) or die $releaseDataFF->error;
-my $path        = Mojo::File->new($file);
-my $releaseData = decode_json($path->slurp);
+$ENV{OPL_REPO_RELEASE_API_URL} = 'https://api.github.com/repos/ubc/webwork-open-problem-library/releases/latest'
+	if (!defined($ENV{OPL_REPO_RELEASE_API_URL}));
+my $releaseDataFF = File::Fetch->new(uri => $ENV{OPL_REPO_RELEASE_API_URL});
+my $file          = $releaseDataFF->fetch(to => $ce->{webworkDirs}{tmp}) or die $releaseDataFF->error;
+my $path          = Mojo::File->new($file);
+my $releaseData   = decode_json($path->slurp);
 $path->remove;
 
 my $releaseTag = $releaseData->{tag_name};

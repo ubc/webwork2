@@ -22,29 +22,29 @@ use constant Exception => 'Mojolicious::Plugin::Saml2::Exception';
 
 our $VERSION = '0.0.1';
 
-sub register($self, $app, $conf = {}) {
+sub register ($self, $app, $conf = {}) {
 	# yml config can be overridden with config passed in during plugin init
 	$conf = $self->_loadConf($conf, $app);
 	$self->checkConf($conf);
 	# note this will grab the IdP metadata on every server reboot
-	my $idp = Net::SAML2::IdP->new_from_url(url => $conf->{idp}{metadata_url});
-	my $spCertFile = $self->_getTmpFileWithContent($conf->{sp}{cert});
+	my $idp              = Net::SAML2::IdP->new_from_url(url => $conf->{idp}{metadata_url});
+	my $spCertFile       = $self->_getTmpFileWithContent($conf->{sp}{cert});
 	my $spSigningKeyFile = $self->_getTmpFileWithContent($conf->{sp}{signing_key});
-	my $idpCertFile = $self->_getTmpFileWithContent($idp->cert('signing')->[0]);
+	my $idpCertFile      = $self->_getTmpFileWithContent($idp->cert('signing')->[0]);
 	# setup routes for metadata and samlresponse handling
 	Mojolicious::Plugin::Saml2::Router::setup($app, $conf);
 	# cached values we need later
-	$app->helper('saml2.getConf' => sub { return $conf; });
-	$app->helper('saml2.getIdp' => sub { return $idp; });
-	$app->helper('saml2.getSpCertFile' => sub { return $spCertFile; });
+	$app->helper('saml2.getConf'             => sub { return $conf; });
+	$app->helper('saml2.getIdp'              => sub { return $idp; });
+	$app->helper('saml2.getSpCertFile'       => sub { return $spCertFile; });
 	$app->helper('saml2.getSpSigningKeyFile' => sub { return $spSigningKeyFile; });
-	$app->helper('saml2.getIdpCertFile' => sub { return $idpCertFile; });
-	$app->helper('saml2.getSp' => \&getSp);
+	$app->helper('saml2.getIdpCertFile'      => sub { return $idpCertFile; });
+	$app->helper('saml2.getSp'               => \&getSp);
 	# called by the Webwork Saml2 authen module to redirect users to the IdP
 	$app->helper('saml2.sendLoginRequest' => \&sendLoginRequest);
 }
 
-sub checkConf($self, $conf) {
+sub checkConf ($self, $conf) {
 	if (!$conf->{idp}) {
 		Exception->throw("Config missing 'idp' section");
 	}
@@ -83,47 +83,45 @@ sub checkConf($self, $conf) {
 # we need an SP instance in order to generate the xml metadata and specify our
 # SP endpoints. We have to do this in a helper cause we need to use the
 # controller's url_for()
-sub getSp($c) {
+sub getSp ($c) {
 	state $sp;
 	if ($sp) { return $sp; }
 	my $conf = $c->saml2->getConf();
 	$sp = Net::SAML2::SP->new(
-        issuer                     => $conf->{sp}->{entity_id},
+		issuer => $conf->{sp}->{entity_id},
 		# base url for SP services
-        url                        => $ENV{WEBWORK_ROOT_URL} . $c->url_for('saml2.base'),
+		url                        => $ENV{WEBWORK_ROOT_URL} . $c->url_for('saml2.base'),
 		error_url                  => $ENV{WEBWORK_ROOT_URL} . $c->url_for('saml2.error'),
-        cert                       => $c->saml2->getSpCertFile(),
-        key                        => $c->saml2->getSpSigningKeyFile(),
-        org_contact                => $conf->{sp}->{org}->{contact},
-        org_name                   => $conf->{sp}->{org}->{name},
-        org_url                    => $conf->{sp}->{org}->{url},
-        org_display_name           => $conf->{sp}->{org}->{display_name},
-		assertion_consumer_service => [
-			{
-				Binding => BINDING_HTTP_POST,
-				Location => $ENV{WEBWORK_ROOT_URL} . $c->url_for('saml2.acsPost'),
-				isDefault => 'true',
-			}
-		]
-    );
+		cert                       => $c->saml2->getSpCertFile(),
+		key                        => $c->saml2->getSpSigningKeyFile(),
+		org_contact                => $conf->{sp}->{org}->{contact},
+		org_name                   => $conf->{sp}->{org}->{name},
+		org_url                    => $conf->{sp}->{org}->{url},
+		org_display_name           => $conf->{sp}->{org}->{display_name},
+		assertion_consumer_service => [ {
+			Binding   => BINDING_HTTP_POST,
+			Location  => $ENV{WEBWORK_ROOT_URL} . $c->url_for('saml2.acsPost'),
+			isDefault => 'true',
+		} ]
+	);
 	return $sp;
 }
 
 # $returnUrl is the course URL that the user should be directed into after they
 # sucessfully authed at the IdP
-sub sendLoginRequest($c, $returnUrl, $courseName) {
+sub sendLoginRequest ($c, $returnUrl, $courseName) {
 	debug('Creating Login Request');
-	my $conf = $c->saml2->getConf();
-	my $idp = $c->saml2->getIdp();
-	my $sp = $c->saml2->getSp();
+	my $conf    = $c->saml2->getConf();
+	my $idp     = $c->saml2->getIdp();
+	my $sp      = $c->saml2->getSp();
 	my $authReq = $sp->authn_request($idp->sso_url(BINDING_HTTP_REDIRECT));
 	$c->session->{authReqId} = $authReq->id;
 	my $redirect = $sp->sso_redirect_binding($idp, 'SAMLRequest');
 	# info the IdP relays back to help us put the user in the right place after
 	# login
-	my $relayState = { 
+	my $relayState = {
 		'course' => $courseName,
-		'url' => $returnUrl
+		'url'    => $returnUrl
 	};
 	my $url = $redirect->sign($authReq->as_xml, encode_json($relayState));
 	debug('Redirecting user to the IdP');
@@ -133,14 +131,14 @@ sub sendLoginRequest($c, $returnUrl, $courseName) {
 # Write $content into a temporary file and return the full path to that file.
 # Net:SAML2 strangely won't take keys and certs as strings, it only wants
 # filepaths, this helper is meant to get around that.
-sub _getTmpFileWithContent($self, $content) {
+sub _getTmpFileWithContent ($self, $content) {
 	my ($fh, $filename) = tempfile();
 	print $fh $content;
 	close($fh);
 	return $filename;
 }
 
-sub _loadConf($self, $pluginConf, $app) {
+sub _loadConf ($self, $pluginConf, $app) {
 	my $confFile = "$ENV{WEBWORK_ROOT}/conf/authen_saml2.yml";
 	if (!-e $confFile) {
 		Exception->throw("Missing conf file: $confFile");
@@ -154,6 +152,5 @@ sub _loadConf($self, $pluginConf, $app) {
 	my $yamlConf = $yamlPlugin->load($confFile, {}, $app);
 	return { %$yamlConf, %$pluginConf };
 }
-
 
 1;

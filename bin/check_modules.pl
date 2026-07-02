@@ -116,8 +116,8 @@ my @modulesList = qw(
 	XML::Parser::EasyTree
 	XML::Writer
 	YAML::XS
-    XML::Simple
-    App::Genpass
+	XML::Simple
+	App::Genpass
 	HTTP::Async
 	TheSchwartz
 	Crypt::JWT

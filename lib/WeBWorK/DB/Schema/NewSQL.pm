@@ -134,14 +134,14 @@ sub where_user_id_eq_set_id_eq {
 
 # can be used for lti_resource_links
 sub where_is_valid_eq {
-    my ($self, $flags, $valid) = @_;
-    return {is_valid=>$valid};
+	my ($self, $flags, $valid) = @_;
+	return { is_valid => $valid };
 }
 
 # can be used for lti_contexts
 sub where_course_id_eq {
-    my ($self, $flags, $course_id) = @_;
-    return {course_id=>$course_id};
+	my ($self, $flags, $course_id) = @_;
+	return { course_id => $course_id };
 }
 
 # added where clauses for locations and set_locations

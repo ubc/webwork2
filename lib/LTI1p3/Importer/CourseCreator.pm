@@ -9,7 +9,7 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 use Data::Dumper;
-use WeBWorK::Utils qw(cryptPassword);
+use WeBWorK::Utils                   qw(cryptPassword);
 use WeBWorK::Utils::CourseManagement qw(addCourse);
 
 use LTI1p3::Importer::Error;
@@ -17,37 +17,33 @@ use LTI1p3::Importer::Error;
 use Text::CSV;
 
 # Constructor
-sub new
-{
+sub new {
 	my ($class, $ce, $db, $courseID, $courseTitle) = @_;
 	my $self = {
-		ce => $ce,
-		db => $db,
-		courseID => $courseID,
+		ce          => $ce,
+		db          => $db,
+		courseID    => $courseID,
 		courseTitle => $courseTitle
 	};
 	bless $self, $class;
 	return $self;
 }
 
-sub createCourse
-{
+sub createCourse {
 	my $self = shift;
-	my $ce = $self->{ce};
-	my $db = $self->{db};
+	my $ce   = $self->{ce};
+	my $db   = $self->{db};
 
-	my $courseID = $self->{courseID};
+	my $courseID    = $self->{courseID};
 	my $courseTitle = $self->{courseTitle};
 
 	my $ce2 = new WeBWorK::CourseEnvironment({
-		%WeBWorK::SeedCE,
-		courseName => $courseID,
+		%WeBWorK::SeedCE, courseName => $courseID,
 	});
 
-	my %courseOptions = ( dbLayoutName => $ce2->{dbLayoutName} );
+	my %courseOptions = (dbLayoutName => $ce2->{dbLayoutName});
 	my %optional_arguments;
-	if ($ce->{lti_advantage}{course_template})
-	{
+	if ($ce->{lti_advantage}{course_template}) {
 		$optional_arguments{templatesFrom} = $ce->{lti_advantage}{course_template};
 	}
 	if ($courseTitle ne "") {
@@ -71,7 +67,7 @@ sub createCourse
 		user_id    => "admin",
 		permission => $ce->{userRoles}{professor},
 	);
-	my @classlist = [ $AdminUser, $AdminPassword, $AdminPermissionLevel];
+	my @classlist = [ $AdminUser, $AdminPassword, $AdminPermissionLevel ];
 
 	eval {
 		addCourse(
@@ -86,23 +82,19 @@ sub createCourse
 		my $error = $@;
 		# get rid of any partially built courses
 		unless ($error =~ /course exists/) {
-			eval {
-				deleteCourse(
-					courseID   => $courseID,
-					ce         => $ce2,
-				);
-			}
+			eval { deleteCourse(courseID => $courseID, ce => $ce2,); }
 		}
-		return error("Add course failed, failure: $error","#e018");
+		return error("Add course failed, failure: $error", "#e018");
 	}
 
 	if ($ce->{lti_advantage}{hide_new_courses}) {
-		my $message = 'Place a file named "hide_directory" in a course or other directory '.
-			'and it will not show up in the courses list on the WeBWorK home page. '.
-			'It will still appear in the Course Administration listing.';
+		my $message =
+			'Place a file named "hide_directory" in a course or other directory '
+			. 'and it will not show up in the courses list on the WeBWorK home page. '
+			. 'It will still appear in the Course Administration listing.';
 		my $coursesDir = $ce->{webworkDirs}->{courses};
 		local *HIDEFILE;
-		if (open (HIDEFILE, ">","$coursesDir/$courseID/hide_directory")) {
+		if (open(HIDEFILE, ">", "$coursesDir/$courseID/hide_directory")) {
 			print HIDEFILE "$message";
 			close HIDEFILE;
 		} else {
@@ -115,14 +107,12 @@ sub createCourse
 
 # Perl 5.8.8 doesn't let you override `` for testing. This sub gets
 # around that since we can still override subs.
-sub customExec
-{
+sub customExec {
 	my $cmd = shift;
 	my $msg = shift;
 
 	$$msg = `$cmd 2>&1`;
-	if ($?)
-	{
+	if ($?) {
 		return 1;
 	}
 	return 0;

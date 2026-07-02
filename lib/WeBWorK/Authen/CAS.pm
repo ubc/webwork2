@@ -67,10 +67,10 @@ sub get_credentials {
 
 	my ($cookieUser, $cookieKey, $cookieTimeStamp) = $self->fetchCookie;
 
-	if (defined($cookieUser) && defined($r->param("user")) ) {
+	if (defined($cookieUser) && defined($r->param("user"))) {
 		if ($cookieUser ne $r->param("user")) {
 			#croak ("cookieUser = $cookieUser and paramUser = ". $r->param("user") . " are different.");
-			$self->maybe_kill_cookie; # use parameter "user" rather than cookie "user";
+			$self->maybe_kill_cookie;    # use parameter "user" rather than cookie "user";
 		}
 	}
 

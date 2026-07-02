@@ -27,21 +27,21 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		client_id => { type=>"TINYBLOB NOT NULL", key=>1 },
-		context_id => { type=>"TINYBLOB NOT NULL", key=>1 },
-		resource_link_id => { type=>"TINYBLOB NOT NULL", key=>1 },
-		set_id => { type=>"TINYBLOB" },
+		client_id        => { type => "TINYBLOB NOT NULL", key => 1 },
+		context_id       => { type => "TINYBLOB NOT NULL", key => 1 },
+		resource_link_id => { type => "TINYBLOB NOT NULL", key => 1 },
+		set_id           => { type => "TINYBLOB" },
 
 		# assignment and grade services
-		lineitems_url => { type=>"TINYBLOB" },
-		lineitem_url => { type=>"TINYBLOB" },
-		scope_lineitem => { type=>"TINYBLOB" },
-		scope_lineitem_read_only => { type=>"TINYBLOB" },
-		scope_result_readonly => { type=>"TINYBLOB" },
-		scope_result_score => { type=>"TINYBLOB" },
+		lineitems_url            => { type => "TINYBLOB" },
+		lineitem_url             => { type => "TINYBLOB" },
+		scope_lineitem           => { type => "TINYBLOB" },
+		scope_lineitem_read_only => { type => "TINYBLOB" },
+		scope_result_readonly    => { type => "TINYBLOB" },
+		scope_result_score       => { type => "TINYBLOB" },
 
 		# resource link is valid or not
-		is_valid => { type=>"TINYINT DEFAULT 1" }
+		is_valid => { type => "TINYINT DEFAULT 1" }
 	);
 }
 

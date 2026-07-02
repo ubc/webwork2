@@ -191,11 +191,11 @@ sub problem {
 	my ($ce, $db, $set_id, $problem_id) = @_;
 	my $resource_iri = Caliper::ResourceIri->new($ce);
 
-	my $problem = $db->getGlobalProblem($set_id, $problem_id);
+	my $problem        = $db->getGlobalProblem($set_id, $problem_id);
 	my $unblessed_tags = undef;
-	my $keywords = [];
+	my $keywords       = [];
 
-	unless ( $problem->source_file() =~ /^group:(.+)$/ ) {
+	unless ($problem->source_file() =~ /^group:(.+)$/) {
 		my $templateDir = $ce->{courseDirs}->{templates};
 		my $tags        = WeBWorK::Utils::Tags->new($templateDir . '/' . $problem->source_file());
 		my $keywords    = $tags->{'keywords'};

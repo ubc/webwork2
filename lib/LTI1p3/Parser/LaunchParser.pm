@@ -9,34 +9,30 @@ use Data::Dumper;
 use Crypt::JWT qw(decode_jwt);
 
 ##### Exported Functions #####
-sub new
-{
+sub new {
 	my ($class, $ce, $encoded_data) = @_;
 
-	my $data = {};
+	my $data  = {};
 	my $error = '';
 	if (defined($encoded_data) && $encoded_data) {
-		eval {
-			$data = decode_jwt(token => $encoded_data, ignore_signature => 1);
-		};
+		eval { $data = decode_jwt(token => $encoded_data, ignore_signature => 1); };
 		if ($@) {
 			$error = $@;
 		}
 	}
 
 	my $self = {
-		ce => $ce,
-		data => $data,
+		ce    => $ce,
+		data  => $data,
 		error => $error
 	};
 	bless $self, $class;
 	return $self;
 }
 
-sub getCourseName
-{
+sub getCourseName {
 	my $self = shift;
-	my $ce = $self->{ce};
+	my $ce   = $self->{ce};
 
 	my $course_title;
 	# Allow sites to customize the user
@@ -52,25 +48,23 @@ sub getCourseName
 	return $course_title;
 }
 
-sub sanitizeCourseName
-{
-	my $self = shift;
+sub sanitizeCourseName {
+	my $self   = shift;
 	my $course = shift;
 	# replace spaces with underscores cause the addcourse script can't handle
 	# spaces in course names and we want to keep the course name readable
 	$course =~ s/ /_/g;
 	$course =~ s/\./_/g;
 	$course =~ s/[^a-zA-Z0-9_\-]//g;
-	$course = substr($course,0,40); # needs to fit mysql table name limits
-	# max length of a mysql table name is 64 chars, however, webworks stick
-	# additional characters after the course name, so, to be safe, we'll
-	# have an error margin of 24 chars (currently the longest webwork table addition is 24 characters long).
+	$course = substr($course, 0, 40);    # needs to fit mysql table name limits
+										 # max length of a mysql table name is 64 chars, however, webworks stick
+										 # additional characters after the course name, so, to be safe, we'll
+		# have an error margin of 24 chars (currently the longest webwork table addition is 24 characters long).
 	return $course;
 }
 
-sub sanitizeSetName
-{
-	my $self = shift;
+sub sanitizeSetName {
+	my $self   = shift;
 	my $set_id = shift;
 	# replace spaces with underscores cause the addcourse script can't handle
 	# spaces in course names and we want to keep the course name readable
@@ -79,9 +73,8 @@ sub sanitizeSetName
 	return $set_id;
 }
 
-
 sub get_param {
-	my $self = shift;
+	my $self       = shift;
 	my $param_name = shift;
 
 	return unless exists $self->{data};
@@ -90,27 +83,27 @@ sub get_param {
 }
 
 sub get_claim {
-	my $self = shift;
+	my $self       = shift;
 	my $claim_name = shift;
 
 	return unless exists $self->{data};
-	return unless exists $self->{data}{"https://purl.imsglobal.org/spec/lti/claim/".$claim_name};
-	return $self->{data}{"https://purl.imsglobal.org/spec/lti/claim/".$claim_name};
+	return unless exists $self->{data}{ "https://purl.imsglobal.org/spec/lti/claim/" . $claim_name };
+	return $self->{data}{ "https://purl.imsglobal.org/spec/lti/claim/" . $claim_name };
 }
 
 sub get_claim_param {
-	my $self = shift;
+	my $self       = shift;
 	my $claim_name = shift;
 	my $param_name = shift;
 
 	return unless exists $self->{data};
-	return unless exists $self->{data}{"https://purl.imsglobal.org/spec/lti/claim/".$claim_name};
-	return unless exists $self->{data}{"https://purl.imsglobal.org/spec/lti/claim/".$claim_name}{$param_name};
-	return $self->{data}{"https://purl.imsglobal.org/spec/lti/claim/".$claim_name}{$param_name};
+	return unless exists $self->{data}{ "https://purl.imsglobal.org/spec/lti/claim/" . $claim_name };
+	return unless exists $self->{data}{ "https://purl.imsglobal.org/spec/lti/claim/" . $claim_name }{$param_name};
+	return $self->{data}{ "https://purl.imsglobal.org/spec/lti/claim/" . $claim_name }{$param_name};
 }
 
 sub get_nrps_claim {
-	my $self = shift;
+	my $self       = shift;
 	my $param_name = shift;
 
 	return unless exists $self->{data};
@@ -119,7 +112,7 @@ sub get_nrps_claim {
 }
 
 sub get_nrps_claim_param {
-	my $self = shift;
+	my $self       = shift;
 	my $param_name = shift;
 
 	return unless exists $self->{data};
@@ -129,7 +122,7 @@ sub get_nrps_claim_param {
 }
 
 sub get_ags_claim {
-	my $self = shift;
+	my $self       = shift;
 	my $param_name = shift;
 
 	return unless exists $self->{data};
@@ -138,7 +131,7 @@ sub get_ags_claim {
 }
 
 sub get_ags_claim_param {
-	my $self = shift;
+	my $self       = shift;
 	my $param_name = shift;
 
 	return unless exists $self->{data};
@@ -148,14 +141,14 @@ sub get_ags_claim_param {
 }
 
 sub has_ags_claim_scope {
-	my $self = shift;
+	my $self       = shift;
 	my $scope_name = shift;
 
 	return 0 unless exists $self->{data};
 	return 0 unless exists $self->{data}{"https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"};
 	return 0 unless exists $self->{data}{"https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"}{"scope"};
-	for my $scope (@{$self->{data}{"https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"}{"scope"}}) {
-		if ($scope eq "https://purl.imsglobal.org/spec/lti-ags/scope/".$scope_name) {
+	for my $scope (@{ $self->{data}{"https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"}{"scope"} }) {
+		if ($scope eq "https://purl.imsglobal.org/spec/lti-ags/scope/" . $scope_name) {
 			return 1;
 		}
 	}
@@ -164,16 +157,16 @@ sub has_ags_claim_scope {
 
 sub get_user_info {
 	my $self = shift;
-	my $ce = $self->{ce};
+	my $ce   = $self->{ce};
 
 	my %user;
 
-	$user{'loginid'} = $self->get_user_identifier();
-	$user{'client_id'} = $self->get_param("aud");
+	$user{'loginid'}     = $self->get_user_identifier();
+	$user{'client_id'}   = $self->get_param("aud");
 	$user{'lti_user_id'} = $self->get_param("sub");
-	$user{'firstname'} = $self->get_param("given_name");
-	$user{'lastname'} = $self->get_param("family_name");
-	$user{'email'} = $self->get_param("email");
+	$user{'firstname'}   = $self->get_param("given_name");
+	$user{'lastname'}    = $self->get_param("family_name");
+	$user{'email'}       = $self->get_param("email");
 
 	# convert from internal perl UTF8 to binary UTF8, note that this means
 	# I'm expecting these to go straight into the database, not be used in
@@ -195,10 +188,10 @@ sub get_user_info {
 
 sub get_user_identifier {
 	my $self = shift;
-	my $ce = $self->{ce};
+	my $ce   = $self->{ce};
 
 	my $client_id = $self->get_param("aud");
-	my $data_ref = $self->{data};
+	my $data_ref  = $self->{data};
 
 	if (exists($ce->{lti_advantage}{lti_clients}{$client_id}{user_identifier_field})) {
 		my $user_identifier_field = $ce->{lti_advantage}{lti_clients}{$client_id}{user_identifier_field};
@@ -225,10 +218,10 @@ sub get_user_identifier {
 
 sub get_student_number {
 	my $self = shift;
-	my $ce = $self->{ce};
+	my $ce   = $self->{ce};
 
 	my $client_id = $self->get_param("aud");
-	my $data_ref = $self->{data};
+	my $data_ref  = $self->{data};
 
 	if (exists($ce->{lti_advantage}{lti_clients}{$client_id}{user_student_number_field})) {
 		my $student_number_field = $ce->{lti_advantage}{lti_clients}{$client_id}{user_student_number_field};
@@ -266,15 +259,15 @@ sub get_student_number {
 
 sub get_permissions {
 	my $self = shift;
-	my $ce = $self->{ce};
+	my $ce   = $self->{ce};
 
-	my @roles = @{$self->get_claim("roles")};
+	my @roles = @{ $self->get_claim("roles") };
 
-	my $is_admin = 0;
-	my $is_instructor = 0;
+	my $is_admin             = 0;
+	my $is_instructor        = 0;
 	my $is_content_developer = 0;
-	my $is_ta = 0;
-	my $is_student = 0;
+	my $is_ta                = 0;
+	my $is_student           = 0;
 
 	foreach my $role (@roles) {
 		# supports long and short formats. ex:
