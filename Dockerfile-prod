@@ -8,7 +8,10 @@ FROM alpine/git AS base
 ARG WEBWORK2_GIT_URL
 ARG WEBWORK2_BRANCH
 ARG PG_GIT_URL=https://github.com/openwebwork/pg.git
-ARG PG_BRANCH=PG-2.18+
+# PG releases in lockstep with webwork2; 2.20 needs PG-2.20 (PG 2.18 lacks
+# getSampleProblemCode, the reorganized Plots::* modules, and WeBWorK::PG::Localize,
+# which breaks the PG Problem Editor and plot rendering).
+ARG PG_BRANCH=PG-2.20
 # CUSTOM: allow customized OPL repo & branch
 ARG OPL_GIT_URL=https://github.com/ubc/webwork-open-problem-library.git
 ARG OPL_BRANCH=ubc
