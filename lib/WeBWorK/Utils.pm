@@ -8,9 +8,10 @@ use Storable   qw(nfreeze thaw);
 
 # UBC custom: WeBWorK::Utils keeps the UBC 5-return grade_set variant (adds
 # num_of_attempts); the upstream 4-return variants live in WeBWorK::Utils::Sets.
-# These imports are needed by the UBC grade_set/grade_gateway/grade_all_sets below.
+# grade_set/grade_gateway/grade_all_sets below need `after`, which 2.20 moved to
+# WeBWorK::Utils::DateTime. (jitar_id_to_seq and jitar_problem_adjusted_status are
+# still defined locally in this file, so they are not imported here.)
 use WeBWorK::Utils::DateTime qw(after);
-use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq jitar_problem_adjusted_status);
 
 our @EXPORT_OK = qw(
 	runtime_use

@@ -77,6 +77,12 @@ use LTI1p3::Service::AssignmentAndGradeService;
 
 use constant HIDE_SETS_THRESHOLD => 500;
 
+# UBC custom: this page keeps the pre-2.20 local set-def import (importSetsFromDef
+# / readSetDef), which needs these defaults for newly imported sets. Upstream 2.20
+# dropped them along with its own set-def import (now in WeBWorK::File::SetDef).
+use constant DEFAULT_VISIBILITY_STATE              => 1;
+use constant DEFAULT_ENABLED_REDUCED_SCORING_STATE => 0;
+
 use constant EDIT_FORMS   => [qw(save_edit cancel_edit)];
 use constant VIEW_FORMS   => [qw(filter sort edit publish import export score create delete lti)];
 use constant EXPORT_FORMS => [qw(save_export cancel_export)];

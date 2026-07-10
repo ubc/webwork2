@@ -143,6 +143,7 @@ RUN apt-get update \
 	libfile-find-rule-perl-perl \
 	libfile-sharedir-install-perl \
 	libfuture-asyncawait-perl \
+	libgd-barcode-perl \
 	libgd-perl \
 	libhtml-scrubber-perl \
 	libhtml-template-perl \
@@ -157,6 +158,7 @@ RUN apt-get update \
 	libmail-sender-perl \
 	libmariadb-dev \
 	libmath-random-secure-perl \
+	libmime-base32-perl \
 	libmime-tools-perl \
 	#libminion-backend-sqlite-perl \ # we're using mysql instead
 	libminion-perl \
@@ -238,6 +240,7 @@ RUN apt-get update \
 # Phase 4 - Install additional Perl modules from CPAN that are not packaged for Ubuntu or are outdated in Ubuntu.
 
 RUN cpanm install Statistics::R::IO DBD::MariaDB Mojo::SQLite Perl::Tidy@20220613 \
+	Archive::Zip::SimpleZip \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*
 
 # App::Genpass - used by LTI1p3's CourseUpdater
