@@ -1229,7 +1229,7 @@ sub getConfigValues ($ce) {
 			@$configValues,
 			[
 				x('LTI'),
-				map      { $LTIConfigValues->{$_} }
+				map { $LTIConfigValues->{$_} }
 					grep { defined $LTIConfigValues->{$_} } @{ $ce->{LTIConfigVariables} }
 			]
 		);

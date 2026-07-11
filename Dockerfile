@@ -185,7 +185,7 @@ RUN apt-get update \
 RUN cpanm install -n \
 	Statistics::R::IO \
 	DBD::MariaDB \
-	Perl::Tidy@20220613 \
+	Perl::Tidy@20240903 \
 	Archive::Zip::SimpleZip \
 	Net::SAML2 \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*

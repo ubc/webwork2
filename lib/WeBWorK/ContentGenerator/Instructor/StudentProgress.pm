@@ -217,7 +217,7 @@ sub displaySets ($c) {
 				@user_set_list,
 				{
 					record             => $studentRecord,
-					score              => 0,
+					score              =>  0,
 					total              => -1,
 					date               => '',
 					testtime           => '',
