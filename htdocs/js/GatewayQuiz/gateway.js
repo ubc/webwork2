@@ -297,41 +297,51 @@
 		bsToast.show();
 	});
 
-  function startAutosave() {
-    if (!timerDiv) return; // no timer, no need for autosave
-    if (!document.gwquiz.elements.previewAnswers) return; // no preview btn
-  
+	function startAutosave() {
+		if (!timerDiv) return; // no timer, no need for autosave
+		if (!document.gwquiz.elements.previewAnswers) return; // no preview btn
+
 		const form = $("form[name='gwquiz']");
 
 		let previous_form_data = form.serialize();
-		setInterval(function() {
-			let form_data = form.serialize();
-			// add the preview button so GatewayQuiz knows this is a preview
-			form_data += '&previewAnswers=autosave';
-			// only autosave if the form has changed
-			if (previous_form_data != form_data) {
-        const statusDivError = $("#autosaveStatusError");
-        const statusDivInfo = $("#autosaveStatusInfo");
-				$.ajax({
-					type: "POST",
-					url: form.attr('action'),
-					data: form_data,
-					success: function(data) {
-						const today = new Date();
-            if (data.includes('uses an external authentication system')) {
-              // actually an auth error, inform the user
-              statusDivError.text('Autosave failed, answers might be lost, note down your answers and check if you are still signed in by clicking Preview Test. ' + today.toDateString() + ' ' + today.toLocaleTimeString());
-              statusDivError.collapse('show');
-              return;
-            }
-            // no auth error, assume save was good
-						previous_form_data = form_data;
-            statusDivError.collapse('hide');
-						statusDivInfo.text('Autosaved at ' + today.toDateString() + ' ' + today.toLocaleTimeString());
-					},
-				});
-			}
-    }, 180000 + Math.floor((Math.random() * 60000))); // add some randomness to avoid rush of autosave if students started the test at the same time
-  }
-  startAutosave();
+		setInterval(
+			function () {
+				let form_data = form.serialize();
+				// add the preview button so GatewayQuiz knows this is a preview
+				form_data += '&previewAnswers=autosave';
+				// only autosave if the form has changed
+				if (previous_form_data != form_data) {
+					const statusDivError = $('#autosaveStatusError');
+					const statusDivInfo = $('#autosaveStatusInfo');
+					$.ajax({
+						type: 'POST',
+						url: form.attr('action'),
+						data: form_data,
+						success: function (data) {
+							const today = new Date();
+							if (data.includes('uses an external authentication system')) {
+								// actually an auth error, inform the user
+								statusDivError.text(
+									'Autosave failed, answers might be lost, note down your answers and check if you are still signed in by clicking Preview Test. ' +
+										today.toDateString() +
+										' ' +
+										today.toLocaleTimeString()
+								);
+								statusDivError.collapse('show');
+								return;
+							}
+							// no auth error, assume save was good
+							previous_form_data = form_data;
+							statusDivError.collapse('hide');
+							statusDivInfo.text(
+								'Autosaved at ' + today.toDateString() + ' ' + today.toLocaleTimeString()
+							);
+						}
+					});
+				}
+			},
+			180000 + Math.floor(Math.random() * 60000)
+		); // add some randomness to avoid rush of autosave if students started the test at the same time
+	}
+	startAutosave();
 })();
