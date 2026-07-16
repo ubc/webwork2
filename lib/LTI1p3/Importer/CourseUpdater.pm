@@ -13,6 +13,7 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
 use WeBWorK::Utils     qw(cryptPassword);
+use WeBWorK::Utils::Instructor qw(assignSetToUser);
 use WeBWorK::DB::Utils qw(initializeUserProblem);
 
 # Constructor
@@ -327,61 +328,9 @@ sub assignAllVisibleSetsToUser {
 		if (not defined $GlobalSet) {
 			debug("record not found for global set $globalSetIDs[$i]");
 		} elsif ($GlobalSet->visible) {
-			$self->assignSetToUser($userID, $GlobalSet);
+			assignSetToUser($db, $userID, $GlobalSet);
 		}
 		$i++;
-	}
-}
-
-# Taken and modified from WeBWorK::ContentGenerator::Instructor
-sub assignSetToUser {
-	my ($self, $userID, $GlobalSet) = @_;
-	my $db = $self->{db};
-
-	my $setID = $GlobalSet->set_id;
-
-	my $UserSet = $db->newUserSet;
-	$UserSet->user_id($userID);
-	$UserSet->set_id($setID);
-
-	eval { $db->addUserSet($UserSet) };
-	if ($@) {
-		if ($@ =~ m/user set exists/) {
-			debug("set $setID is already assigned to user $userID.");
-		} else {
-			die $@;
-		}
-	}
-
-	my @GlobalProblems = grep { defined $_ } $db->getAllGlobalProblems($setID);
-	foreach my $GlobalProblem (@GlobalProblems) {
-		$self->assignProblemToUser($userID, $GlobalProblem);
-	}
-}
-
-# Taken and modified from WeBWorK::ContentGenerator::Instructor
-sub assignProblemToUser {
-	my ($self, $userID, $GlobalProblem) = @_;
-	my $db = $self->{db};
-
-	my $UserProblem = $db->newUserProblem;
-	$UserProblem->user_id($userID);
-	$UserProblem->set_id($GlobalProblem->set_id);
-	$UserProblem->problem_id($GlobalProblem->problem_id);
-	my $seed;    # yes, I know it's empty, just needed a null value for this
-	initializeUserProblem($UserProblem, $seed);
-
-	eval { $db->addUserProblem($UserProblem) };
-	if ($@) {
-		if ($@ =~ m/user problem exists/) {
-			debug("problem "
-					. $GlobalProblem->problem_id
-					. " in set "
-					. $GlobalProblem->set_id
-					. " is already assigned to user $userID.");
-		} else {
-			die $@;
-		}
 	}
 }
 

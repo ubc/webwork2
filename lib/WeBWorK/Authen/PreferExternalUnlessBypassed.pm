@@ -31,7 +31,8 @@ sub request_has_data_for_this_verification_module ($self) {
 	return 1;
 }
 
-sub do_verify ($self) {
+sub do_verify {
+	my $self = shift;
 	my $c = $self->{c};
 
 	if ($c->param('bypassShib')) {

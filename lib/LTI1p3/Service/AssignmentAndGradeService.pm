@@ -880,7 +880,7 @@ sub grade_set {
 	foreach my $problemRecord (@problemRecords) {
 		next unless (defined($problemRecord));
 		my $last_answer_id = $db->latestProblemPastAnswer(
-			$ce->{courseName}, $problemRecord->user_id,
+			$problemRecord->user_id,
 			($setIsVersioned ? $set_id . ",v" . $set->version_id() : $set_id),
 			$problemRecord->problem_id
 		);

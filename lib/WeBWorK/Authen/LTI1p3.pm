@@ -49,6 +49,7 @@ sub verify_normal_user {
 
 	if ($ret and $self->{initial_login}) {
 		$self->prevent_replay();
+		$self->store_session();
 	}
 
 	return $ret;

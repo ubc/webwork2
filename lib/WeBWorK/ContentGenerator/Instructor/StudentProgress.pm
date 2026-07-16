@@ -9,9 +9,10 @@ WeBWorK::ContentGenerator::Instructor::StudentProgress - Display Student Progres
 
 # 'decodeAnswers', 'before' needed for submit draft tests
 use WeBWorK::Utils           qw(wwRound grade_set decodeAnswers);
+use WeBWorK::Utils::FilterRecords qw(getFiltersForClass filterRecords);
 use WeBWorK::Utils::DateTime qw(before);
 use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq);
-use WeBWorK::Utils::Sets     qw(format_set_name_display list_set_versions);
+use WeBWorK::Utils::Sets     qw(list_set_versions format_set_name_display);
 
 use WeBWorK::Debug;
 use WeBWorK::Utils::Rendering         qw(getTranslatorDebuggingOptions renderPG);

@@ -4,6 +4,8 @@ use Mojo::Base 'WeBWorK::ContentGenerator', -signatures;
 use Mojo::JSON qw(decode_json);
 
 use WeBWorK::Debug qw(debug);
+# ubc custom, to access saml2 metadata
+use WeBWorK::Authen::Saml2;
 
 sub initializeRoute ($c, $routeCaptures) {
 	if ($c->current_route eq 'saml2_acs') {
@@ -25,8 +27,13 @@ sub assertionConsumerService ($c) {
 }
 
 sub metadata ($c) {
-	return $c->render(data => 'Internal site configuration error', status => 500) unless $c->authen->can('sp');
-	return $c->render(data => $c->authen->sp->metadata,            format => 'xml');
+	# ubc custom, commented out line below since it doesn't work with lti1p3 as first authen module
+	#return $c->render(data => 'Internal site configuration error', status => 500) unless $c->authen->can('sp');
+	# ubc custom, original code doesn't work since default authen module is lti1p3, we need a saml2 module instance
+	my $authen = WeBWorK::Authen::Saml2->new($c);
+	return $c->render(data => $authen->sp->metadata, format => 'xml');
+	# ubc custom, original below
+	#return $c->render(data => $c->authen->sp->metadata,            format => 'xml');
 }
 
 sub errorResponse ($c) {

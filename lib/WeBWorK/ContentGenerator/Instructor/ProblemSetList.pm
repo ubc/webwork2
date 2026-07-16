@@ -68,7 +68,7 @@ use Mojo::File;
 
 use WeBWorK::Debug;
 use WeBWorK::Utils             qw(x);
-use WeBWorK::Utils::DateTime   qw(timeToSec);
+use WeBWorK::Utils::DateTime   qw(getDefaultSetDueDate);
 use WeBWorK::Utils::Files      qw(listFilesRecursive);
 use WeBWorK::Utils::JITAR      qw(jitar_id_to_seq seq_to_jitar_id);
 use WeBWorK::Utils::Sets       qw(format_set_name_internal format_set_name_display);
