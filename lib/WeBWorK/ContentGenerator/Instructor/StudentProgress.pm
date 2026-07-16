@@ -8,11 +8,11 @@ WeBWorK::ContentGenerator::Instructor::StudentProgress - Display Student Progres
 =cut
 
 # 'decodeAnswers', 'before' needed for submit draft tests
-use WeBWorK::Utils           qw(wwRound grade_set decodeAnswers);
+use WeBWorK::Utils           qw(wwRound decodeAnswers);
 use WeBWorK::Utils::FilterRecords qw(getFiltersForClass filterRecords);
 use WeBWorK::Utils::DateTime qw(before);
 use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq);
-use WeBWorK::Utils::Sets     qw(list_set_versions format_set_name_display);
+use WeBWorK::Utils::Sets     qw(grade_set list_set_versions format_set_name_display);
 
 use WeBWorK::Debug;
 use WeBWorK::Utils::Rendering         qw(getTranslatorDebuggingOptions renderPG);
@@ -177,8 +177,6 @@ sub displaySets ($c) {
 
 			my (
 				$score, $total, $problem_scores, $problem_incorrect_attempts,
-				# ubc custom, add number of attempts as a return value
-				$num_of_attempts
 			) = grade_set($db, $set, $studentName, $setIsVersioned, 1);
 			$score = wwRound(2, $score);
 
@@ -191,8 +189,6 @@ sub displaySets ($c) {
 				timeleft                   => $timeLeft,
 				problem_scores             => $problem_scores,
 				problem_incorrect_attempts => $problem_incorrect_attempts,
-				# ubc custom, added number of attempts
-				num_of_attempts => $num_of_attempts
 			};
 
 			if ($showBestOnly) {
