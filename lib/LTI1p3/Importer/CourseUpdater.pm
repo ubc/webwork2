@@ -12,9 +12,9 @@ use Data::Dumper;
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
-use WeBWorK::Utils     qw(cryptPassword);
+use WeBWorK::Utils             qw(cryptPassword);
 use WeBWorK::Utils::Instructor qw(assignSetToUser);
-use WeBWorK::DB::Utils qw(initializeUserProblem);
+use WeBWorK::DB::Utils         qw(initializeUserProblem);
 
 # Constructor
 sub new {

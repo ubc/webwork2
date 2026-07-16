@@ -8,11 +8,11 @@ WeBWorK::ContentGenerator::Instructor::StudentProgress - Display Student Progres
 =cut
 
 # 'decodeAnswers', 'before' needed for submit draft tests
-use WeBWorK::Utils           qw(wwRound decodeAnswers);
+use WeBWorK::Utils                qw(wwRound decodeAnswers);
 use WeBWorK::Utils::FilterRecords qw(getFiltersForClass filterRecords);
-use WeBWorK::Utils::DateTime qw(before);
-use WeBWorK::Utils::JITAR    qw(jitar_id_to_seq);
-use WeBWorK::Utils::Sets     qw(grade_set list_set_versions format_set_name_display);
+use WeBWorK::Utils::DateTime      qw(before);
+use WeBWorK::Utils::JITAR         qw(jitar_id_to_seq);
+use WeBWorK::Utils::Sets          qw(grade_set list_set_versions format_set_name_display);
 
 use WeBWorK::Debug;
 use WeBWorK::Utils::Rendering         qw(getTranslatorDebuggingOptions renderPG);
@@ -175,9 +175,8 @@ sub displaySets ($c) {
 				$set = $db->getMergedSet($studentName, $setName);
 			}
 
-			my (
-				$score, $total, $problem_scores, $problem_incorrect_attempts,
-			) = grade_set($db, $set, $studentName, $setIsVersioned, 1);
+			my ($score, $total, $problem_scores, $problem_incorrect_attempts,) =
+				grade_set($db, $set, $studentName, $setIsVersioned, 1);
 			$score = wwRound(2, $score);
 
 			my $version_data = {
