@@ -967,6 +967,9 @@ sub unarchiveCourse {
 
 	##### step 2: crack open the tarball #####
 
+	# ubc custom - we need to allow insecure extract because secure mode doesn't like any of our symlinks to the opl.
+	# For our use case, since we pretty much only extract our own course archives, this shouldn't an issue.
+	$Archive::Tar::INSECURE_EXTRACT_MODE = 1;
 	my $arch = Archive::Tar->new($archivePath);
 	die "The tar file $archivePath is not valid." unless $arch;
 	$arch->setcwd($coursesDir);
