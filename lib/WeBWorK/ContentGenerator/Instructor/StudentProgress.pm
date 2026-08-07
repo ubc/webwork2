@@ -151,7 +151,7 @@ sub displaySets ($c) {
 				if ($set->version_last_attempt_time) {
 					$testTime = ($set->version_last_attempt_time - $set->open_date) / 60;
 					my $timeLimit = $set->version_time_limit / 60;
-					$testTime = $timeLimit if ($testTime > $timeLimit);
+					$testTime = $timeLimit if ($timeLimit > 0 && $testTime > $timeLimit);
 					$testTime = $c->maketext("[quant,_1,minute]", sprintf('%3.1f', $testTime));
 					$timeLeft = 0;
 					if ($showColumns{timeleft} && time - $set->open_date < $set->version_time_limit) {
@@ -166,6 +166,9 @@ sub displaySets ($c) {
 				} elsif (time - $set->open_date < $set->version_time_limit) {
 					$testTime = $c->maketext('still open');
 					$timeLeft = sprintf('%3.1f', ($set->version_time_limit - time + $set->open_date) / 60);
+				} elsif ($set->version_time_limit == 0) {
+					$testTime = $c->maketext('no time limit');
+					$timeLeft = 0;
 				} else {
 					$testTime = $c->maketext('time limit exceeded');
 					$timeLeft = 0;
