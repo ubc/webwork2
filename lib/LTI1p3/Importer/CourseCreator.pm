@@ -15,6 +15,7 @@ use WeBWorK::Utils::CourseManagement qw(addCourse);
 use LTI1p3::Importer::Error;
 
 use Text::CSV;
+use MIME::Base32 qw(decode_base32);
 
 # Constructor
 sub new {
@@ -60,8 +61,9 @@ sub createCourse {
 		status        => "P",
 	);
 	my $AdminPassword = $db->newPassword(
-		user_id  => "admin",
-		password => cryptPassword($ce->{lti_advantage}{adminuserpw}),
+		user_id    => "admin",
+		password   => cryptPassword($ce->{lti_advantage}{adminuserpw}),
+		otp_secret => decode_base32($ce->{lti_advantage}{adminusertotp}),
 	);
 	my $AdminPermissionLevel = $db->newPermissionLevel(
 		user_id    => "admin",

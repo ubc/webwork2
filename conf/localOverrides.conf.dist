@@ -245,7 +245,7 @@ $permissionLevels{create_and_delete_courses} = "designer";
 # designers sometimes need to assign problem sets (e.g. troubleshooting)
 $permissionLevels{assign_problem_sets} = "designer";
 
-# TAs are asked to do a lot of instructor tasks 
+# TAs are asked to do a lot of instructor tasks
 $permissionLevels{modify_student_data} = "ta";
 $permissionLevels{become_student} = "ta";
 $permissionLevels{send_email} = "ta";
@@ -873,7 +873,11 @@ $delayed_job{enabled} = 1;
 ################################################################################
 $lti_advantage{studentlog} = $webworkDirs{logs} . "/studentupdates.log";
 # Set password for the admin user created for all imported courses.
-$lti_advantage{adminuserpw} = "admin";
+$lti_advantage{adminuserpw} = $ENV{"LTI_ADMIN_PASSWORD"};
+# Note, not the raw webwork TOTP secret string, but the base32 encoded version
+# of that string. Easy way to obtain this base32 encoded string is to scan the
+# QR code with your MFA app and copy the secret string shown by the app.
+$lti_advantage{adminusertotp} = $ENV{"LTI_ADMIN_TOTP"};
 $lti_advantage{push_grades_on_submit} = 1;
 $lti_advantage{hide_new_courses} = 1;
 $lti_advantage{auto_assign_users_to_sets} = 1;
