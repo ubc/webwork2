@@ -133,6 +133,7 @@ sub getAccessToken {
 
 	my $access_token_url = $ce->{lti_advantage}{lti_clients}{$client_id}{oauth2_access_token_url};
 	my $tool_private_key = $ce->{lti_advantage}{lti_clients}{$client_id}{tool_private_key};
+	my $platform_id      = $ce->{lti_advantage}{lti_clients}{$client_id}{platform_id};
 
 	$extralog->logAccessTokenRequest("Requesting LTI Access Token for client: $client_id on scopes: $scopes");
 	debug("Requesting LTI Access Token for client: $client_id on scopes: $scopes");
@@ -154,8 +155,15 @@ sub getAccessToken {
 			jti => $uuid
 		};
 
-		my $jwt =
-			encode_jwt(payload => $data, alg => 'RS256', key => \$tool_private_key, extra_headers => { typ => "JWT" });
+		my $jwt = encode_jwt(
+			payload       => $data,
+			alg           => 'RS256',
+			key           => \$tool_private_key,
+			extra_headers => {
+				typ => "JWT",
+				kid => $platform_id
+			}
+		);
 
 		my $ua       = LWP::UserAgent->new();
 		my $response = $ua->post(

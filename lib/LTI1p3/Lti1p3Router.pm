@@ -9,6 +9,7 @@ sub setup ($router) {
 	$lti1p3Router->options('/redirect')->to(controller => 'Launch', action => 'options');
 	$lti1p3Router->any([ 'GET', 'POST' ] => '/redirect')->to(controller => 'Launch', action => 'run')
 		->name('lti1p3redirect');
+	$lti1p3Router->get('/jwks')->to(controller => 'Jwks', action => 'get')->name('lti1p3jwks');
 }
 
 1;
