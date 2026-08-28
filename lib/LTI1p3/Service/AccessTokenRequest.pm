@@ -134,6 +134,11 @@ sub getAccessToken {
 	my $access_token_url = $ce->{lti_advantage}{lti_clients}{$client_id}{oauth2_access_token_url};
 	my $tool_private_key = $ce->{lti_advantage}{lti_clients}{$client_id}{tool_private_key};
 	my $platform_id      = $ce->{lti_advantage}{lti_clients}{$client_id}{platform_id};
+	my $access_token_aud = $platform_id;    # the spec requires platform ISS here
+	if (exists $ce->{lti_advantage}{lti_clients}{$client_id}{oauth2_access_token_aud}) {
+		# Override default aud if given, Canvas reuses the access token url, while Brightspace requires a different url
+		$access_token_aud = $ce->{lti_advantage}{lti_clients}{$client_id}{oauth2_access_token_aud};
+	}
 
 	$extralog->logAccessTokenRequest("Requesting LTI Access Token for client: $client_id on scopes: $scopes");
 	debug("Requesting LTI Access Token for client: $client_id on scopes: $scopes");
@@ -147,9 +152,9 @@ sub getAccessToken {
 
 		my $time = time;
 		my $data = {
-			iss => $ce->{server_root_url},
+			iss => $client_id,
 			sub => $client_id,
-			aud => $access_token_url,
+			aud => $access_token_aud,
 			iat => $time,
 			exp => $time + 3600,
 			jti => $uuid
