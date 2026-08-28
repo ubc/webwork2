@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::HTML::SingleProblemGrader;
 use Mojo::Base -signatures;
 
@@ -24,7 +9,6 @@ as a student.
 
 =cut
 
-use WeBWorK::PG;
 use WeBWorK::Localize;
 use WeBWorK::Utils 'wwRound';
 
@@ -44,7 +28,7 @@ sub new ($class, $c, $pg, $userProblem) {
 
 	# Retrieve the latest past answer and comment (if any).
 	my $userPastAnswerID =
-		$db->latestProblemPastAnswer($courseID, $studentID, $setID . ($versionID ? ",v$versionID" : ''), $problemID);
+		$db->latestProblemPastAnswer($studentID, $setID . ($versionID ? ",v$versionID" : ''), $problemID);
 	my $pastAnswer = $userPastAnswerID ? $db->getPastAnswer($userPastAnswerID) : 0;
 	my $comment    = $pastAnswer       ? $pastAnswer->comment_string           : '';
 

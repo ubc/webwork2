@@ -77,20 +77,28 @@ sub get_credentials {
 		return $self->SUPER::get_credentials(@_);
 	}
 
-	if ( defined ($ENV{$ce->{shibboleth}{session_header}})) {
+	if (defined($ENV{ $ce->{shibboleth}{session_header} })) {
 		debug('Got shib header and looking for user_id');
 		# loop through all attributes to find the one mapped to user_id
-		foreach (@{$ce->{shibboleth}{attributes}}) {
+		foreach (@{ $ce->{shibboleth}{attributes} }) {
 			my $key = $_;
-			if (defined( $ENV{$key} ) ) {
+			if (defined($ENV{$key})) {
 				my $user_id;
 				# if we need hash the user_id
-				if ( defined ($ce->{shibboleth}{hash_user_id_method}) &&
-						$ce->{shibboleth}{hash_user_id_method} ne "none" &&
-						$ce->{shibboleth}{hash_user_id_method} ne "" ) {
+				if (defined($ce->{shibboleth}{hash_user_id_method})
+					&& $ce->{shibboleth}{hash_user_id_method} ne "none"
+					&& $ce->{shibboleth}{hash_user_id_method} ne "")
+				{
 					use Digest;
-					my $digest  = Digest->new($ce->{shibboleth}{hash_user_id_method});
-					$digest->add($ENV{$key} . ( defined $ce->{shibboleth}{hash_user_id_salt} ? $ce->{shibboleth}{hash_user_id_salt} : ""));
+					my $digest = Digest->new($ce->{shibboleth}{hash_user_id_method});
+					$digest->add(
+						$ENV{$key}
+							. (
+								defined $ce->{shibboleth}{hash_user_id_salt}
+								? $ce->{shibboleth}{hash_user_id_salt}
+								: ""
+							)
+					);
 					$user_id = $digest->hexdigest;
 				} else {
 					$user_id = $ENV{$key};
@@ -106,13 +114,13 @@ sub get_credentials {
 					# reuse db session_key if still valid (prevent new tab issue)
 					my $Key = $db->getKey($user_id);
 					if (defined($Key)) {
-						if (time <= $Key->timestamp()+$ce->{sessionKeyTimeout}) {
+						if (time <= $Key->timestamp() + $ce->{sessionTimeout}) {
 							$self->{session_key} = $Key->key;
 						}
 					}
-					$self->{login_type} = "normal";
+					$self->{login_type}        = "normal";
 					$self->{credential_source} = "params";
-					$self->{password} = 1;
+					$self->{password}          = 1;
 					return 1;
 				}
 			}
@@ -121,7 +129,7 @@ sub get_credentials {
 		# no match, login failed
 		if (!defined($self->{'user_id'})) {
 			$self->{log_error} = "Access Denied.";
-			$self->{error} = "Access Denied.";
+			$self->{error}     = "Access Denied.";
 			return 0;
 		}
 	}
@@ -137,7 +145,7 @@ sub checkPassword {
 	my ($self, @args) = @_;
 
 	if ($self->{c}->ce->{shiboff} || $self->{c}->param('bypassShib')) {
-		return $self->SUPER::checkPassword( @args );
+		return $self->SUPER::checkPassword(@args);
 	} else {
 		# this is easy; if we're here at all, we've authenticated
 		# through shib
@@ -211,7 +219,7 @@ sub check_session {
 		return 0 unless defined $Key;
 
 		my $keyMatches     = (defined $possibleKey and $possibleKey eq $Key->key);
-		my $timestampValid = (time <= $Key->timestamp() + $ce->{sessionKeyTimeout});
+		my $timestampValid = (time <= $Key->timestamp() + $ce->{sessionTimeout});
 		if ($ce->{shibboleth}{manage_session_timeout}) {
 			# always valid to allow shib to take control of timeout
 			$timestampValid = 1;

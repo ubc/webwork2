@@ -30,10 +30,10 @@ RUN echo Cloning branch $PG_BRANCH branch from $PG_GIT_URL \
 
 # We need to change FROM before setting the ENV variables.
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV WEBWORK_URL=/webwork2 \
-	WEBWORK_ROOT_URL=http://localhost::8080 \
+	WEBWORK_ROOT_URL=http://localhost:8080 \
 	WEBWORK_SMTP_SERVER=localhost \
 	WEBWORK_SMTP_SENDER=webwork@example.com \
 	WEBWORK_TIMEZONE=America/New_York \
@@ -71,6 +71,7 @@ RUN apt-get update \
 	imagemagick \
 	iputils-ping \
 	jq \
+	libarchive-extract-perl \
 	libarchive-zip-perl \
 	libarray-utils-perl \
 	libc6-dev \
@@ -94,23 +95,21 @@ RUN apt-get update \
 	libextutils-helpers-perl \
 	libextutils-installpaths-perl \
 	libextutils-xsbuilder-perl \
+	libfile-copy-recursive-perl \
 	libfile-find-rule-perl-perl \
 	libfile-sharedir-install-perl \
 	libfuture-asyncawait-perl \
+	libgd-barcode-perl \
 	libgd-perl \
 	libhtml-scrubber-perl \
 	libhtml-template-perl \
 	libhttp-async-perl \
 	libiterator-perl \
 	libiterator-util-perl \
-	libjson-maybexs-perl \
-	libjson-perl \
-	libjson-xs-perl \
 	liblocale-maketext-lexicon-perl \
-	libmail-sender-perl \
-	libmail-sender-perl \
 	libmariadb-dev \
 	libmath-random-secure-perl \
+	libmime-base32-perl \
 	libmime-tools-perl \
 	libminion-backend-sqlite-perl \
 	libminion-perl \
@@ -124,13 +123,12 @@ RUN apt-get update \
 	libnet-oauth-perl \
 	libossp-uuid-perl \
 	libpadwalker-perl \
+	libpandoc-wrapper-perl \
 	libpath-class-perl \
 	libpath-tiny-perl \
-	libpandoc-wrapper-perl \
 	libphp-serialization-perl \
 	libpod-wsdl-perl \
 	libsoap-lite-perl \
-	libsql-abstract-classic-perl \
 	libsql-abstract-perl \
 	libstring-shellquote-perl \
 	libsub-uplevel-perl \
@@ -176,7 +174,7 @@ RUN apt-get update \
 	texlive-xetex \
 	tzdata \
 	zip $ADDITIONAL_BASE_IMAGE_PACKAGES \
-	&& curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+	&& curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs \
 	&& apt-get clean \
 	&& rm -fr /var/lib/apt/lists/* /tmp/*
@@ -184,7 +182,12 @@ RUN apt-get update \
 # ==================================================================
 # Phase 4 - Install additional Perl modules from CPAN that are not packaged for Ubuntu or are outdated in Ubuntu.
 
-RUN cpanm install Statistics::R::IO DBD::MariaDB Mojo::SQLite@3.002 Perl::Tidy@20220613 \
+RUN cpanm install -n \
+	Statistics::R::IO \
+	DBD::MariaDB \
+	Perl::Tidy@20240903 \
+	Archive::Zip::SimpleZip \
+	Net::SAML2 \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*
 
 # ==================================================================
@@ -211,7 +214,7 @@ COPY --from=base /opt/base/pg $APP_ROOT/pg
 # 7. Apply patches
 
 # Patch files that are applied below
-COPY docker-config/imagemagick-allow-pdf-read.patch /tmp
+COPY docker-config/pgfsys-dvisvmg-bbox-fix.patch /tmp
 
 RUN echo "PATH=$PATH:$APP_ROOT/webwork2/bin" >> /root/.bashrc \
 	&& mkdir /run/webwork2 /etc/ssl/local \
@@ -228,8 +231,8 @@ RUN echo "PATH=$PATH:$APP_ROOT/webwork2/bin" >> /root/.bashrc \
 		&& npm install \
 	&& cd $PG_ROOT/htdocs \
 		&& npm install \
-	&& patch -p1 -d / < /tmp/imagemagick-allow-pdf-read.patch \
-	&& rm /tmp/imagemagick-allow-pdf-read.patch
+	&& patch -p1 -d / < /tmp/pgfsys-dvisvmg-bbox-fix.patch \
+	&& rm /tmp/pgfsys-dvisvmg-bbox-fix.patch
 
 # ==================================================================
 # Phase 7 - Final setup and prepare docker-entrypoint.sh

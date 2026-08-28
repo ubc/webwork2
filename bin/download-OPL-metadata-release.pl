@@ -2,19 +2,20 @@
 
 # This script downloads the latest OPL metadata release, and restores the database dump file in that release.
 
-use feature say;
 use strict;
 use warnings;
+use feature 'say';
 
 use File::Fetch;
 use File::Copy;
 use File::Path;
+use Archive::Tar;
 use Mojo::File;
-use JSON;
+use Mojo::JSON qw(decode_json);
 
 BEGIN {
 	use Mojo::File qw(curfile);
-	use Env qw(WEBWORK_ROOT);
+	use Env        qw(WEBWORK_ROOT);
 
 	$WEBWORK_ROOT = curfile->dirname->dirname;
 }
@@ -31,12 +32,12 @@ my $ce = WeBWorK::CourseEnvironment->new({ webwork_dir => $ENV{WEBWORK_ROOT} });
 die "The WeBWorK temporary directory $ce->{webworkDirs}{tmp} does not exist or is not writable."
 	if (!-d $ce->{webworkDirs}{tmp} || !-w $ce->{webworkDirs}{tmp});
 
-$ENV{OPL_REPO_RELEASE_API_URL} = 'https://api.github.com/repos/ubc/webwork-open-problem-library/releases/latest' if (!defined($ENV{OPL_REPO_RELEASE_API_URL}));
-my $releaseDataFF =
-	File::Fetch->new(uri => $ENV{OPL_REPO_RELEASE_API_URL});
-my $file        = $releaseDataFF->fetch(to => $ce->{webworkDirs}{tmp}) or die $releaseDataFF->error;
-my $path        = Mojo::File->new($file);
-my $releaseData = JSON->new->utf8->decode($path->slurp);
+$ENV{OPL_REPO_RELEASE_API_URL} = 'https://api.github.com/repos/ubc/webwork-open-problem-library/releases/latest'
+	if (!defined($ENV{OPL_REPO_RELEASE_API_URL}));
+my $releaseDataFF = File::Fetch->new(uri => $ENV{OPL_REPO_RELEASE_API_URL});
+my $file          = $releaseDataFF->fetch(to => $ce->{webworkDirs}{tmp}) or die $releaseDataFF->error;
+my $path          = Mojo::File->new($file);
+my $releaseData   = decode_json($path->slurp);
 $path->remove;
 
 my $releaseTag = $releaseData->{tag_name};
@@ -54,8 +55,14 @@ my $releaseDownloadFF = File::Fetch->new(uri => $downloadURL);
 my $releaseFile       = $releaseDownloadFF->fetch(to => $ce->{webworkDirs}{tmp}) or die $releaseDownloadFF->error;
 say 'Downloaded release archive, now extracting.';
 
-`$ce->{externalPrograms}{tar} xzf $releaseFile -C $ce->{webworkDirs}{tmp}`;
-die "There was an error extracting the release: $!" if $?;
+my $arch = Archive::Tar->new($releaseFile);
+die "An error occurred while creating the tar file: $releaseFile" unless $arch;
+$arch->setcwd($ce->{webworkDirs}{tmp});
+$arch->extract;
+die "There was an error extracting the metadata release: $arch->error" if $arch->error;
+
+die "The downloaded archive did not contain the expected files."
+	unless -e "$ce->{webworkDirs}{tmp}/webwork-open-problem-library";
 
 # Copy the json files into htdocs.
 for (glob("$ce->{webworkDirs}{tmp}/webwork-open-problem-library/JSON-SAVED/*.json")) {

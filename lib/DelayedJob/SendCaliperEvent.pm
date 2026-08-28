@@ -13,23 +13,23 @@ use Caliper::Sensor;
 use JSON;
 
 sub work {
-    my $class = shift;
-    my TheSchwartz::Job $job = shift;
-    my $args = decode_json($job->arg);
+	my $class                = shift;
+	my TheSchwartz::Job $job = shift;
+	my $args                 = decode_json($job->arg);
 
-    my $courseName = $args->{courseName};
-    $job->debug("Job: " . $job->jobid . ". Sending Caliper events for course_id: $courseName");
+	my $courseName = $args->{courseName};
+	$job->debug("Job: " . $job->jobid . ". Sending Caliper events for course_id: $courseName");
 
-    my $ce = WeBWorK::CourseEnvironment->new({
-            webwork_dir => $ENV{WEBWORK_ROOT},
-            courseName => $courseName,
-        });
-    my $array_of_events = decode_json($args->{json_array_of_events});
+	my $ce = WeBWorK::CourseEnvironment->new({
+		webwork_dir => $ENV{WEBWORK_ROOT},
+		courseName  => $courseName,
+	});
+	my $array_of_events = decode_json($args->{json_array_of_events});
 
-    my $caliper_sensor = Caliper::Sensor->new($ce);
-    $caliper_sensor->_sendEvents($ce, $array_of_events);
-    $job->completed();
-    $job->debug("Job: " . $job->jobid . ". Successfully sent Caliper events for course_id: $courseName");
+	my $caliper_sensor = Caliper::Sensor->new($ce);
+	$caliper_sensor->_sendEvents($ce, $array_of_events);
+	$job->completed();
+	$job->debug("Job: " . $job->jobid . ". Successfully sent Caliper events for course_id: $courseName");
 }
 
 1;

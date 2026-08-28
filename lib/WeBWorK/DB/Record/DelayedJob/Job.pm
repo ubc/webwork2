@@ -27,15 +27,15 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		jobid => { type=>"BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT" },
-		funcid => { type=>"INT UNSIGNED NOT NULL", key=>1 },
-		arg => { type=>"MEDIUMBLOB" },
-		uniqkey => { type=>"VARCHAR(255) NULL", key=>1 },
-		insert_time => { type=>"INTEGER UNSIGNED" },
-		run_after => { type=>"INTEGER UNSIGNED NOT NULL" },
-		grabbed_until => { type=>"INTEGER UNSIGNED NOT NULL" },
-		priority => { type=>"SMALLINT UNSIGNED" },
-		coalesce => { type=>"VARCHAR(255)" },
+		jobid         => { type => "BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT" },
+		funcid        => { type => "INT UNSIGNED NOT NULL", key => 1 },
+		arg           => { type => "MEDIUMBLOB" },
+		uniqkey       => { type => "VARCHAR(255) NULL", key => 1 },
+		insert_time   => { type => "INTEGER UNSIGNED" },
+		run_after     => { type => "INTEGER UNSIGNED NOT NULL" },
+		grabbed_until => { type => "INTEGER UNSIGNED NOT NULL" },
+		priority      => { type => "SMALLINT UNSIGNED" },
+		coalesce      => { type => "VARCHAR(255)" },
 	);
 }
 

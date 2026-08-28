@@ -5,7 +5,7 @@ use Mojo::Base 'LTI1p3::Entrypoint', -strict, -signatures, -async_await;
 
 use Data::Dumper;
 use URI::Escape;
-use WeBWorK::Utils qw(before after between formatDateTime);
+use WeBWorK::Utils::DateTime qw(before after between formatDateTime);
 use WeBWorK::CourseEnvironment;
 use WeBWorK::DB;
 use WeBWorK::Debug;
@@ -19,8 +19,7 @@ use Mojo::URL;
 
 #$WeBWorK::Debug::Enabled = 1;
 
-sub accept ($c)
-{
+sub accept ($c) {
 	if ($c->param("id_token") && $c->param("state")) {
 		return 1;
 	}
@@ -37,14 +36,13 @@ sub accept ($c)
 # * The course exists
 # ** SSO login
 
-async sub run ($c)
-{
+async sub run ($c) {
 	debug("LTI1p3 Start Processing Redirect");
 	# no actual course yet, create an empty course environment
 	my $ce = $c->ce(WeBWorK::CourseEnvironment->new({
 		webwork_dir => $ENV{WEBWORK_ROOT},
 	}));
-	my $db = $c->db(new WeBWorK::DB($ce->{dbLayout}));
+	my $db = $c->db(new WeBWorK::DB($ce));
 	# in case we were sent a CORS request, add appropriate response headers
 	$c->_addCorsHeaders($ce);
 	# make sure browsers don't cache lti authentication requests
@@ -54,18 +52,23 @@ async sub run ($c)
 	my $parser = $c->{parser};
 
 	if ($parser->{error}) {
-		debug("parser error: ". $parser->{error});
+		debug("parser error: " . $parser->{error});
 		if ($parser->{error} =~ m/^JWT: exp claim check failed/) {
-			return $c->reply->exception($c->maketext("Your launch request has expired. Please click on the LTI link again."))->rendered(400);
+			return $c->reply->exception(
+				$c->maketext("Your launch request has expired. Please click on the LTI link again."))
+				->rendered(400);
 		} else {
-			return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:" . $parser->{error}))->rendered(400);
+			return $c->reply->exception($c->maketext(
+				"Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below:"
+					. $parser->{error}
+			))->rendered(400);
 		}
 	}
 
 	# check if user wants to go directly to an assignment/quiz
 	my $set_id_custom_claim = $parser->get_claim_param("custom", "set");
 	if ($set_id_custom_claim) {
-		debug('Custom claim wants to go to assignment: '. $set_id_custom_claim);
+		debug('Custom claim wants to go to assignment: ' . $set_id_custom_claim);
 		# not perfect sanitization, but need something
 		$set_id_custom_claim = $parser->sanitizeSetName($set_id_custom_claim);
 		$c->{setId} = $set_id_custom_claim;
@@ -77,8 +80,8 @@ async sub run ($c)
 		my @query_params = ('set', 'custom_set', 'homework_set', 'custom_homework_set', 'quiz_set', 'custom_quiz_set');
 		foreach my $query_param (@query_params) {
 			if (!$targetLinkUriClaim) { last; }
-			my $targetLinkUri = Mojo::URL->new($targetLinkUriClaim);
-			my $uriQueries = $targetLinkUri->query;
+			my $targetLinkUri      = Mojo::URL->new($targetLinkUriClaim);
+			my $uriQueries         = $targetLinkUri->query;
 			my $set_id_query_param = $uriQueries->param($query_param);
 			if ($set_id_query_param) {
 				debug('User wants to go directly to set: ' . $set_id_query_param);
@@ -90,18 +93,17 @@ async sub run ($c)
 		}
 	}
 
-	my $client_id = $parser->get_param("aud");
+	my $client_id  = $parser->get_param("aud");
 	my $context_id = $parser->get_claim_param("context", "id");
-	my $course_id = $parser->getCourseName();
+	my $course_id  = $parser->getCourseName();
 
 	# LTI processing
-	if ($client_id && $context_id && $course_id)
-	{
+	if ($client_id && $context_id && $course_id) {
 		debug("LTI detected\n");
 
 		# Check for course existence
-		if($db->existsLTIContext($client_id, $context_id)) {
-        	my $lti_context = $db->getLTIContext($client_id, $context_id);
+		if ($db->existsLTIContext($client_id, $context_id)) {
+			my $lti_context = $db->getLTIContext($client_id, $context_id);
 			# over write course id with value stored in context table
 			$course_id = $lti_context->course_id();
 		}
@@ -114,7 +116,7 @@ async sub run ($c)
 		# set request ce and db to courseID
 		$c->stash('courseID', $course_id);
 		$c->ce($tmpce);
-		$c->db(new WeBWorK::DB($c->ce->{dbLayout}));
+		$c->db(new WeBWorK::DB($c->ce));
 		$db = $c->db;
 
 		my $authz = WeBWorK::Authz->new($c);
@@ -122,8 +124,12 @@ async sub run ($c)
 		# verify message
 		my $ret = $c->_verifyMessage();
 		if ($ret) {
-			debug("_verifyMessage error: ". $ret);
-			return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
+			debug("_verifyMessage error: " . $ret);
+			return $c->reply->exception(
+				$c->maketext(
+					"Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"
+				)
+			)->rendered(400);
 		}
 
 		# direct the student directly to a homework assignment or quiz if needed
@@ -134,12 +140,15 @@ async sub run ($c)
 
 			$ret = $c->createCourse();
 			if ($ret) {
-				debug("createCourse error: ". $ret);
-				return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
+				debug("createCourse error: " . $ret);
+				return $c->reply->exception(
+					$c->maketext(
+						"Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"
+					)
+				)->rendered(400);
 			}
 
-			$c->flash(lti1p3good => $c->maketext(
-				"The course was successfully imported into Webwork."));
+			$c->flash(lti1p3good => $c->maketext("The course was successfully imported into Webwork."));
 		}
 		$c->_updateLTISettings();
 		$c->_updateLaunchUser();
@@ -148,28 +157,37 @@ async sub run ($c)
 		# have existed and thus the user might not have existed
 		$ret = $c->_verifyUser();
 		if ($ret) {
-			debug("_verifyUser error: ". $ret);
-			return $c->reply->exception($c->maketext("Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"))->rendered(400);
+			debug("_verifyUser error: " . $ret);
+			return $c->reply->exception(
+				$c->maketext(
+					"Unfortunately, the LTI launch failed. This might be a temporary condition. If it persists, please mail an error report with the time that the error occured and the exact error message below: $ret"
+				)
+			)->rendered(400);
 		}
 
 		if ($c->getSetId()) {
-			my %user = $parser->get_user_info();
+			my %user    = $parser->get_user_info();
 			my $user_id = $user{'loginid'};
-			my $set = $db->getMergedSet($user_id, $c->getSetId());
+			my $set     = $db->getMergedSet($user_id, $c->getSetId());
 
-			if ($set && defined( $set->assignment_type() ) ) {
-				my @allVersionIds = $db->listSetVersions($user_id , $c->getSetId());
+			if ($set && defined($set->assignment_type())) {
+				my @allVersionIds  = $db->listSetVersions($user_id, $c->getSetId());
 				my $latest_version = (@allVersionIds ? $allVersionIds[-1] : 0);
 
 				if (before($set->open_date)) {
 					my $display_name = $c->getSetId();
 					$display_name =~ s/_/ /g;
-					$c->flash(lti1p3bad =>  
-						$display_name." not open yet, will open on " . formatDateTime($set->open_date, $tmpce->{siteDefaults}{timezone}, $tmpce->{studentDateDisplayFormat})
+					$c->flash(
+						lti1p3bad => $display_name
+							. " not open yet, will open on "
+							. formatDateTime(
+								$set->open_date, $tmpce->{studentDateDisplayFormat},
+								$tmpce->{siteDefaults}{timezone}
+							)
 					);
-				} elsif ( $set->assignment_type() eq 'proctored_gateway' ) {
+				} elsif ($set->assignment_type() eq 'proctored_gateway') {
 					$redir .= "/proctored_test_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
-				} elsif ( $set->assignment_type() eq 'gateway' ) {
+				} elsif ($set->assignment_type() eq 'gateway') {
 					$redir .= "/test_mode/" . $c->getSetId() . ($latest_version ? ",v$latest_version" : "");
 				} else {
 					$redir .= "/" . $c->getSetId();
@@ -178,23 +196,21 @@ async sub run ($c)
 		}
 		# ensure authentification module is used
 		$c->{useAuthenModule} = 1;
-		$c->{useRedirect} = 1;
-		$c->{redirect} = $redir;
+		$c->{useRedirect}     = 1;
+		$c->{redirect}        = $redir;
 	}
 	$c->redirect_to($c->{redirect});
 
 	return 0;
 }
 
-sub getAuthenModule ($c)
-{
+sub getAuthenModule ($c) {
 	return WeBWorK::Authen::class($c->ce, "lti");
 }
 
-sub createCourse ($c)
-{
-	my $ce = $c->ce;
-	my $db = $c->db;
+sub createCourse ($c) {
+	my $ce     = $c->ce;
+	my $db     = $c->db;
 	my $parser = $c->{parser};
 
 	my $permissions = $parser->get_permissions();
@@ -219,31 +235,30 @@ sub createCourse ($c)
 	return 0;
 }
 
-sub _updateLTISettings ($c)
-{
+sub _updateLTISettings ($c) {
 	debug("Update LTI Settings");
-	my $ce = $c->ce;
-	my $db = $c->db;
+	my $ce     = $c->ce;
+	my $db     = $c->db;
 	my $parser = $c->{parser};
 
-	my $client_id = $parser->get_param("aud");
-	my $context_id = $parser->get_claim_param("context", "id");
+	my $client_id        = $parser->get_param("aud");
+	my $context_id       = $parser->get_claim_param("context",       "id");
 	my $resource_link_id = $parser->get_claim_param("resource_link", "id");
 
 	my $lti_context;
 	my $exists = $db->existsLTIContext($client_id, $context_id);
 
-	if($exists) {
-        $lti_context = $db->getLTIContext($client_id, $context_id);
+	if ($exists) {
+		$lti_context = $db->getLTIContext($client_id, $context_id);
 		# turn autosync back on for courses that had it off, assuming that
 		# people launching into the course means it needs to be active again
 		$lti_context->can_auto_sync(1);
-    } else {
-        $lti_context = $db->newLTIContext(
-			client_id => $client_id,
+	} else {
+		$lti_context = $db->newLTIContext(
+			client_id  => $client_id,
 			context_id => $context_id,
 			# course_title is only set up new for lti contexts
-			course_id => $ce->{courseName},
+			course_id     => $ce->{courseName},
 			can_auto_sync => 1
 		);
 	}
@@ -254,10 +269,10 @@ sub _updateLTISettings ($c)
 		$lti_context->context_memberships_url("");
 	}
 
-	if($exists) {
-        $db->putLTIContext($lti_context);
-    } else {
-        $db->addLTIContext($lti_context);
+	if ($exists) {
+		$db->putLTIContext($lti_context);
+	} else {
+		$db->addLTIContext($lti_context);
 	}
 
 	# only if resource_link_id is present
@@ -265,12 +280,12 @@ sub _updateLTISettings ($c)
 		my $lti_resource_link;
 		$exists = $db->existsLTIResourceLink($client_id, $context_id, $resource_link_id);
 
-		if($exists) {
+		if ($exists) {
 			$lti_resource_link = $db->getLTIResourceLink($client_id, $context_id, $resource_link_id);
 		} else {
 			$lti_resource_link = $db->newLTIResourceLink(
-				client_id => $client_id,
-				context_id => $context_id,
+				client_id        => $client_id,
+				context_id       => $context_id,
 				resource_link_id => $resource_link_id,
 			);
 		}
@@ -302,7 +317,7 @@ sub _updateLTISettings ($c)
 			$lti_resource_link->scope_result_score("");
 		}
 
-		if($exists) {
+		if ($exists) {
 			$db->putLTIResourceLink($lti_resource_link);
 		} else {
 			$db->addLTIResourceLink($lti_resource_link);
@@ -312,12 +327,11 @@ sub _updateLTISettings ($c)
 
 # Automatically add new users to course or update existing user information on launch.
 # assign users to all the available assignments.
-sub _updateLaunchUser ($c)
-{
+sub _updateLaunchUser ($c) {
 	debug("Manage LTI Launch user account.");
 
-	my $ce = $c->ce;
-	my $db = $c->db;
+	my $ce     = $c->ce;
+	my $db     = $c->db;
 	my $parser = $c->{parser};
 
 	debug("Parsing user information.");
@@ -330,7 +344,7 @@ sub _updateLaunchUser ($c)
 	# check if user exists
 	if ($db->existsUser($user{'loginid'})) {
 		debug("Attempt to update user & assign assignments.");
-		my $oldUser = $db->getUser($user{'loginid'});
+		my $oldUser       = $db->getUser($user{'loginid'});
 		my $oldPermission = $db->getPermissionLevel($user{'loginid'});
 		$updater->updateUser($oldUser, \%user, $oldPermission);
 	} else {
@@ -343,10 +357,9 @@ sub _updateLaunchUser ($c)
 
 # Automatically add new users to course or update existing user information on launch.
 # assign users to all the available assignments.
-sub _updateClassRoster ($c)
-{
-	my $ce = $c->ce;
-	my $db = $c->db;
+sub _updateClassRoster ($c) {
+	my $ce     = $c->ce;
+	my $db     = $c->db;
 	my $parser = $c->{parser};
 
 	debug("Update class roster if available.");
@@ -354,10 +367,10 @@ sub _updateClassRoster ($c)
 	# try to update course enrolment
 	if ($parser->get_nrps_claim()) {
 		my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
-		my $membership = $names_and_roles_service->getAllNamesAndRole();
+		my $membership              = $names_and_roles_service->getAllNamesAndRole();
 		unless ($membership) {
-			debug("There was an issue fetching the class roster. ".$names_and_roles_service->{error});
-			return error("There was an issue fetching the class roster. ".$names_and_roles_service->{error}, "#e016");
+			debug("There was an issue fetching the class roster. " . $names_and_roles_service->{error});
+			return error("There was an issue fetching the class roster. " . $names_and_roles_service->{error}, "#e016");
 		}
 		my $ret = $c->SUPER::updateCourse($ce, $db, $membership);
 		if ($ret) {
@@ -369,20 +382,21 @@ sub _updateClassRoster ($c)
 	return 0;
 }
 
-sub _verifyMessage ($c)
-{
+sub _verifyMessage ($c) {
 	# verify that the message hasn't been tampered with
 	my $ltiauthen = WeBWorK::Authen::LTI1p3->new($c);
 	$c->authen($ltiauthen);
 	my $ret = $c->authen->verifyIdToken();
 	if (!$ret) {
-		return error("Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.","#e015");
+		return error(
+			"Error: LTI message integrity could not be verified. Check if the LTI launch URL has a trailing slash.",
+			"#e015"
+		);
 	}
 	return 0;
 }
 
-sub _verifyUser ($c)
-{
+sub _verifyUser ($c) {
 	$c->param('isCalledByLti1p3Launch', 1);
 	my $ret = $c->authen->verify();
 	if (!$ret) {

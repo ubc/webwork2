@@ -5,18 +5,16 @@ use warnings;
 ##### Module Creation #####
 package LTI1p3::Importer::Error;
 use Exporter;
-our @ISA = ('Exporter');
+our @ISA    = ('Exporter');
 our @EXPORT = ('error');
 
 ##### Library Imports #####
 use WeBWorK::Debug;
 
 ##### Module Wide Variables #####
-sub error
-{
+sub error {
 	my ($msg, $code) = @_;
-	unless (defined $msg && defined $code)
-	{
+	unless (defined $msg && defined $code) {
 		my $error = "Missing parameters when calling error reporting function!";
 		debug($error);
 		die $error;

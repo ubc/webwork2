@@ -1,0 +1,106 @@
+package WeBWorK::Utils::Logs;
+use Mojo::Base 'Exporter', -signatures;
+
+use Fcntl qw(:flock);
+use Date::Format;
+
+use WeBWorK::Utils::Files qw(surePathToFile);
+
+our @EXPORT_OK = qw(
+	writeCourseLog
+	writeLog
+	writeTimingLogEntry
+);
+
+# Note the $time and $logType parameters of this method are only intended to be
+# used internally by this file, and so are not documented in the POD.
+sub writeLog ($ce, $facility, $message, $time = time, $logType = 'webwork') {
+	my ($fileType, $dirType) = ("${logType}Files", "${logType}Dirs");
+
+	unless ($ce->{$fileType}{logs}{$facility}) {
+		warn "There is no $logType log file for the $facility facility defined.\n";
+		return;
+	}
+
+	# Do not attempt to write the log if the root directory that the log file lives under does not exist.
+	# surePathToFile takes the mode for the directories it creates from that root, so a missing root makes it die
+	# inside its own eval and emit three unrelated warnings before the open below fails anyway. For course logs
+	# that root is the course directory, so this is reachable whenever a course log is written for a course that
+	# does not exist, such as a login attempt against a course that is not installed.
+	unless (-d $ce->{$dirType}{root}) {
+		warn "Not writing to the $facility $logType log: "
+			. "the log root directory $ce->{$dirType}{root} does not exist.\n";
+		return;
+	}
+
+	surePathToFile($ce->{$dirType}{root}, $ce->{$fileType}{logs}{$facility});
+
+	if (open my $LOG, '>>:encoding(UTF-8)', $ce->{$fileType}{logs}{$facility}) {
+		flock $LOG, LOCK_EX;
+		print $LOG '[', time2str('%a %b %d %H:%M:%S %Y', $time), "] $message\n";
+		close $LOG;
+	} else {
+		warn "failed to open $ce->{$fileType}{logs}{$facility} for writing: $!";
+	}
+
+	return;
+}
+
+sub writeCourseLog ($ce, $facility, $message, $time = time) {
+	writeLog($ce, $facility, $message, $time, 'course');
+	return;
+}
+
+sub writeTimingLogEntry ($ce, $route, $details) {
+	writeLog($ce, 'timing', "$$ " . time . " - $route [$details]");
+	return;
+}
+
+1;
+
+=head1 NAME
+
+WeBWorK::Utils::Logs - contains utility subroutines for writing logs to files.
+
+=head2 writeLog
+
+Usage: C<writeLog($ce, $facility, $message)>
+
+Write to the log file specified by C<$facility>, where C<$facility> is a key
+specified in the C<$webworkFiles{logs}> hash from the course environment. A
+valid C<WeBWorK::CourseEnvironment> object must be specified by C<$ce>. The
+format of the message written to the log file is
+
+    [formatted date & time] $message
+
+Nothing is written and a warning is issued if the root directory that the log
+file lives under does not exist. For course logs that root is the course
+directory, so writing a log will never create a directory for a course that is
+not installed.
+
+=head2 writeCourseLog
+
+Usage: C<writeCourseLog($ce, $facility, $message, $time)>
+
+Write to the course log file specified by C<$facility>, where C<$facility> is a
+key in the C<$courseFiles{logs}> hash from the course environment.  A valid
+C<$WeBWorK::CourseEnvironment> object must be specified in C<$ce>.  The C<$time>
+argument is optional, and the current time will be used if it is not provided.
+The format of the message written to the log file is
+
+    [formatted date & time] $message
+
+=head2 writeTimingLogEntry
+
+Usage: C<writeTimingLogEntry($ce, $route, $details)>
+
+Write to the timing log.  A valid C<$WeBWorK::CourseEnvironment> object must be
+specified in C<$ce>.  The C<$route> should be the URL path for the current
+route.  The format of the message written to the log file is
+
+    [formatted date & time] processID unixTime - $route [$details]
+
+Note that the C<$details> argument should not be wrapped in brackets since that
+will be done by this method.
+
+=cut

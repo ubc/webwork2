@@ -13,26 +13,22 @@ use WeBWorK::CourseEnvironment;
 use WeBWorK::Debug;
 
 # Constructor
-sub new
-{
+sub new {
 	my ($class, $ce) = @_;
-	my $self = {
-		ce => $ce
-	};
+	my $self = { ce => $ce };
 	bless $self, $class;
 	return $self;
 }
 
-sub logLTIRequest
-{
+sub logLTIRequest {
 	my ($self, $service_name, $text) = @_;
 	my ($sec, $msec) = gettimeofday;
-	my $date = time2str("%a %b %d %H:%M:%S.$msec %Y", $sec);
-	my $filename_date = time2str("%Y\_%m", $sec); #time2str("%Y\_%m\_%d", $sec);
+	my $date          = time2str("%a %b %d %H:%M:%S.$msec %Y", $sec);
+	my $filename_date = time2str("%Y\_%m",                     $sec);    #time2str("%Y\_%m\_%d", $sec);
 
 	my $msg = "[$date] $text\n";
 
-	my $logfile = $self->{ce}->{webworkDirs}{logs} . "/lti_". $service_name . "_" . $filename_date . ".log";
+	my $logfile = $self->{ce}->{webworkDirs}{logs} . "/lti_" . $service_name . "_" . $filename_date . ".log";
 	if (open my $f, ">>", $logfile) {
 		print $f $msg;
 		close $f;
@@ -42,20 +38,17 @@ sub logLTIRequest
 
 }
 
-sub logNRPSRequest
-{
+sub logNRPSRequest {
 	my ($self, $text) = @_;
 	$self->logLTIRequest('nrps_request', $text);
 }
 
-sub logAGSRequest
-{
+sub logAGSRequest {
 	my ($self, $text) = @_;
 	$self->logLTIRequest('ags_request', $text);
 }
 
-sub logAccessTokenRequest
-{
+sub logAccessTokenRequest {
 	my ($self, $text) = @_;
 	$self->logLTIRequest('access_token_request', $text);
 }

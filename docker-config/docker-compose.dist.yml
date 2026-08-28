@@ -50,7 +50,7 @@ services:
       # "/usr/bin/timedatectl list-timezones" on an Ubuntu system with
       # that tool installed will find valid values.
       # See: https://stackoverflow.com/questions/39172652/using-docker-compose-to-set-containers-timezones
- 
+
       # Enable the auto db upgrader when moving to a newer MariaDB version
       MARIADB_AUTO_UPGRADE: 1
 
@@ -63,8 +63,7 @@ services:
     depends_on:
       - db
 
-  app: &app
-    # Set up the "build:" configuration:
+  app: &app # Set up the "build:" configuration:
     build:
       # For use/building when docker-compose.yml is in the webwork2 directory
       context: .
@@ -204,7 +203,7 @@ services:
       # If you use https below, make sure to set up the certificate and SSL configuration
       # Note if your server uses a non-standard port, that should also be included.
       #WEBWORK_ROOT_URL: https://myhost.mydomain.edu
-      WEBWORK_ROOT_URL: "http://localhost:${WEBWORK2_HTTP_PORT_ON_HOST}"
+      WEBWORK_ROOT_URL: 'http://localhost:${WEBWORK2_HTTP_PORT_ON_HOST}'
 
       WEBWORK_SMTP_SERVER: maildev
       WEBWORK_SMTP_PORT: 1025

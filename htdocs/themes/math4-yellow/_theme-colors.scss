@@ -1,19 +1,5 @@
-/* WeBWorK Online Homework Delivery System
- * Copyright &copy; 2000-2021 The WeBWorK Project, https://github.com/openwebwork
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of either: (a) the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any later
- * version, or (b) the "Artistic License" which comes with this package.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
- * Artistic License for more details.
- */
-
 // Include bootstrap scss functions (so you can manipulate colors, SVGs, calc, etc)
-@import "../../node_modules/bootstrap/scss/functions";
+@import '../../node_modules/bootstrap/scss/functions';
 
 // Theme colors
 $primary: #ffc700;
@@ -37,8 +23,8 @@ $ww-achievement-level-color: darken($primary, 15%);
 $accordion-button-active-color: shade-color($primary, 50%);
 
 // Make the navbar colors dark.
-$navbar-dark-color:                 rgba(#000, .55);
-$navbar-dark-hover-color:           rgba(#000, .75);
-$navbar-dark-active-color:          #000;
-$navbar-dark-disabled-color:        rgba(#000, .25);
-$navbar-dark-toggler-border-color:  rgba(#000, .1);
+$navbar-dark-color: rgba(#000, 0.55);
+$navbar-dark-hover-color: rgba(#000, 0.75);
+$navbar-dark-active-color: #000;
+$navbar-dark-disabled-color: rgba(#000, 0.25);
+$navbar-dark-toggler-border-color: rgba(#000, 0.1);

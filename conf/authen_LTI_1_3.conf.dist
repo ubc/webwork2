@@ -7,8 +7,11 @@
 
 # This is a string that is used to name the LMS for end users, for example in a message telling
 # users to sign in through their LMS.
-$LTI{v1p3}{LMS_name} = 'e.g., Blackboard, Canvas, Moodle, etc.';
-#$LTI{v1p3}{LMS_name} = 'Desire2Learn';
+$LTI{v1p3}{LMS_name} = 'the LMS';
+#$LTI{v1p3}{LMS_name} = 'Blackboard';
+#$LTI{v1p3}{LMS_name} = 'Canvas';
+#$LTI{v1p3}{LMS_name} = 'D2L Brightspace';
+#$LTI{v1p3}{LMS_name} = 'Moodle';
 
 # This is a URL that should take users to a place they can log in to their LMS.  It will use the
 # text from LMS_name, but use LMS_url as the href.  If LMS_url is empty or undefined, the
@@ -100,6 +103,7 @@ $LTI{v1p3}{ClientID}        = '';
 $LTI{v1p3}{DeploymentID}    = '';
 $LTI{v1p3}{PublicKeysetURL} = '';
 $LTI{v1p3}{AccessTokenURL}  = '';
+$LTI{v1p3}{AccessTokenAUD}  = '';
 $LTI{v1p3}{AuthReqURL}      = '';
 
 # In the process of LTI 1.3 authentication a request is sent to the LMS in response to its
@@ -139,6 +143,12 @@ $LTI{v1p3}{LMSrolesToWeBWorKroles} = {
 	'Non-editing teacher'     => 'ta',
 	'Grader'                  => 'ta',
 };
+
+# The LMS reports roles context (or membership), instititution, and system
+# roles.  WeBWorK always ignores system roles, and also ignores institution
+# roles by default.  In some cases you may also want to consider institution
+# roles.  In that case set the following to 1.
+$LTI{v1p3}{AllowInstitutionRoles} = 0;
 
 ################################################################################################
 # Local routine to modify users
@@ -185,7 +195,18 @@ $LTI{v1p3}{LMSrolesToWeBWorKroles} = {
 #  $userSet->answer_date($niceAnswerTime);
 #};
 
-# Do not change this.
-$LTI{v1p3}{grader} = 'WeBWorK::Authen::LTIAdvantage::SubmitGrade';
+################################################################################################
+# Miscellaneous
+################################################################################################
+
+# When grade passback mode is 'homework', someone must use a set-specific link from the LMS in
+# order for grade passback to begin happening for that set. Use of the set-specific link lets
+# WeBWorK store the set's "sourced_ID". So if there is no sourced_ID, the default behavior is
+# that a user in WeBWorK sees the sets as disabled and there is a message about needing to
+# access the set from the LMS. The following option can be set to allow users to work on the set
+# anyway. There will be no grade passback until some later time when an LMS user clicks the
+# set-specific link. In some LMSs, it is possible for the instructor to activate the link.
+
+$LTI{v1p3}{ignoreMissingSourcedID} = 0;
 
 1;    # final line of the file to reassure perl that it was read properly.

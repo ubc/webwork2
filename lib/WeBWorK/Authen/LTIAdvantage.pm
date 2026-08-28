@@ -1,18 +1,3 @@
-###############################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::Authen::LTIAdvantage;
 use parent qw(WeBWorK::Authen);
 
@@ -27,35 +12,11 @@ use strict;
 use warnings;
 use experimental 'signatures';
 
-use URI::Escape;
-use Mojo::UserAgent;
-use Mojo::JSON qw(decode_json);
-use Math::Random::Secure qw(irand);
-use Digest::SHA qw(sha256_hex);
-use Crypt::JWT qw(decode_jwt);
-
 use WeBWorK::Debug;
-use WeBWorK::CourseEnvironment;
 use WeBWorK::Localize;
-use WeBWorK::Utils qw(formatDateTime);
+use WeBWorK::Utils::DateTime   qw(formatDateTime);
 use WeBWorK::Utils::Instructor qw(assignSetToUser);
 use WeBWorK::Authen::LTIAdvantage::SubmitGrade;
-
-=head1 CONSTRUCTOR
-
-=over
-
-=item new($c)
-
-Instantiates a new WeBWorK::Authen object for the given WeBWorK::Controller ($c).
-
-=back
-
-=cut
-
-sub new ($invocant, $c) {
-	return bless { c => $c }, ref($invocant) || $invocant;
-}
 
 sub request_has_data_for_this_verification_module ($self) {
 	debug('LTIAdvantage has been called for data verification');
@@ -67,7 +28,7 @@ sub request_has_data_for_this_verification_module ($self) {
 		return 0;
 	}
 
-	# LTI 1.3 requests are exactly those that go through these routes.
+	# LTI 1.3 authentication requests are exactly those that go through these routes.
 	if ($c->current_route eq 'ltiadvantage_login' || $c->current_route eq 'ltiadvantage_launch') {
 		debug('LTIAdvantage returning that it has sufficient data');
 		return 1;
@@ -101,46 +62,6 @@ sub verify ($self) {
 			if $ce->{debug_lti_parameters};
 		debug('The LTI Advantage login route was accessed with the appropriate parameters.');
 
-		# Create a state and nonce and save them.  These are generated so that they are cryptographically secure values.
-		#
-		# The courseID is included in the state so that it can be retrieved in the launch request before a course
-		# environment and database are available (in fact so that those things can be accessed for this course).  The
-		# launch request does not contain any unencrypted information other than the state, and the LMS is required to
-		# send the state back unmodified.  This kind of breaks the rule that the state be opaque though.
-		#
-		# To make this work when session_management_via is set to 'key', the hacks are abundant and ugly!  This would be
-		# much simpler if that setting did not need to be supported.  Then the state, nonce, and courseID could just be
-		# stored in a cookie.  It is not even possible to do that when session_management_via is set to 'session_cookie'
-		# because this information is needed before it is known what that setting is.  So the ugly hack described below
-		# needs to always be used.
-		#
-		# To save this to the database a user_id value is needed that is unique for this request, satisfies the database
-		# constrains on user_id's, and won't collide with webwork user_id's.  So the login_hint (the LMS user id) and
-		# courseID are joined with ',set_id:' (hacking into the existing login proctor hack -- what an ugly hack to
-		# begin with).  That means the LMS user id will also be needed to get the information back from the database,
-		# and so this is included in the state as well.
-		#
-		# To make matters worse, courseID's can contain hyphens, but user_id's can not.  Fortunately courseID's can not
-		# contain ampersats, while user_id's can.  So the hyphens in the courseID are replaced with ampersats.
-		#
-		# Finally, hack into the existing "nonce" key hack.  The actual state and nonce are joined with a tab
-		# character and saved in the set_id field.  Since the key value is "nonce", the database will not check
-		# to see that the user_id exists in the user table.
-
-		my $key_id = join(',set_id:', $c->param('login_hint'), $c->stash->{courseID} =~ s/-/@/gr);
-		$c->stash->{LTIState} =
-			join(',set_id:', $key_id, sha256_hex(join('', map { [ 0 .. 9, 'a' .. 'z' ]->[ irand(36) ] } 1 .. 20)));
-		$c->stash->{LTINonce} = sha256_hex(join('', map { [ 0 .. 9, 'a' .. 'z' ]->[ irand(36) ] } 1 .. 20));
-
-		$c->db->deleteKey($key_id);    # Delete a key with this user_id if one happens to exist.
-		my $key = $c->db->newKey(
-			user_id   => $key_id,
-			key       => 'nonce',
-			timestamp => time,
-			set_id    => join("\t", $c->stash->{LTIState}, $c->stash->{LTINonce})
-		);
-		$c->db->addKey($key);
-
 		return 1;
 	}
 
@@ -157,76 +78,26 @@ sub get_credentials ($self) {
 	# Disable password login
 	$self->{external_auth} = 1;
 
-	# Retrieve the state and nonce from the key table and delete the key.
-	# See the comments about the hacks involved here in the WeBWorK::Authen::LTIAdvantage::verify method above.
-	my $key_id = join(',set_id:', $c->stash->{lti_lms_user_id}, $c->stash->{courseID} =~ s/-/@/gr);
-	my $key    = $c->db->getKey($key_id);
-	($c->stash->{LTIState}, $c->stash->{LTINonce}) = split "\t", $key->set_id;
-	$c->db->deleteKey($key_id);
-
-	$self->purge_old_state_keys;
-
-	# Verify the state.
-	unless ($c->param('state') && $c->stash->{LTIState} && $c->stash->{LTIState} eq $c->param('state')) {
+	# If there was an error during the extraction of the JWT, then authentication fails here.
+	if ($c->stash->{LTIAuthenError}) {
 		$self->{error} = $c->maketext(
 			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		warn "Invalid state in response from LMS.  Possible CSFR.\n" if $ce->{debug_lti_parameters};
-		debug('Invalid state in response from LMS.  Possible CSFR.');
+		warn $c->stash->{LTIAuthenError} . "\n" if $ce->{debug_lti_parameters};
+		debug($c->stash->{LTIAuthenError});
 		return 0;
 	}
 
-	return 0 unless (my $claims = $self->extract_jwt_claims);
-
-	if ($ce->{debug_lti_parameters}) {
-		warn "====== JWT PARAMETERS RECEIVED ======\n";
-		warn $c->dumper($claims);
-		warn "\n";
-	}
-
-	# Verify the nonce.
-	if (!defined $claims->{nonce} || $claims->{nonce} ne $c->stash->{LTINonce}) {
-		$self->{error} = $c->maketext(
-			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		warn "Incorrect nonce received in response.\n" if $ce->{debug_lti_parameters};
-		debug('Incorrect nonce received in response so LTIAdvantage::get_credentials is returning 0.');
-		return 0;
-	}
-
-	# Verify the deployment id.
-	if (!defined $claims->{'https://purl.imsglobal.org/spec/lti/claim/deployment_id'}
-		|| $claims->{'https://purl.imsglobal.org/spec/lti/claim/deployment_id'} ne $ce->{LTI}{v1p3}{DeploymentID})
-	{
-		$c->log->info($claims->{'https://purl.imsglobal.org/spec/lti/claim/deployment_id'});
-		$self->{error} = $c->maketext(
-			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		warn "Incorrect deployment id received in response.\n" if $ce->{debug_lti_parameters};
-		debug('Incorrect deployment id received in response so LTIAdvantage::get_credentials is returning 0.');
-		return 0;
-	}
+	my $claims = $c->stash->{lti_jwt_claims};
 
 	# Get the target_link_uri from the claims.
-	$c->stash->{LTILauncRedirect} = $claims->{'https://purl.imsglobal.org/spec/lti/claim/target_link_uri'};
+	$c->stash->{LTILaunchRedirect} = $claims->{'https://purl.imsglobal.org/spec/lti/claim/target_link_uri'};
 
-	unless (defined $c->stash->{LTILauncRedirect}) {
+	unless (defined $c->stash->{LTILaunchRedirect}) {
 		$self->{error} = $c->maketext(
 			'There was an error during the login process.  Please speak to your instructor or system administrator.');
 		warn 'LTI is not properly configured (failed to obtain target_link_uri). '
 			. "Please contact your instructor or system administrator.\n";
 		debug('Failed to obtain target_link_uri so LTIAdvantage::get_credentials is returning 0.');
-		return 0;
-	}
-
-	# Get the courseID from the target_link_uri and verify that it is the same as the one that was in the state.
-	my $location = $c->location;
-	my $target   = $c->url_for($c->stash->{LTILauncRedirect})->path;
-	my $courseID;
-	$courseID = $1 if $target =~ m|$location/([^/]*)|;
-
-	unless ($courseID && $courseID eq $c->stash->{courseID}) {
-		$self->{error} = $c->maketext(
-			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		debug('The courseID in the login request does not match the courseID in the launch request JWT.  '
-				. 'So LTIAdvantage::get_credentials is returning 0.');
 		return 0;
 	}
 
@@ -243,7 +114,7 @@ sub get_credentials ($self) {
 	my $user_id_source = '';
 	my $type_of_source = '';
 
-	$self->{email} = defined $claims->{email} ? uri_unescape($claims->{email} // '') : '';
+	$self->{email} = $claims->{email} // '';
 
 	my $extract_claim = sub ($key) {
 		my $value = $claims;
@@ -257,17 +128,26 @@ sub get_credentials ($self) {
 		return $value;
 	};
 
-	if (my $user_id = $extract_claim->($ce->{LTI}{v1p3}{preferred_source_of_username})) {
-		$user_id_source  = $ce->{LTI}{v1p3}{preferred_source_of_username};
-		$type_of_source  = 'preferred_source_of_username';
-		$self->{user_id} = $user_id;
-	}
+	# First check if there is a user with the current LMS user id saved in the lis_source_did column.
+	if ($claims->{sub} && (my $user = ($c->db->getUsersWhere({ lis_source_did => $claims->{sub} }))[0])) {
+		$user_id_source  = 'database';
+		$type_of_source  = 'existing database user';
+		$self->{user_id} = $user->user_id;
+	} else {
+		if (my $user_id = $extract_claim->($ce->{LTI}{v1p3}{preferred_source_of_username})) {
+			$user_id_source  = $ce->{LTI}{v1p3}{preferred_source_of_username};
+			$type_of_source  = "$user_id_source which was preferred_source_of_username";
+			$self->{user_id} = $user_id;
+		}
 
-	# Fallback if necessary
-	if (!defined $self->{user_id} && (my $user_id = $extract_claim->($ce->{LTI}{v1p3}{fallback_source_of_username}))) {
-		$user_id_source  = $ce->{LTI}{v1p3}{fallback_source_of_username};
-		$type_of_source  = 'fallback_source_of_username';
-		$self->{user_id} = $user_id;
+		# Fallback if necessary
+		if (!defined $self->{user_id}
+			&& (my $user_id = $extract_claim->($ce->{LTI}{v1p3}{fallback_source_of_username})))
+		{
+			$user_id_source  = $ce->{LTI}{v1p3}{fallback_source_of_username};
+			$type_of_source  = "$user_id_source which was fallback_source_of_username";
+			$self->{user_id} = $user_id;
+		}
 	}
 
 	if ($self->{user_id}) {
@@ -282,7 +162,7 @@ sub get_credentials ($self) {
 				[ roles      => 'https://purl.imsglobal.org/spec/lti/claim/roles' ],
 				[ last_name  => 'family_name' ],
 				[ first_name => 'given_name' ],
-				[ section    => 'https://purl.imsglobal.org/spec/lti/claim/custom#section' ],
+				[ section    => 'https://purl.imsglobal.org/spec/lti/claim/lis#course_section_sourcedid' ],
 				[ recitation => 'https://purl.imsglobal.org/spec/lti/claim/custom#recitation' ],
 			);
 
@@ -294,7 +174,7 @@ sub get_credentials ($self) {
 		# For setting up it is helpful to print out what is believed to be the user id and address is at this point.
 		if ($ce->{debug_lti_parameters}) {
 			warn "=========== SUMMARY ============\n";
-			warn "User id is |$self->{user_id}| (obtained from $user_id_source which was $type_of_source)\n";
+			warn "User id is |$self->{user_id}| (obtained from $type_of_source)\n";
 			warn "User email address is |$self->{email}|\n";
 			warn "strip_domain_from_email is |", $ce->{LTI}{v1p3}{strip_domain_from_email} // 0, "|\n";
 			warn "Student id is |$self->{student_id}|\n";
@@ -311,7 +191,7 @@ sub get_credentials ($self) {
 		}
 
 		# Save these for later if they are available in the JWT.  It is important that the lti_lms_user_id be updated
-		# with the 'sub' value from the claim.  The value from the state can not entirely be trusted.  In addition, this
+		# with the 'sub' value from the claim.  The value from the state cannot entirely be trusted.  In addition, this
 		# may not be the same as the original login_hint (it is different for Canvas, but the same for Moodle).
 		$c->stash->{lti_lms_user_id} = $claims->{sub};
 		$c->stash->{lti_lms_lineitem} =
@@ -319,7 +199,9 @@ sub get_credentials ($self) {
 
 		# Extract a possible setID from the target_link_uri.  This may not be an actual setID.
 		# That will be verified later in WeBWorK::Authen::LTIAdvantage::SubmitGrade::update_sourcedid.
-		$c->stash->{setID} = $1 if $target =~ m|$location/$courseID/([^/]*)|;
+		my $location = $c->location;
+		my $target   = $c->url_for($c->stash->{LTILaunchRedirect})->path;
+		$c->stash->{setID} = $1 if $target =~ m|$location/$ce->{courseName}/([^/]*)|;
 
 		$self->{login_type}        = 'normal';
 		$self->{credential_source} = 'LTIAdvantage';
@@ -333,101 +215,6 @@ sub get_credentials ($self) {
 		. "Please contact your instructor or system administrator.\n";
 	debug('LTIAdvantange::get_credentials is returning 0.');
 	return 0;
-}
-
-# Get the public keyset from the LMS and cache it in the database or just return what is already cached in the database.
-sub get_lms_public_keyset ($self, $renew = 0) {
-	my $c  = $self->{c};
-	my $ce = $c->ce;
-	my $db = $c->db;
-
-	my $keyset_str;
-
-	if (!$renew) {
-		$keyset_str = $db->getSettingValue('LTIAdvantageLMSPublicKey');
-		return decode_json($keyset_str) if $keyset_str;
-	}
-
-	# Get public keyset from the LMS.
-	my $response = Mojo::UserAgent->new->get($ce->{LTI}{v1p3}{PublicKeysetURL})->result;
-	unless ($response->is_success) {
-		$self->{error} = $c->maketext(
-			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		warn 'Failed to obtain public key from LMS: ' . $response->message . "\n" if $ce->{debug_lti_parameters};
-		debug('Failed to obtain public key from LMS: ' . $response->message);
-		return;
-	}
-
-	$keyset_str = $response->body;
-	my $keyset = eval { decode_json($keyset_str) };
-	if ($@ || ref($keyset) ne 'HASH' || !defined $keyset->{keys}) {
-		$self->{error} = $c->maketext(
-			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		warn "Received an invalid response from the LMS public keyset URL.\n" if $ce->{debug_lti_parameters};
-		debug('Received an invalid response from the LMS public keyset URL.');
-		return;
-	}
-	$db->setSettingValue('LTIAdvantageLMSPublicKey', $keyset_str);
-
-	return $keyset;
-}
-
-sub extract_jwt_claims ($self) {
-	my $c  = $self->{c};
-	my $ce = $c->ce;
-
-	my %jwt_params = (
-		token      => $c->param('id_token'),
-		verify_iss => $ce->{LTI}{v1p3}{PlatformID},
-		verify_aud => $ce->{LTI}{v1p3}{ClientID},
-		verify_iat => 1,
-		verify_exp => 1,
-		# This just checks that this claim is present.
-		verify_sub => sub ($value) { return $value =~ /\S/ }
-	);
-
-	$jwt_params{kid_keys} = $self->get_lms_public_keyset;
-	return unless $jwt_params{kid_keys};
-
-	my $claims = eval { decode_jwt(%jwt_params); };
-
-	# If decoding of the JWT failed, then try to get a new LMS public keyset and try again.  It could be that the
-	# keyset that was previously saved in the database has expired.
-	unless ($claims) {
-		$jwt_params{kid_keys} = $self->get_lms_public_keyset(1);
-		$claims = eval { $claims = decode_jwt(%jwt_params) };
-	}
-	if ($@) {
-		$self->{error} = $c->maketext(
-			'There was an error during the login process.  Please speak to your instructor or system administrator.');
-		warn "Failed to decode token received from LMS: $@\n" if $ce->{debug_lti_parameters};
-		debug("Failed to decode token received from LMS: $@");
-		return;
-	}
-
-	return $claims;
-}
-
-sub purge_old_state_keys ($self) {
-	my $c    = $self->{c};
-	my $ce   = $c->ce;
-	my $db   = $c->db;
-	my $time = time;
-
-	my @userIDs = $db->listKeys();
-	my @keys    = $db->getKeys(@userIDs);
-
-	my $modCourseID = $ce->{courseName} =~ s/-/@/gr;
-
-	# Delete any "nonce state" keys for this course that are older than $ce->{LTI}{v1p3}{StateKeyLifetime}.
-	for my $key (@keys) {
-		$db->deleteKey($key->user_id)
-			if $key->key eq "nonce"
-			&& ($time - $key->timestamp > $ce->{LTI}{v1p3}{StateKeyLifetime})
-			&& $key->user_id =~ /,set_id:$modCourseID$/;
-	}
-
-	return;
 }
 
 # Minor modification of method in superclass.
@@ -479,10 +266,6 @@ sub verify_normal_user ($self) {
 
 	debug("LTIAdvantage::verify_normal_user called for user |$user_id|");
 
-	# Call check_session in order to destroy any existing session cookies and key table sessions.
-	my ($sessionExists, $keyMatches, $timestampValid) = $self->check_session($user_id, $session_key, 0);
-	debug('sessionExists="', $sessionExists, '" keyMatches="', $keyMatches, '" timestampValid="', $timestampValid, '"');
-
 	my $auth_result = $self->authenticate;
 
 	debug("auth_result=|${auth_result}|");
@@ -518,8 +301,7 @@ sub authenticate ($self) {
 				"Account creation blocked by block_lti_create_user setting. Did not create user $self->{user_id}.";
 			if ($ce->{debug_lti_parameters}) {
 				warn $c->maketext('Account creation is currently disabled in this course.  '
-						. 'Please speak to your instructor or system administrator.')
-					. "\n";
+						. 'Please speak to your instructor or system administrator.') . "\n";
 			}
 			return 0;
 		} else {
@@ -544,11 +326,9 @@ sub authenticate ($self) {
 		$self->{initial_login} = 1;
 	}
 
-	# If we are using grade passback then make sure the data we need to submit the grade is kept up to date.
-	my $LTIGradeMode = $ce->{LTIGradeMode} // '';
-	if ($LTIGradeMode eq 'course' || $LTIGradeMode eq 'homework') {
-		WeBWorK::Authen::LTIAdvantage::SubmitGrade->new($c)->update_passback_data($self->{user_id});
-	}
+	# In case we will use grade passback at some point,
+	# make sure the data we need to submit the grade is kept up to date.
+	WeBWorK::Authen::LTIAdvantage::SubmitGrade->new($c)->update_passback_data($self->{user_id});
 
 	return 1;
 }
@@ -564,10 +344,15 @@ sub create_user ($self) {
 	# Determine the roles defined for this user defined in the LTI request and assign a permission level on that basis.
 	my @LTIroles = @{ $self->{roles} };
 
-	# Restrict to institution and context roles and remove the purl link portion (ignore system roles).
+	# Restrict to context roles and remove the purl link portion.  System roles are always ignored, but institution
+	# roles are also included if $LTI{v1p3}{AllowInstitutionRoles} = 1.
 	@LTIroles =
 		map {s|^[^#]*#||r}
-		grep {m!^http://purl.imsglobal.org/vocab/lis/v2/(membership|institution\/person)#!} @LTIroles;
+		grep {
+			m!^http://purl.imsglobal.org/vocab/lis/v2/membership#!
+			|| ($ce->{LTI}{v1p3}{AllowInstitutionRoles}
+				&& m!^http://purl.imsglobal.org/vocab/lis/v2/institution/person#!)
+		} @LTIroles;
 
 	if ($ce->{debug_lti_parameters}) {
 		warn "The adjusted LTI roles defined for this user are: \n-- " . join("\n-- ", @LTIroles),
@@ -608,8 +393,9 @@ sub create_user ($self) {
 	$newUser->status('C');
 	$newUser->section($self->{section}       // '');
 	$newUser->recitation($self->{recitation} // '');
-	$newUser->comment(formatDateTime(time, 'local'));
+	$newUser->comment(formatDateTime(time, 0, $ce->{siteDefaults}{timezone}, $ce->{language}));
 	$newUser->student_id($self->{student_id} // '');
+	$newUser->lis_source_did($c->stash->{lti_lms_user_id}) if $c->stash->{lti_lms_user_id};
 
 	# Allow sites to customize the user.
 	$ce->{LTI}{v1p3}{modify_user}($self, $newUser) if ref($ce->{LTI}{v1p3}{modify_user}) eq 'CODE';
@@ -699,6 +485,7 @@ sub maybe_update_user ($self) {
 		$tempUser->section($self->{section}       // '');
 		$tempUser->recitation($self->{recitation} // '');
 		$tempUser->student_id($self->{student_id} // '');
+		$tempUser->lis_source_did($c->stash->{lti_lms_user_id}) if $c->stash->{lti_lms_user_id};
 
 		# Allow sites to customize the temp user
 		$ce->{LTI}{v1p3}{modify_user}($self, $tempUser) if ref($ce->{LTI}{v1p3}{modify_user}) eq 'CODE';
@@ -716,7 +503,7 @@ sub maybe_update_user ($self) {
 		}
 
 		if ($change_made) {
-			$tempUser->comment(formatDateTime(time, 'local'));
+			$tempUser->comment(formatDateTime(time, 0, $ce->{siteDefaults}{timezone}, $ce->{language}));
 			eval { $db->putUser($tempUser) };
 			if ($@) {
 				$self->write_log_entry("Failed to update user $userID in LTIAdvantange login: $@");
@@ -734,4 +521,3 @@ sub maybe_update_user ($self) {
 }
 
 1;
-

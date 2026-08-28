@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::ContentGenerator::Instructor::StudentProgress;
 use Mojo::Base 'WeBWorK::ContentGenerator', -signatures, -async_await;
 
@@ -23,11 +8,14 @@ WeBWorK::ContentGenerator::Instructor::StudentProgress - Display Student Progres
 =cut
 
 # 'decodeAnswers', 'before' needed for submit draft tests
-use WeBWorK::Utils qw(jitar_id_to_seq wwRound grade_set format_set_name_display decodeAnswers before);
-use WeBWorK::Utils::Grades qw(list_set_versions);
+use WeBWorK::Utils                qw(wwRound decodeAnswers);
+use WeBWorK::Utils::FilterRecords qw(getFiltersForClass filterRecords);
+use WeBWorK::Utils::DateTime      qw(before);
+use WeBWorK::Utils::JITAR         qw(jitar_id_to_seq);
+use WeBWorK::Utils::Sets          qw(grade_set list_set_versions format_set_name_display);
 
 use WeBWorK::Debug;
-use WeBWorK::Utils::Rendering qw(getTranslatorDebuggingOptions renderPG);
+use WeBWorK::Utils::Rendering         qw(getTranslatorDebuggingOptions renderPG);
 use WeBWorK::Utils::ProblemProcessing qw/compute_reduced_score/;
 use Mojo::Promise;
 use PGrandom;
@@ -123,12 +111,21 @@ sub displaySets ($c) {
 		: (date => 0, testtime => 0, timeleft => 0, problems => 1, section => 1, recit => 1, login => 1);
 	my $showBestOnly = $setIsVersioned ? $c->param('show_best_only') : 0;
 
+	# Only show students who are included in stats.
+	my @student_records =
+		grep { $ce->status_abbrev_has_behavior($_->status, 'include_in_stats') } @{ $c->{student_records} };
+
+	# Change visible name of the first 'all' filter.
+	my $filter  = $c->param('filter') || 'all';
+	my $filters = getFiltersForClass($c, [ 'section', 'recitation' ], @student_records);
+	$filters->[0][0] = $c->maketext('All students');
+
+	@student_records = filterRecords($c, 0, [$filter], @student_records) unless $filter eq 'all';
+
 	my @score_list;
 	my @user_set_list;
 
-	for my $studentRecord (@{ $c->{student_records} }) {
-		next unless $ce->status_abbrev_has_behavior($studentRecord->status, 'include_in_stats');
-
+	for my $studentRecord (@student_records) {
 		my $studentName = $studentRecord->user_id;
 		my ($allSetVersionNames, $notAssignedSet) =
 			list_set_versions($db, $studentName, $c->stash('setID'), $setIsVersioned);
@@ -154,7 +151,7 @@ sub displaySets ($c) {
 				if ($set->version_last_attempt_time) {
 					$testTime = ($set->version_last_attempt_time - $set->open_date) / 60;
 					my $timeLimit = $set->version_time_limit / 60;
-					$testTime = $timeLimit if ($testTime > $timeLimit);
+					$testTime = $timeLimit if ($timeLimit > 0 && $testTime > $timeLimit);
 					$testTime = $c->maketext("[quant,_1,minute]", sprintf('%3.1f', $testTime));
 					$timeLeft = 0;
 					if ($showColumns{timeleft} && time - $set->open_date < $set->version_time_limit) {
@@ -169,6 +166,9 @@ sub displaySets ($c) {
 				} elsif (time - $set->open_date < $set->version_time_limit) {
 					$testTime = $c->maketext('still open');
 					$timeLeft = sprintf('%3.1f', ($set->version_time_limit - time + $set->open_date) / 60);
+				} elsif ($set->version_time_limit == 0) {
+					$testTime = $c->maketext('no time limit');
+					$timeLeft = 0;
 				} else {
 					$testTime = $c->maketext('time limit exceeded');
 					$timeLeft = 0;
@@ -178,9 +178,7 @@ sub displaySets ($c) {
 				$set = $db->getMergedSet($studentName, $setName);
 			}
 
-			my ($score, $total, $problem_scores, $problem_incorrect_attempts,
-				# ubc custom, add number of attempts as a return value
-				$num_of_attempts) =
+			my ($score, $total, $problem_scores, $problem_incorrect_attempts,) =
 				grade_set($db, $set, $studentName, $setIsVersioned, 1);
 			$score = wwRound(2, $score);
 
@@ -193,8 +191,6 @@ sub displaySets ($c) {
 				timeleft                   => $timeLeft,
 				problem_scores             => $problem_scores,
 				problem_incorrect_attempts => $problem_incorrect_attempts,
-				# ubc custom, added number of attempts
-				num_of_attempts            => $num_of_attempts
 			};
 
 			if ($showBestOnly) {
@@ -220,7 +216,7 @@ sub displaySets ($c) {
 				@user_set_list,
 				{
 					record             => $studentRecord,
-					score              => 0,
+					score              =>  0,
 					total              => -1,
 					date               => '',
 					testtime           => '',
@@ -289,12 +285,13 @@ sub displaySets ($c) {
 		secondary_sort_method => $secondary_sort_method,
 		ternary_sort_method   => $ternary_sort_method,
 		problems              => \@problems,
-		user_set_list         => \@user_set_list
+		user_set_list         => \@user_set_list,
+		filters               => $filters,
+		filter                => $filter,
 	);
 }
 
-
-# original feature commit for reference, history was disconnected in the merge: 
+# original feature commit for reference, history was disconnected in the merge:
 # https://github.com/ubc/webwork2/commit/bda7c28d717718c769f152c24cb7b581ac126d24
 async sub handleGradeSavedDrafts ($c) {
 	my $ce = $c->ce;
@@ -303,31 +300,29 @@ async sub handleGradeSavedDrafts ($c) {
 	my $user = $c->param('user');
 	# get all the permissions needed to allow Grade Saved Drafts
 	my $setIsVersioned = defined $c->{setRecord}->assignment_type && $c->{setRecord}->assignment_type =~ /gateway/;
-	my $recordAsOther = $c->authz->hasPermissions(
-		$user, "record_answers_when_acting_as_student");
-	my $recordVersionsAsOther = $c->authz->hasPermissions(
-		$user, "record_set_version_answers_when_acting_as_student");
+	my $recordAsOther         = $c->authz->hasPermissions($user, "record_answers_when_acting_as_student");
+	my $recordVersionsAsOther = $c->authz->hasPermissions($user, "record_set_version_answers_when_acting_as_student");
 	# set data needed for rendering the Grade Saved Drafts form
-	$c->stash->{recordAsOther} = $recordAsOther;
+	$c->stash->{recordAsOther}         = $recordAsOther;
 	$c->stash->{recordVersionsAsOther} = $recordVersionsAsOther;
-	
+
 	# stop if instructor didn't click the Grade Saved Drafts button
-	if (!$c->param( 'batch_grade_not_submitted' )) { return; }
+	if (!$c->param('batch_grade_not_submitted')) { return; }
 	# stop if this isn't a test
-	if (!$setIsVersioned) { return; } 
+	if (!$setIsVersioned) { return; }
 	# stop if user doesn't have the right permissions
 	if (!$recordAsOther && !$recordVersionsAsOther) { return; }
 
 	# we want to submit all the draft tests
 	my @studentSetToSubmit;
 	@studentSetToSubmit = $c->_get_student_quiz_not_submitted($setIsVersioned);
-	foreach my $pair ( @studentSetToSubmit ) {
-		my ( $userId, $theSet ) = @{$pair};
+	foreach my $pair (@studentSetToSubmit) {
+		my ($userId, $theSet) = @{$pair};
 		# use PG to calculate score for each problem
-		my @problems = $c->_getProblems($userId, $theSet);
+		my @problems       = $c->_getProblems($userId, $theSet);
 		my @renderPromises = ();
-		my @pgResults = (); # this will hold the actual score we can save to db
-		my $effectiveUser = $db->getUser($userId);
+		my @pgResults      = ();                                   # this will hold the actual score we can save to db
+		my $effectiveUser  = $db->getUser($userId);
 		for my $problem (@problems) {
 			my %formFields = decodeAnswers($problem->last_answer);
 			$formFields{'submitAnswers'} = 'Grade Test';
@@ -339,8 +334,8 @@ async sub handleGradeSavedDrafts ($c) {
 			$_ = (shift @renderedPG)->[0] if !defined $_;
 		}
 		# save problem score
-		my $setId = $theSet->set_id;
-		my $setVer = $theSet->version_id;
+		my $setId     = $theSet->set_id;
+		my $setVer    = $theSet->version_id;
 		my @probOrder = $c->_getProblemOrder($userId, $theSet);
 		# $pureProblem is what we actually save to do, I guess because $problem
 		# is two tables combined together so not a real table entry that can be
@@ -423,11 +418,11 @@ async sub _getProblemHTML ($c, $effectiveUser, $set, $formFields, $mergedProblem
 	return $pg;
 }
 
-sub _getProblems($c, $userId, $set) {
+sub _getProblems ($c, $userId, $set) {
 	my $db = $c->db;
 
-	my $setId = $set->set_id;
-	my $setVer = $set->version_id;
+	my $setId          = $set->set_id;
+	my $setVer         = $set->version_id;
 	my @problemNumbers = $db->listProblemVersions($userId, $setId, $setVer);
 	my @problems;
 	my @mergedProblems = $db->getAllMergedProblemVersions($userId, $setId, $setVer);
@@ -435,20 +430,21 @@ sub _getProblems($c, $userId, $set) {
 	for my $pIndex (0 .. $#problemNumbers) {
 		my $problemN = $mergedProblems[$pIndex];
 		if (!defined $problemN) {
-			return $c->reply->exception($c->maketext("Invalid problem index $pIndex in set $setId $setVer for $userId"))->rendered(400);
+			return $c->reply->exception($c->maketext("Invalid problem index $pIndex in set $setId $setVer for $userId"))
+				->rendered(400);
 		}
 		push(@problems, $problemN);
 	}
 	return @problems;
 }
 
-sub _getProblemOrder($c, $userId, $set) {
+sub _getProblemOrder ($c, $userId, $set) {
 	my $db = $c->db;
 
-	my $setId = $set->set_id;
-	my $setVer = $set->version_id;
+	my $setId          = $set->set_id;
+	my $setVer         = $set->version_id;
 	my @problemNumbers = $db->listProblemVersions($userId, $setId, $setVer);
-	my @probOrder = (0 .. $#problemNumbers);
+	my @probOrder      = (0 .. $#problemNumbers);
 	if ($set->problem_randorder) {
 		my @newOrder;
 		my $pgrand = PGrandom->new;
@@ -469,47 +465,47 @@ sub _getProblemOrder($c, $userId, $set) {
 ## Only include those with deadline < current time.
 ##
 sub _get_student_quiz_not_submitted ($c, $setIsVersioned) {
-	my $db   = $c->db;
-	my $ce   = $c->ce;
+	my $db      = $c->db;
+	my $ce      = $c->ce;
 	my $setName = $c->stash('setID');
-    my @result = ();
-    my @userIDs = $db->listSetUsers( $setName );
+	my @result  = ();
+	my @userIDs = $db->listSetUsers($setName);
 
-    foreach my $studentId ( @userIDs ) {
-        my ( $ra_allSetVersionNames, $notAssignedSet ) = list_set_versions( $db, $studentId, $setName, $setIsVersioned );
-        next if $notAssignedSet;
-        my @allSetVersionNames = @{$ra_allSetVersionNames};
-        foreach my $setNameVersion ( @allSetVersionNames ) {
-            my ( $setN, $vNum ) = $c->_splitSetIdAndVersion($setNameVersion);
+	foreach my $studentId (@userIDs) {
+		my ($ra_allSetVersionNames, $notAssignedSet) = list_set_versions($db, $studentId, $setName, $setIsVersioned);
+		next if $notAssignedSet;
+		my @allSetVersionNames = @{$ra_allSetVersionNames};
+		foreach my $setNameVersion (@allSetVersionNames) {
+			my ($setN, $vNum) = $c->_splitSetIdAndVersion($setNameVersion);
 
-            # see if student has submitted the quiz. if so, can skip
-            my $attempted = 0;
-            my @problemRecords = $db->getAllMergedProblemVersions( $studentId, $setN, $vNum );
-            foreach my $theProblemRecord ( @problemRecords ) {
-                if ( $theProblemRecord->attempted ) {
-                    $attempted = 1;
-                    last;
-                }
-            }
-            next if $attempted;
+			# see if student has submitted the quiz. if so, can skip
+			my $attempted      = 0;
+			my @problemRecords = $db->getAllMergedProblemVersions($studentId, $setN, $vNum);
+			foreach my $theProblemRecord (@problemRecords) {
+				if ($theProblemRecord->attempted) {
+					$attempted = 1;
+					last;
+				}
+			}
+			next if $attempted;
 
-            # see if we have passed the submission deadline. skip if student can still submit the set themselves
-            my $timeNow = time();
-            my $grace = $ce->{gatewayGracePeriod};
-            my $theSet = $db->getMergedSetVersion( $studentId, $setN, $vNum );
-            next if ( $theSet->due_date() + $grace > $timeNow );
+			# see if we have passed the submission deadline. skip if student can still submit the set themselves
+			my $timeNow = time();
+			my $grace   = $ce->{gatewayGracePeriod};
+			my $theSet  = $db->getMergedSetVersion($studentId, $setN, $vNum);
+			next if ($theSet->due_date() + $grace > $timeNow);
 
-            my @pair;
-            @pair = ( $studentId, $theSet );
-            push( @result, \@pair );
-        }
-    }
+			my @pair;
+			@pair = ($studentId, $theSet);
+			push(@result, \@pair);
+		}
+	}
 
-    @result
+	@result;
 }
 
 sub _splitSetIdAndVersion ($c, $setIdVersion) {
-	return ( $setIdVersion =~ /(.+),v(\d+)$/ );
+	return ($setIdVersion =~ /(.+),v(\d+)$/);
 }
 
 1;

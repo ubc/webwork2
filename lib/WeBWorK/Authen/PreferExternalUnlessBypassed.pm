@@ -31,13 +31,13 @@ sub request_has_data_for_this_verification_module ($self) {
 	return 1;
 }
 
-sub do_verify ($self) {
+sub do_verify {
+	my $self = shift;
 	my $c    = $self->{c};
-	
+
 	if ($c->param('bypassShib')) {
 		debug('Bypassing external auth to use internal login');
-	}
-	else {
+	} else {
 		# make Login.pm tell users to use external auth, don't make internal
 		# login available
 		$self->{external_auth} = 1;

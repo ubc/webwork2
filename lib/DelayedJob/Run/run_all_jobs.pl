@@ -15,9 +15,8 @@ run_all_jobs
 use strict;
 use warnings;
 
-BEGIN
-{
-    die "WEBWORK_ROOT not found in environment.\n" unless exists $ENV{WEBWORK_ROOT};
+BEGIN {
+	die "WEBWORK_ROOT not found in environment.\n" unless exists $ENV{WEBWORK_ROOT};
 }
 
 use lib "$ENV{WEBWORK_ROOT}/lib";
@@ -28,14 +27,14 @@ use WeBWorK::Debug;
 use Data::Dumper;
 use DelayedJob::Service;
 use sigtrap qw(handler quitHandler QUIT);
-use POSIX ":sys_wait_h"; # for WNOHANG
+use POSIX ":sys_wait_h";    # for WNOHANG
 
-my $man = 0;
+my $man  = 0;
 my $help = 0;
 
-GetOptions (
-    'help|?' => \$help,
-    man => \$man
+GetOptions(
+	'help|?' => \$help,
+	man      => \$man
 );
 
 pod2usage(1) if $help;
@@ -49,19 +48,18 @@ sub quitHandler {
 
 sub processJobs {
 	my $ce = WeBWorK::CourseEnvironment->new({
-				webwork_dir => $ENV{WEBWORK_ROOT},
-			});
+		webwork_dir => $ENV{WEBWORK_ROOT},
+	});
 	my $delayed_job_service = DelayedJob::Service->new($ce);
-	my $sleep = $ENV{DELAYED_JOB_SLEEP} // 10;
-	my $numJobsDone = 0;
+	my $sleep               = $ENV{DELAYED_JOB_SLEEP} // 10;
+	my $numJobsDone         = 0;
 	# each thread will do 100 jobs before being recreated
 	while ($numJobsDone < 100) {
 		# work_once() returns 1 if it actually found a job to do, 0 otherwise
 		my $didWork = $delayed_job_service->work_once();
 		if ($didWork) {
 			$numJobsDone++;
-		}
-		else {
+		} else {
 			# only sleep if there is no jobs
 			sleep($sleep);
 		}
@@ -71,15 +69,14 @@ sub processJobs {
 }
 
 my $numCycles = 0;
-my $pid = 0;
+my $pid       = 0;
 while ($canRun) {
 	print("*** Starting new fork $numCycles\n");
 	$pid = fork;
 	if (!defined $pid) {
 		warn "Failed to fork: $!";
 		exit;
-	}
-	elsif ($pid == 0) { # we're the child pid actually processing jobs
+	} elsif ($pid == 0) {    # we're the child pid actually processing jobs
 		processJobs();
 		exit;
 	}

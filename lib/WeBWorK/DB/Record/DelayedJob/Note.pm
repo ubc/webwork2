@@ -27,9 +27,9 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		jobid => { type=>"BIGINT UNSIGNED NOT NULL", key=>1 },
-		notekey => { type=>"VARCHAR(255)", key=>1 },
-		value => { type=>"MEDIUMBLOB" },
+		jobid   => { type => "BIGINT UNSIGNED NOT NULL", key => 1 },
+		notekey => { type => "VARCHAR(255)",             key => 1 },
+		value   => { type => "MEDIUMBLOB" },
 	);
 }
 

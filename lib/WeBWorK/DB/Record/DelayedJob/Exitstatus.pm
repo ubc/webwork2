@@ -27,11 +27,11 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		jobid => { type=>"BIGINT UNSIGNED PRIMARY KEY NOT NULL" },
-		funcid => { type=>"INT UNSIGNED NOT NULL DEFAULT 0" },
-		status => { type=>"SMALLINT UNSIGNED" },
-		completion_time => { type=>"INTEGER UNSIGNED" },
-		delete_after => { type=>"INTEGER UNSIGNED" },
+		jobid           => { type => "BIGINT UNSIGNED PRIMARY KEY NOT NULL" },
+		funcid          => { type => "INT UNSIGNED NOT NULL DEFAULT 0" },
+		status          => { type => "SMALLINT UNSIGNED" },
+		completion_time => { type => "INTEGER UNSIGNED" },
+		delete_after    => { type => "INTEGER UNSIGNED" },
 	);
 }
 

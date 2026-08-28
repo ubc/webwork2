@@ -1,18 +1,3 @@
-################################################################################
-# WeBWorK Online Homework Delivery System
-# Copyright &copy; 2000-2023 The WeBWorK Project, https://github.com/openwebwork
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of either: (a) the GNU General Public License as published by the
-# Free Software Foundation; either version 2, or (at your option) any later
-# version, or (b) the "Artistic License" which comes with this package.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See either the GNU General Public License or the
-# Artistic License for more details.
-################################################################################
-
 package WeBWorK::DB::Schema::NewSQL;
 use base qw(WeBWorK::DB::Schema);
 
@@ -24,11 +9,10 @@ WeBWorK::DB::Schema::NewSQL - base class for SQL access.
 
 use strict;
 use warnings;
-use Carp qw(croak);
+use Carp           qw(croak);
 use WeBWorK::Utils qw/undefstr/;
 
 use constant TABLES => qw(*);
-use constant STYLE  => "dbi";
 
 ################################################################################
 # where clauses (not sure if this is where these belong...)
@@ -55,12 +39,6 @@ sub where_achievement_id_eq {
 sub where_answer_id_eq {
 	my ($self, $flags, $answer_id) = @_;
 	return { answer_id => $answer_id };
-}
-
-# can be used for past_answers
-sub where_course_id_eq_user_id_eq_set_id_eq_problem_id_eq {
-	my ($self, $flags, $course_id, $user_id, $set_id, $problem_id) = @_;
-	return { course_id => $course_id, user_id => $user_id, set_id => $set_id, problem_id => $problem_id };
 }
 
 sub where_user_id_eq_set_id_eq_problem_id_eq {
@@ -156,14 +134,14 @@ sub where_user_id_eq_set_id_eq {
 
 # can be used for lti_resource_links
 sub where_is_valid_eq {
-    my ($self, $flags, $valid) = @_;
-    return {is_valid=>$valid};
+	my ($self, $flags, $valid) = @_;
+	return { is_valid => $valid };
 }
 
 # can be used for lti_contexts
 sub where_course_id_eq {
-    my ($self, $flags, $course_id) = @_;
-    return {course_id=>$course_id};
+	my ($self, $flags, $course_id) = @_;
+	return { course_id => $course_id };
 }
 
 # added where clauses for locations and set_locations
@@ -197,7 +175,7 @@ sub table {
 }
 
 sub dbh {
-	return shift->{driver}->dbi;
+	return shift->{dbh};
 }
 
 sub keyfields {
@@ -301,26 +279,6 @@ sub gen_update_hashes {
 	delete @values{@keyfields};
 
 	return \%values, \%where;
-}
-
-our $__PACKAGE__ = __PACKAGE__;
-
-sub debug_stmt {
-	my ($self, $sth, @bind_vals) = @_;
-	return unless $self->{params}{debug};
-	my ($subroutine) = (caller(1))[3];
-	$subroutine =~ s/^${__PACKAGE__}:://;
-	my $stmt = $sth->{Statement};
-	@bind_vals = undefstr("#UNDEF#", @bind_vals);
-	#print STDERR "$subroutine: |$stmt| => |@bind_vals|\n";
-	print STDERR "$subroutine: ", $self->bind($stmt, @bind_vals), "\n";
-}
-
-sub bind {
-	my ($self, $stmt, @bind_vals) = @_;
-	$stmt =~ s/\?/@bind_vals ? "?[".$self->dbh->quote(shift @bind_vals)."]" : "###NO BIND VALS###"/eg;
-	$stmt .= " ###EXTRA BIND VALS |@bind_vals|###" if @bind_vals;
-	return $stmt;
 }
 
 ####################################################

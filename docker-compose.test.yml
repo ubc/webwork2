@@ -1,0 +1,146 @@
+# docker-compose.test.yml — run the WeBWorK 2.20 (PR #52) stack locally,
+# BUILDING the app image from this checkout (no pull from Docker Hub).
+#
+# Run this from a merge-upstream-2.20 checkout — Dockerfile-prod does
+# `COPY . /opt/webwork/webwork2`, so the build uses THIS working directory's
+# webwork2 source (PG 2.20 and the UBC OPL are cloned during the build).
+#
+# Quick start:
+#   docker compose -f docker-compose.test.yml up --build -d
+#   # first build is long (~15-30 min: apt + cpanm + npm assets + OPL clone).
+#   docker compose -f docker-compose.test.yml logs -f app     # watch first boot
+#   open http://localhost:8080/webwork2/admin      # login: admin / admin
+#   open http://localhost:8071                     # maildev: outgoing mail
+#   docker compose -f docker-compose.test.yml down -v          # stop + wipe volumes
+#
+# Rebuild after code changes:  docker compose -f docker-compose.test.yml up --build -d
+#
+# Notes:
+# - The image builds for the host architecture. To match the amd64 prod/CI image
+#   exactly (e.g. on Apple Silicon), add  platform: linux/amd64  under app.build
+#   and to the worker `image:` refs — the build then runs under emulation (slower).
+# - `app` forces $CookieSecure=0 (see the entrypoint) so login works over plain
+#   http://localhost; the trailing `1;` keeps localOverrides.conf returning true.
+# - 2FA is on by default (WeBWorK 2.20); add  $twoFA{enabled} = 0;  to the printf
+#   to skip TOTP setup locally.
+
+x-app-env: &app-env
+  WEBWORK_DB_DRIVER: MariaDB
+  WEBWORK_DB_HOST: db
+  WEBWORK_DB_PORT: "3306"
+  WEBWORK_DB_NAME: webwork
+  WEBWORK_DB_USER: webwork
+  WEBWORK_DB_PASSWORD: webwork
+  WEBWORK_SECRET: local-test-secret-change-me
+  WEBWORK_URL: /webwork2
+  WEBWORK_ROOT_URL: http://localhost:8080
+  WEBWORK_TIMEZONE: America/Vancouver
+  SYSTEM_TIMEZONE: America/Vancouver
+  WEBWORK_SMTP_SERVER: maildev
+  WEBWORK_SMTP_PORT: "1025"
+  WEBWORK_SMTP_SENDER: no-reply@example.edu
+  SKIP_UPLOAD_OPL_STATISTICS: "1"
+  MOJO_PUBSUB_EXPERIMENTAL: "1"
+  DELAYED_JOB_PRIORITIZE: "0"
+  DEBUG: "1"
+  LTI_ADMIN_PASSWORD: admin
+  LTI_ADMIN_TOTP: O5SVGPKRNYWWEQKDPJJWUNRUL4UCWVDD
+
+services:
+  db:
+    image: mariadb:10.11
+    command:
+      - "--max-allowed-packet=256M"
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    environment:
+      MARIADB_ROOT_PASSWORD: root-test-pw
+      MARIADB_DATABASE: webwork
+      MARIADB_USER: webwork
+      MARIADB_PASSWORD: webwork
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+    restart: unless-stopped
+
+  r:
+    image: ubcctlt/rserve
+    platform: linux/amd64   # image is built amd64-only (emulated on Apple Silicon)
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile-prod
+    # Tag the locally built image so the workers reuse it instead of rebuilding.
+    image: webwork-local:pr52
+    depends_on:
+      db:
+        condition: service_healthy
+      r:
+        condition: service_started
+    environment:
+      <<: *app-env
+    # Local-only: force $CookieSecure=0 so the session cookie works over plain
+    # http://localhost. The trailing `1;` keeps localOverrides.conf (which is
+    # do-evaluated) returning a true value. Appended before the entrypoint copies
+    # the .dist to the live conf, so it survives restarts.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        printf '\n# local test override\n$$CookieSecure = 0;\n1;\n' >> "$$WEBWORK_ROOT/conf/localOverrides.conf.dist"
+        exec docker-entrypoint.sh sudo -E -u www-data hypnotoad -f bin/webwork2
+    ports:
+      - "8080:8080"
+    volumes:
+      - opl:/opt/webwork/libraries/webwork-open-problem-library
+      - htdocs_data:/opt/webwork/webwork2/htdocs/DATA
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/webwork2"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 360s
+    restart: unless-stopped
+
+  worker_lti1p3:
+    image: webwork-local:pr52   # reuse the image built by `app`
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    volumes:
+      - opl:/opt/webwork/libraries/webwork-open-problem-library
+      - htdocs_data:/opt/webwork/webwork2/htdocs/DATA
+    command: ["sudo", "-E", "-u", "www-data", "./lib/DelayedJob/Run/run_all_jobs.pl"]
+    restart: unless-stopped
+
+  worker_mojo:
+    image: webwork-local:pr52   # reuse the image built by `app`
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    volumes:
+      - opl:/opt/webwork/libraries/webwork-open-problem-library
+      - htdocs_data:/opt/webwork/webwork2/htdocs/DATA
+    command: ["sudo", "-E", "-u", "www-data", "bin/webwork2", "minion", "worker", "-m", "production"]
+    restart: unless-stopped
+
+  maildev:
+    image: maildev/maildev
+    ports:
+      - "8071:1080"
+    restart: unless-stopped
+
+volumes:
+  mysql:
+  opl:
+  htdocs_data:

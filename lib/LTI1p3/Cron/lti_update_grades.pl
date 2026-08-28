@@ -15,8 +15,7 @@ lti_update_classlist
 use strict;
 use warnings;
 
-BEGIN
-{
+BEGIN {
 	die "WEBWORK_ROOT not found in environment.\n" unless exists $ENV{WEBWORK_ROOT};
 }
 
@@ -30,12 +29,12 @@ use WeBWorK::DB;
 use LTI1p3::Service::AssignmentAndGradeService;
 use DelayedJob::Service;
 
-my $man = 0;
+my $man  = 0;
 my $help = 0;
 
-GetOptions (
+GetOptions(
 	'help|?' => \$help,
-	man => \$man
+	man      => \$man
 );
 
 pod2usage(1) if $help;
@@ -44,7 +43,7 @@ pod2usage(1) if $help;
 my $ce = WeBWorK::CourseEnvironment->new({
 	webwork_dir => $ENV{WEBWORK_ROOT},
 });
-my $db = new WeBWorK::DB($ce->{dbLayout});
+my $db = new WeBWorK::DB($ce);
 
 # LTI Update
 
@@ -55,7 +54,7 @@ my $course_hash = {};
 foreach my $lti_context (@lti_contexts) {
 	my $course_id = $lti_context->course_id();
 
-	unless(exists $course_hash->{$course_id}) {
+	unless (exists $course_hash->{$course_id}) {
 		$course_hash->{$course_id} = 1;
 	}
 }
@@ -64,9 +63,9 @@ my @course_ids = keys %{$course_hash};
 foreach my $course_id (@course_ids) {
 	my $tmp_ce = WeBWorK::CourseEnvironment->new({
 		webwork_dir => $ENV{WEBWORK_ROOT},
-		courseName => $course_id
+		courseName  => $course_id
 	});
-	my $tmp_db = new WeBWorK::DB($tmp_ce->{dbLayout});
+	my $tmp_db = new WeBWorK::DB($tmp_ce);
 
 	# skip grade sync if disabled for course
 	if (!$tmp_ce->{lti_advantage}{cron_grade_sync}) {
@@ -81,7 +80,7 @@ foreach my $course_id (@course_ids) {
 			my $assignment_and_grade_service = LTI1p3::Service::AssignmentAndGradeService->new($tmp_ce, $tmp_db);
 			$assignment_and_grade_service->pushAllAssignmentGrades();
 			if ($assignment_and_grade_service->{error}) {
-				die "There was an issue updating class grades. ".$assignment_and_grade_service->{error};
+				die "There was an issue updating class grades. " . $assignment_and_grade_service->{error};
 			}
 		}
 	};

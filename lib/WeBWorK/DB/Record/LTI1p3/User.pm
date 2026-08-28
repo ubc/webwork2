@@ -27,9 +27,9 @@ use warnings;
 # TODO: add this table to eac course
 BEGIN {
 	__PACKAGE__->_fields(
-		user_id       => { type=>"TINYBLOB NOT NULL", key=>1 },
-		client_id => { type=>"TINYBLOB NOT NULL", key=>1 },
-		lti_user_id   => { type=>"TINYBLOB" }
+		user_id     => { type => "TINYBLOB NOT NULL", key => 1 },
+		client_id   => { type => "TINYBLOB NOT NULL", key => 1 },
+		lti_user_id => { type => "TINYBLOB" }
 	);
 }
 

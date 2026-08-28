@@ -27,10 +27,10 @@ use warnings;
 
 BEGIN {
 	__PACKAGE__->_fields(
-		client_id => { type=>"TINYBLOB NOT NULL", key=>1 },
-		scopes => { type=>"TINYBLOB NOT NULL", key=>1 },
-		access_token => { type=>"TEXT" },
-		expires_at => { type=>"TIMESTAMP" }
+		client_id    => { type => "TINYBLOB NOT NULL", key => 1 },
+		scopes       => { type => "TINYBLOB NOT NULL", key => 1 },
+		access_token => { type => "TEXT" },
+		expires_at   => { type => "TIMESTAMP" }
 	);
 }
 

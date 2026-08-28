@@ -29,7 +29,7 @@ use HTTP::Request;
 use LWP::UserAgent;
 use Digest::SHA qw(sha1_base64);
 use Data::Dumper;
-use WeBWorK::Utils qw(before after between formatDateTime);
+use WeBWorK::Utils::DateTime qw(before after between formatDateTime);
 use JSON;
 
 use HTTP::Request::Common;
@@ -46,9 +46,9 @@ use Mojo::URL;
 sub new {
 	my ($invocant, $ce, $db) = @_;
 	my $class = ref($invocant) || $invocant;
-	my $self = {
-		ce => $ce,
-		db => $db,
+	my $self  = {
+		ce    => $ce,
+		db    => $db,
 		error => '',
 	};
 	bless $self, $class;
@@ -57,8 +57,8 @@ sub new {
 
 sub pushAllAssignmentGrades {
 	my $self = shift;
-	my $ce = $self->{ce};
-	my $db = $self->{db};
+	my $ce   = $self->{ce};
+	my $db   = $self->{db};
 
 	my @lti_resource_links = $db->getAllValidLTIResourceLinks();
 	# ensure there are lti links to update
@@ -66,12 +66,12 @@ sub pushAllAssignmentGrades {
 
 	my @lti_users = $db->getAllLTIUsers();
 
-	my @user_ids = $db->listUsers();
+	my @user_ids   = $db->listUsers();
 	my @users_list = $db->getUsers(@user_ids);
 	my @perms_list = $db->getPermissionLevels(@user_ids);
 
-	my %users = map {($_->user_id => $_ )} @users_list;
-	my %perms = map {($_->user_id => $_ )} @perms_list;
+	my %users = map { ($_->user_id => $_) } @users_list;
+	my %perms = map { ($_->user_id => $_) } @perms_list;
 
 	# Step 1: Calulate grades for all students who need thier grade calculated
 
@@ -95,19 +95,19 @@ sub pushAllAssignmentGrades {
 
 		# get grades
 		my @set_ids = $db->listUserSets($user_id);
-		my @sets = $db->getMergedSets( map {[$user_id, $_]} @set_ids );
+		my @sets    = $db->getMergedSets(map { [ $user_id, $_ ] } @set_ids);
 
 		my $course_total_right = 0;
-		my $course_total = 0;
-		my $latest_timestamp = 0;
+		my $course_total       = 0;
+		my $latest_timestamp   = 0;
 
-		foreach my $set ( @sets ) {
+		foreach my $set (@sets) {
 			# go through each assigned set
 			my $grade_record = $self->_getGradeRecords($set, $user_id);
 			if (defined($grade_record)) {
 				$course_total_right += $grade_record->{total_right};
-				$course_total += $grade_record->{total};
-				$grades->{$grade_record->{set_id}} = $grade_record;
+				$course_total       += $grade_record->{total};
+				$grades->{ $grade_record->{set_id} } = $grade_record;
 				if ($latest_timestamp < $grade_record->{timestamp}) {
 					$latest_timestamp = $grade_record->{timestamp};
 				}
@@ -115,14 +115,14 @@ sub pushAllAssignmentGrades {
 		}
 
 		# pass back course grade
-		my $course_grade_record = $self->_getCourseGradeRecord($user_id, $course_total, $course_total_right, $latest_timestamp);
+		my $course_grade_record =
+			$self->_getCourseGradeRecord($user_id, $course_total, $course_total_right, $latest_timestamp);
 		$grades->{'/--course_overall--/'} = $course_grade_record;
 		$user_grades->{$user_id} = $grades;
 	}
 
 	# Step 2: Get a list of grades to update for each resourse link (that allow grade updates)
-	my $lti_assignment_and_grade_requests = $self->_generate_requests(
-		\@lti_resource_links, \@lti_users, $user_grades);
+	my $lti_assignment_and_grade_requests = $self->_generate_requests(\@lti_resource_links, \@lti_users, $user_grades);
 
 	# ensure there are lti rrequests to update
 	return if scalar(@{$lti_assignment_and_grade_requests}) == 0;
@@ -131,11 +131,11 @@ sub pushAllAssignmentGrades {
 }
 
 sub pushUserGradesOnSubmit {
-	my $self = shift;
+	my $self    = shift;
 	my $user_id = shift;
-	my $set_id = shift;
-	my $ce = $self->{ce};
-	my $db = $self->{db};
+	my $set_id  = shift;
+	my $ce      = $self->{ce};
+	my $db      = $self->{db};
 
 	my @lti_resource_links = $db->getAllValidLTIResourceLinks();
 	@lti_resource_links = grep { $_->set_id() eq '' || $_->set_id() eq $set_id } @lti_resource_links;
@@ -153,24 +153,22 @@ sub pushUserGradesOnSubmit {
 	return if scalar(@lti_users) == 0;
 
 	# Step 1: Calulate grades for student
-	my $user_grades = {
-		$user_id => {}
-	};
+	my $user_grades = { $user_id => {} };
 
 	# get grades
 	my @set_ids = $db->listUserSets($user_id);
-	my @sets = $db->getMergedSets( map {[$user_id, $_]} @set_ids );
+	my @sets    = $db->getMergedSets(map { [ $user_id, $_ ] } @set_ids);
 
 	my $course_total_right = 0;
-	my $course_total = 0;
-	my $latest_timestamp = 0;
+	my $course_total       = 0;
+	my $latest_timestamp   = 0;
 
-	foreach my $set ( @sets ) {
+	foreach my $set (@sets) {
 		# go through each assigned set
 		my $grade_record = $self->_getGradeRecords($set, $user_id);
 		if (defined($grade_record)) {
 			$course_total_right += $grade_record->{total_right};
-			$course_total += $grade_record->{total};
+			$course_total       += $grade_record->{total};
 			if ($set->set_id() eq $set_id) {
 				$user_grades->{$user_id}->{$set_id} = $grade_record;
 			}
@@ -181,25 +179,25 @@ sub pushUserGradesOnSubmit {
 	}
 
 	# pass back course grade
-	my $course_grade_record = $self->_getCourseGradeRecord($user_id, $course_total, $course_total_right, $latest_timestamp);
+	my $course_grade_record =
+		$self->_getCourseGradeRecord($user_id, $course_total, $course_total_right, $latest_timestamp);
 	$user_grades->{$user_id}->{'/--course_overall--/'} = $course_grade_record;
-
 
 	# Step 2: Get a list of grades to update for each resourse link (that allow grade updates)
 
-	my $lti_assignment_and_grade_requests = $self->_generate_requests(
-		\@lti_resource_links, \@lti_users, $user_grades);
+	my $lti_assignment_and_grade_requests = $self->_generate_requests(\@lti_resource_links, \@lti_users, $user_grades);
 
 	# ensure there are lti requests to update
 	return if scalar(@{$lti_assignment_and_grade_requests}) == 0;
 
 	$self->_performAssignmentAndGradeRequests($lti_assignment_and_grade_requests);
 }
+
 sub _generate_requests {
-	my $self = shift;
+	my $self               = shift;
 	my $lti_resource_links = shift;
-	my $lti_users = shift;
-	my $user_grades = shift;
+	my $lti_users          = shift;
+	my $user_grades        = shift;
 
 	my $ce = $self->{ce};
 	my $db = $self->{db};
@@ -207,10 +205,10 @@ sub _generate_requests {
 	my @lti_assignment_and_grade_requests = ();
 	foreach my $lti_resource_link (@{$lti_resource_links}) {
 
-		my $client_id = $lti_resource_link->client_id();
-		my $context_id = $lti_resource_link->context_id();
+		my $client_id        = $lti_resource_link->client_id();
+		my $context_id       = $lti_resource_link->context_id();
 		my $resource_link_id = $lti_resource_link->resource_link_id();
-		my $set_id = $lti_resource_link->set_id();
+		my $set_id           = $lti_resource_link->set_id();
 		$set_id = '/--course_overall--/' if !defined($set_id) || $set_id eq '';
 
 		# Canvas HACK: if context_id == resource_link_id then grades cannot be sent back
@@ -225,19 +223,19 @@ sub _generate_requests {
 		my @grades_to_update = ();
 		foreach my $lti_user (@client_lti_users) {
 			my $lti_user_id = $lti_user->lti_user_id();
-			my $user_id = $lti_user->user_id();
+			my $user_id     = $lti_user->user_id();
 
 			if (defined($user_grades->{$user_id}) && defined($user_grades->{$user_id}->{$set_id})) {
 				my $grade_record = $user_grades->{$user_id}->{$set_id};
 
 				my $lti_grade_record = {
-					set_id => $set_id,
-					lti_user_id => $lti_user_id,
-					user_id => $user_id,
-					grade => $grade_record->{grade},
+					set_id            => $set_id,
+					lti_user_id       => $lti_user_id,
+					user_id           => $user_id,
+					grade             => $grade_record->{grade},
 					activity_progress => $grade_record->{activity_progress},
-					grading_progress => $grade_record->{grading_progress},
-					timestamp => $grade_record->{timestamp},
+					grading_progress  => $grade_record->{grading_progress},
+					timestamp         => $grade_record->{timestamp},
 				};
 				push(@grades_to_update, $lti_grade_record);
 			}
@@ -245,7 +243,7 @@ sub _generate_requests {
 
 		my $lti_assignment_and_grade_request = {
 			lti_resource_link => $lti_resource_link,
-			grades_to_update => \@grades_to_update
+			grades_to_update  => \@grades_to_update
 		};
 		push(@lti_assignment_and_grade_requests, $lti_assignment_and_grade_request);
 	}
@@ -254,26 +252,30 @@ sub _generate_requests {
 }
 
 sub _performAssignmentAndGradeRequests {
-	my $self = shift;
+	my $self                              = shift;
 	my $lti_assignment_and_grade_requests = shift;
-	my $ce = $self->{ce};
-	my $db = $self->{db};
+	my $ce                                = $self->{ce};
+	my $db                                = $self->{db};
 
 	my $extralog = LTI1p3::ExtraLog->new($ce);
-	$extralog->logAGSRequest("Beginning LTI Assignment and Grade Service requests for Course: ".$ce->{courseName});
-	debug("Beginning LTI Assignment and Grade Service requests for Course: ".$ce->{courseName});
+	$extralog->logAGSRequest("Beginning LTI Assignment and Grade Service requests for Course: " . $ce->{courseName});
+	debug("Beginning LTI Assignment and Grade Service requests for Course: " . $ce->{courseName});
 
 	foreach my $lti_assignment_and_grade_request (@{$lti_assignment_and_grade_requests}) {
 		my $lti_resource_link = $lti_assignment_and_grade_request->{lti_resource_link};
-		my @grades_to_update = @{$lti_assignment_and_grade_request->{grades_to_update}};
-		my @grades_to_skip = ();
+		my @grades_to_update  = @{ $lti_assignment_and_grade_request->{grades_to_update} };
+		my @grades_to_skip    = ();
 
-		my $client_id = $lti_resource_link->client_id();
-		my $context_id = $lti_resource_link->context_id();
+		my $client_id        = $lti_resource_link->client_id();
+		my $context_id       = $lti_resource_link->context_id();
 		my $resource_link_id = $lti_resource_link->resource_link_id();
 
-		$extralog->logAGSRequest("Beginning LTI Assignment and Grade Service request for Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
-		debug("Beginning LTI Assignment and Grade Service request for Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
+		$extralog->logAGSRequest(
+			"Beginning LTI Assignment and Grade Service request for Client: $client_id, Context: $context_id, Resource Link: $resource_link_id"
+		);
+		debug(
+			"Beginning LTI Assignment and Grade Service request for Client: $client_id, Context: $context_id, Resource Link: $resource_link_id"
+		);
 
 		# skip if cannot update grades
 		next if !$lti_resource_link->scope_result_score();
@@ -291,11 +293,11 @@ sub _performAssignmentAndGradeRequests {
 
 		my $set_id = $lti_resource_link->set_id();
 		$set_id = '/--course_overall--/' if !defined($set_id) || $set_id eq '';
-		my $label = $set_id eq '/--course_overall--/' ? "WeBWorK Course Grade" : "WeBWorK ".$set_id." Grade";
+		my $label = $set_id eq '/--course_overall--/' ? "WeBWorK Course Grade" : "WeBWorK " . $set_id . " Grade";
 
 		debug("Resource link set id: $set_id with label: $label");
 
-		my $lineitem_url = $lti_resource_link->lineitem_url();
+		my $lineitem_url  = $lti_resource_link->lineitem_url();
 		my $lineitems_url = $lti_resource_link->lineitems_url();
 		# if there isn't a line item url already, create one
 		if (!defined($lineitem_url) || $lineitem_url eq '') {
@@ -307,41 +309,50 @@ sub _performAssignmentAndGradeRequests {
 			next if !defined($lineitems_url) || $lineitems_url eq '';
 
 			my $ua = LWP::UserAgent->new();
-			$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.lineitem+json' );
-			$ua->default_header( 'Content-Type' => 'application/vnd.ims.lis.v2.lineitem+json' );
-			$ua->default_header( 'Authorization' => "Bearer $access_token");
+			$ua->default_header('Accept'        => 'application/vnd.ims.lis.v2.lineitem+json');
+			$ua->default_header('Content-Type'  => 'application/vnd.ims.lis.v2.lineitem+json');
+			$ua->default_header('Authorization' => "Bearer $access_token");
 			my $params = {
-				scoreMaximum => 1.0,
-				label => $label,
+				scoreMaximum   => 1.0,
+				label          => $label,
 				resourceLinkId => $resource_link_id,
-				tag => 'WebWork'
+				tag            => 'WebWork'
 			};
 
-			$extralog->logAGSRequest("Assignment and Grades Service (LineItems POST) request url: $lineitems_url, params: ".Dumper($params));
-			debug("Assignment and Grades Service (LineItems POST) request url: $lineitems_url, params: ".Dumper($params));
-			my $res = $ua->post(
-				$lineitems_url,
-				'Content' => JSON->new->canonical->encode($params),
-			);
+			$extralog->logAGSRequest(
+				"Assignment and Grades Service (LineItems POST) request url: $lineitems_url, params: "
+					. Dumper($params));
+			debug("Assignment and Grades Service (LineItems POST) request url: $lineitems_url, params: "
+					. Dumper($params));
+			my $res = $ua->post($lineitems_url, 'Content' => JSON->new->canonical->encode($params),);
 
 			if ($res->is_success) {
 				my $data = from_json($res->content);
 
-				$extralog->logAGSRequest("Assignment and Grades Service (LineItems POST): Added new Line Item: \n" . Dumper($data) . "\n");
+				$extralog->logAGSRequest("Assignment and Grades Service (LineItems POST): Added new Line Item: \n"
+						. Dumper($data)
+						. "\n");
 				debug("Assignment and Grades Service (LineItems): Added new Line Item: \n" . Dumper($data) . "\n");
 
 				$lti_resource_link->lineitem_url($data->{'id'});
 				$db->putLTIResourceLink($lti_resource_link);
 				$lineitem_url = $lti_resource_link->lineitem_url();
 			} elsif ($res->code eq 404 && $res->content =~ /resource does not exist/) {
-				$extralog->logAGSRequest("Assignment and Grades Service (LineItems POST) request failed, unable to create new line item for resource link id: $resource_link_id");
+				$extralog->logAGSRequest(
+					"Assignment and Grades Service (LineItems POST) request failed, unable to create new line item for resource link id: $resource_link_id"
+				);
 				next;
 			} else {
-				$self->{error} = "Assignment and Grades Service (LineItems POST) request failed. " .
-					"\nStatus: " . $res->status_line .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content .
-					"\nResponse: " . $res->content;
+				$self->{error} =
+					"Assignment and Grades Service (LineItems POST) request failed. "
+					. "\nStatus: "
+					. $res->status_line
+					. "\nRequest URI: "
+					. $res->request->uri
+					. "\nRequest Content: "
+					. $res->request->content
+					. "\nResponse: "
+					. $res->content;
 				$extralog->logAGSRequest($self->{error});
 				debug($self->{error});
 				next;
@@ -349,8 +360,8 @@ sub _performAssignmentAndGradeRequests {
 		} elsif ($lti_resource_link->scope_lineitem()) {
 			debug("Scope lineitem");
 			my $ua = LWP::UserAgent->new();
-			$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.lineitem+json' );
-			$ua->default_header( 'Authorization' => "Bearer $access_token");
+			$ua->default_header('Accept'        => 'application/vnd.ims.lis.v2.lineitem+json');
+			$ua->default_header('Authorization' => "Bearer $access_token");
 
 			$extralog->logAGSRequest("Assignment and Grades Service (LineItem GET) request url: $lineitem_url");
 			debug("Assignment and Grades Service (LineItem GET) request url: $lineitem_url");
@@ -359,48 +370,62 @@ sub _performAssignmentAndGradeRequests {
 			if ($res->is_success) {
 				my $data = from_json($res->content);
 
-				$extralog->logAGSRequest("Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
+				$extralog->logAGSRequest(
+					"Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
 				debug("Assignment and Grades Service (LineItem GET): Get Line Item: \n" . Dumper($data) . "\n");
 			} else {
-				# expected errors
-				# Canvas course upcoming or concluded (not within start and end dates)
-				# https://community.canvaslms.com/t5/Developers-Group/LTI-Advantage-Lineitems-get-and-grade-sync-posts-for-a-course/m-p/412234#M6580
-				if ($res->status_line eq '404 Not Found' && $res->content eq '{"errors":[{"message":"The specified resource does not exist."}]}') {
-					$extralog->logAGSRequest(
-						"Could not update grade for concluded or upcoming Canvas Course. " .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content
-					);
-					debug(
-						"Could not update grade for concluded or upcoming Canvas Course. " .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content
-					);
+# expected errors
+# Canvas course upcoming or concluded (not within start and end dates)
+# https://community.canvaslms.com/t5/Developers-Group/LTI-Advantage-Lineitems-get-and-grade-sync-posts-for-a-course/m-p/412234#M6580
+				if ($res->status_line eq '404 Not Found'
+					&& $res->content eq '{"errors":[{"message":"The specified resource does not exist."}]}')
+				{
+					$extralog->logAGSRequest("Could not update grade for concluded or upcoming Canvas Course. "
+							. "\nRequest URI: "
+							. $res->request->uri
+							. "\nRequest Content: "
+							. $res->request->content);
+					debug("Could not update grade for concluded or upcoming Canvas Course. "
+							. "\nRequest URI: "
+							. $res->request->uri
+							. "\nRequest Content: "
+							. $res->request->content);
 					next;
-				}
-				elsif ($self->handleErrorConcludedCourse($res, $lti_resource_link)) {
-					my $errorMsg = "Could not update grade for concluded Canvas Course. Disabling autosync for this course." .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content .
-						"\nResponse Content: " . $res->content;
+				} elsif ($self->handleErrorConcludedCourse($res, $lti_resource_link)) {
+					my $errorMsg =
+						"Could not update grade for concluded Canvas Course. Disabling autosync for this course."
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content
+						. "\nResponse Content: "
+						. $res->content;
+					$extralog->logAGSRequest($errorMsg);
+					debug($errorMsg);
+					next;
+				} elsif ($self->handleErrorMissingResourceLink($res, $lti_resource_link)) {
+					my $errorMsg =
+						"Could not update grade for missing Canvas LineItem. Marking this resource link as invalid."
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content
+						. "\nResponse Content: "
+						. $res->content;
 					$extralog->logAGSRequest($errorMsg);
 					debug($errorMsg);
 					next;
 				}
-				elsif ($self->handleErrorMissingResourceLink($res, $lti_resource_link)) {
-					my $errorMsg = "Could not update grade for missing Canvas LineItem. Marking this resource link as invalid." .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content .
-						"\nResponse Content: " . $res->content;
-					$extralog->logAGSRequest($errorMsg);
-					debug($errorMsg);
-					next;
-				}
-				$self->{error} = "Assignment and Grades Service (LineItem GET) request failed. " .
-					"\nStatus: " . $res->status_line .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content .
-					"\nResponse: " . $res->content;
+				$self->{error} =
+					"Assignment and Grades Service (LineItem GET) request failed. "
+					. "\nStatus: "
+					. $res->status_line
+					. "\nRequest URI: "
+					. $res->request->uri
+					. "\nRequest Content: "
+					. $res->request->content
+					. "\nResponse: "
+					. $res->content;
 				$extralog->logAGSRequest($self->{error});
 				debug($self->{error});
 				next;
@@ -411,32 +436,37 @@ sub _performAssignmentAndGradeRequests {
 		# time to filter out unnecissary grade updates if scope_result_readonly is set
 		if ($lti_resource_link->scope_result_readonly()) {
 
-			my $lti_results = {};
+			my $lti_results        = {};
 			my $lineitemResultsUrl = Mojo::URL->new($lineitem_url);
-			if (scalar @grades_to_update == 1) { # single user update
-				$lineitemResultsUrl->query(
-					['user_id' => $grades_to_update[0]->{lti_user_id}]);
+			if (scalar @grades_to_update == 1) {    # single user update
+				$lineitemResultsUrl->query([ 'user_id' => $grades_to_update[0]->{lti_user_id} ]);
 			}
 			$lineitemResultsUrl->path($lineitemResultsUrl->path . '/results');
 			my $request_error = 0;
 			while (1) {
 				my $ua = LWP::UserAgent->new();
-				$ua->default_header( 'Accept' => 'application/vnd.ims.lis.v2.resultcontainer+json' );
-				$ua->default_header( 'Authorization' => "Bearer $access_token");
+				$ua->default_header('Accept'        => 'application/vnd.ims.lis.v2.resultcontainer+json');
+				$ua->default_header('Authorization' => "Bearer $access_token");
 
-				$extralog->logAGSRequest("Assignment and Grades Service (LineItem Result GET) request url: $lineitemResultsUrl");
+				$extralog->logAGSRequest(
+					"Assignment and Grades Service (LineItem Result GET) request url: $lineitemResultsUrl");
 				debug("Assignment and Grades Service (LineItem Result GET) request url: $lineitemResultsUrl");
 				my $res = $ua->get("$lineitemResultsUrl");
 
 				if ($res->is_success) {
 					my $data = from_json($res->content);
 
-					$extralog->logAGSRequest("Assignment and Grades Service (LineItem Result GET): Found these results: \n" . Dumper($data) . "\n");
-					debug("Assignment and Grades Service (LineItem Result GET): Found these results: \n" . Dumper($data) . "\n");
+					$extralog->logAGSRequest(
+						"Assignment and Grades Service (LineItem Result GET): Found these results: \n"
+							. Dumper($data)
+							. "\n");
+					debug("Assignment and Grades Service (LineItem Result GET): Found these results: \n"
+							. Dumper($data)
+							. "\n");
 
 					foreach my $lti_result (@{$data}) {
 						if (defined($lti_result->{'resultScore'}) && defined($lti_result->{'userId'})) {
-							$lti_results->{$lti_result->{'userId'}} = sprintf("%.4f", $lti_result->{'resultScore'});
+							$lti_results->{ $lti_result->{'userId'} } = sprintf("%.4f", $lti_result->{'resultScore'});
 						}
 					}
 
@@ -459,11 +489,16 @@ sub _performAssignmentAndGradeRequests {
 					}
 					last;
 				} else {
-					$self->{error} = "Assignment and Grades Service (LineItem Result GET) request failed. " .
-						"\nStatus: " . $res->status_line .
-						"\nRequest URI: " . $res->request->uri .
-						"\nRequest Content: " . $res->request->content .
-						"\nResponse: " . $res->content;
+					$self->{error} =
+						"Assignment and Grades Service (LineItem Result GET) request failed. "
+						. "\nStatus: "
+						. $res->status_line
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content
+						. "\nResponse: "
+						. $res->content;
 					$extralog->logAGSRequest($self->{error});
 					debug($self->{error});
 					$request_error = 1;
@@ -478,43 +513,52 @@ sub _performAssignmentAndGradeRequests {
 			# 1) the grade is the same in webwork and consumer
 			# 2) the grade is uninitialized in consumer and zero in webwork (aka no work as been done)
 			@grades_to_skip = grep {
-				(defined($lti_results->{$_->{lti_user_id}}) && $lti_results->{$_->{lti_user_id}} eq $_->{grade}) ||
-				(!defined($lti_results->{$_->{lti_user_id}}) && $_->{grade} eq sprintf("%.4f", 0))
+				(defined($lti_results->{ $_->{lti_user_id} }) && $lti_results->{ $_->{lti_user_id} } eq $_->{grade})
+					|| (!defined($lti_results->{ $_->{lti_user_id} }) && $_->{grade} eq sprintf("%.4f", 0))
 			} @grades_to_update;
 
 			@grades_to_update = grep {
 				!(
-					(defined($lti_results->{$_->{lti_user_id}}) && $lti_results->{$_->{lti_user_id}} eq $_->{grade}) ||
-					(!defined($lti_results->{$_->{lti_user_id}}) && $_->{grade} eq sprintf("%.4f", 0))
+					(
+						defined($lti_results->{ $_->{lti_user_id} })
+						&& $lti_results->{ $_->{lti_user_id} } eq $_->{grade}
+					)
+					|| (!defined($lti_results->{ $_->{lti_user_id} }) && $_->{grade} eq sprintf("%.4f", 0))
 				)
 			} @grades_to_update;
 		}
 
 		foreach my $grade_to_skip (@grades_to_skip) {
 			my $lti_user_id = $grade_to_skip->{lti_user_id};
-			my $user_id = $grade_to_skip->{user_id};
-			my $set_id = $grade_to_skip->{set_id};
-			my $grade = $grade_to_skip->{grade};
+			my $user_id     = $grade_to_skip->{user_id};
+			my $set_id      = $grade_to_skip->{set_id};
+			my $grade       = $grade_to_skip->{grade};
 
-			$extralog->logAGSRequest("Skipping Grade update for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
-			debug("Skipping Grade update for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
+			$extralog->logAGSRequest(
+				"Skipping Grade update for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id"
+			);
+			debug(
+				"Skipping Grade update for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id"
+			);
 		}
 
 		# the actual POST requests to send the grades
 		my $gradePayloads = $self->_generateGradePayloads($ce, $extralog, $lti_resource_link, \@grades_to_update);
-		my $async = $self->_sendGradePayloadsAsync($extralog, $lineitem_url, $access_token, $gradePayloads);
+		my $async         = $self->_sendGradePayloadsAsync($extralog, $lineitem_url, $access_token, $gradePayloads);
 		my $retryPayloads = $self->_handleGradeResponses($async, $extralog);
 		# currently, only reason to retry payloads is an expired access token.
 		# I think one retry should be enough, so no looping retry here.
 		if (@$retryPayloads) {
 			my $logMsg = "Getting access token after expired access token error";
-			$extralog->logAGSRequest($logMsg); debug($logMsg);
+			$extralog->logAGSRequest($logMsg);
+			debug($logMsg);
 
 			$access_token = $self->_getAccessToken($ce, $client_id, $scopes, $extralog);
 			if (!$access_token) { return 0; }
 
 			$logMsg = "Retrying payloads that failed due to expired access token";
-			$extralog->logAGSRequest($logMsg); debug($logMsg);
+			$extralog->logAGSRequest($logMsg);
+			debug($logMsg);
 
 			$async = $self->_sendGradePayloadsAsync($extralog, $lineitem_url, $access_token, $retryPayloads);
 			my $failedPayloads = $self->_handleGradeResponses($async, $extralog);
@@ -527,58 +571,73 @@ sub _performAssignmentAndGradeRequests {
 	}
 }
 
-sub _handleGradeResponses
-{
+sub _handleGradeResponses {
 	my ($self, $async, $extralog) = @_;
 	my @retryPayloads = ();
-	while ( my $res = $async->wait_for_next_response ) {
+	while (my $res = $async->wait_for_next_response) {
 		if (!$res->is_success) {
 			# expected errors
 			# Canvas Student View User (Test Student)
-			if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":{"type":"unprocessable_entity","message":"User not found in course or is not a student"}}') {
-				$extralog->logAGSRequest(
-					"Could not update grade for probable Canvas Student View user. " .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content
-				);
-				debug(
-					"Could not update grade for probable Canvas Student View user. " .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content
-				);
+			if ($res->status_line eq '422 Unprocessable Entity'
+				&& $res->content eq
+				'{"errors":{"type":"unprocessable_entity","message":"User not found in course or is not a student"}}')
+			{
+				$extralog->logAGSRequest("Could not update grade for probable Canvas Student View user. "
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content);
+				debug("Could not update grade for probable Canvas Student View user. "
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content);
 				next;
 			}
 			# Canvas Unpublished Assignment
-			if ($res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}') {
-				$extralog->logAGSRequest(
-					"Could not update grade for unpublished Canvas assignment. " .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content
-				);
-				debug(
-					"Could not update grade for unpublished Canvas assignment. " .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content
-				);
+			if ($res->status_line eq '422 Unprocessable Entity'
+				&& $res->content eq
+				'{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}'
+				)
+			{
+				$extralog->logAGSRequest("Could not update grade for unpublished Canvas assignment. "
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content);
+				debug("Could not update grade for unpublished Canvas assignment. "
+						. "\nRequest URI: "
+						. $res->request->uri
+						. "\nRequest Content: "
+						. $res->request->content);
 				next;
 			}
-			# Expired access token 
+			# Expired access token
 			if ($self->isExpiredAccessToken($res)) {
-				my $errorMsg = "Expired access token, adding to retry queue" .
-					"\nRequest URI: " . $res->request->uri .
-					"\nRequest Content: " . $res->request->content .
-					"\nResponse Content: " . $res->content;
+				my $errorMsg =
+					"Expired access token, adding to retry queue"
+					. "\nRequest URI: "
+					. $res->request->uri
+					. "\nRequest Content: "
+					. $res->request->content
+					. "\nResponse Content: "
+					. $res->content;
 				$extralog->logAGSRequest($errorMsg);
 				debug($errorMsg);
 				push(@retryPayloads, $res->request->content);
 				next;
 			}
 
-			$self->{error} = "Assignment and Grades Service (LineItem Score POST) request failed. " .
-				"\nStatus: " . $res->status_line .
-				"\nRequest URI: " . $res->request->uri .
-				"\nRequest Content: " . $res->request->content .
-				"\nResponse: " . $res->content;
+			$self->{error} =
+				"Assignment and Grades Service (LineItem Score POST) request failed. "
+				. "\nStatus: "
+				. $res->status_line
+				. "\nRequest URI: "
+				. $res->request->uri
+				. "\nRequest Content: "
+				. $res->request->content
+				. "\nResponse: "
+				. $res->content;
 			debug($self->{error});
 			$extralog->logAGSRequest($self->{error});
 		}
@@ -586,69 +645,80 @@ sub _handleGradeResponses
 	return \@retryPayloads;
 }
 
-sub _sendGradePayloadsAsync
-{
+sub _sendGradePayloadsAsync {
 	my ($self, $extralog, $lineitem_url, $access_token, $gradePayloads) = @_;
 	my $async = HTTP::Async->new;
-	$async->slots( 10 );
+	$async->slots(10);
 	my $lineitemScoresUrl = Mojo::URL->new($lineitem_url);
 	$lineitemScoresUrl->path($lineitemScoresUrl->path . '/scores');
 	foreach my $gradePayload (@$gradePayloads) {
-		my $HTTPRequest = HTTP::Request->new('POST', "$lineitemScoresUrl", [
-			'Accept' => 'application/vnd.ims.lis.v1.score+json',
-			'Content-Type' => 'application/vnd.ims.lis.v1.score+json',
-			'Authorization' => "Bearer $access_token"
-		], $gradePayload);
+		my $HTTPRequest = HTTP::Request->new(
+			'POST',
+			"$lineitemScoresUrl",
+			[
+				'Accept'        => 'application/vnd.ims.lis.v1.score+json',
+				'Content-Type'  => 'application/vnd.ims.lis.v1.score+json',
+				'Authorization' => "Bearer $access_token"
+			],
+			$gradePayload
+		);
 		my $ua = LWP::UserAgent->new();
 		# fix for INC4907926, make LWP::UserAgent add user-agent headers for us
 		$HTTPRequest = $ua->prepare_request($HTTPRequest);
 		$async->add($HTTPRequest);
 
-		$extralog->logAGSRequest("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".$gradePayload);
-		debug("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: ".$gradePayload);
+		$extralog->logAGSRequest(
+			"Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: "
+				. $gradePayload);
+		debug("Assignment and Grades Service (LineItem Score POST) request url: $lineitem_url/scores, params: "
+				. $gradePayload);
 	}
 
 	return $async;
 }
 
-sub _generateGradePayloads
-{
+sub _generateGradePayloads {
 	my ($self, $ce, $extralog, $lti_resource_link, $grades_to_update) = @_;
 
-	my $client_id = $lti_resource_link->client_id();
-	my $context_id = $lti_resource_link->context_id();
+	my $client_id        = $lti_resource_link->client_id();
+	my $context_id       = $lti_resource_link->context_id();
 	my $resource_link_id = $lti_resource_link->resource_link_id();
-	my $lineitem_url = $lti_resource_link->lineitem_url();
+	my $lineitem_url     = $lti_resource_link->lineitem_url();
 
 	my @payloads = ();
 
 	foreach my $grade_to_update (@$grades_to_update) {
 		my $lti_user_id = $grade_to_update->{lti_user_id};
-		my $user_id = $grade_to_update->{user_id};
-		my $set_id = $grade_to_update->{set_id};
-		my $grade = $grade_to_update->{grade};
+		my $user_id     = $grade_to_update->{user_id};
+		my $set_id      = $grade_to_update->{set_id};
+		my $grade       = $grade_to_update->{grade};
 
-		$extralog->logAGSRequest("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
-		debug("Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id");
+		$extralog->logAGSRequest(
+			"Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id"
+		);
+		debug(
+			"Updating Grade for User: $user_id, LTI User: $lti_user_id, Set: $set_id, Grade: $grade, Client: $client_id, Context: $context_id, Resource Link: $resource_link_id"
+		);
 
 		# LTI AGS spec technically requires subsecond precision. But since
 		# the original timestamp is a unix timestamp with only second
 		# precision, I've just stuck .000 to it.
-		my $nowTimestamp = formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
-		my $submittedTimestamp = formatDateTime($grade_to_update->{timestamp}, $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S.000%z");
+		my $nowTimestamp = formatDateTime(time(), "%Y-%m-%dT%H:%M:%S.000%z", $ce->{siteDefaults}{timezone});
+		my $submittedTimestamp =
+			formatDateTime($grade_to_update->{timestamp}, "%Y-%m-%dT%H:%M:%S.000%z", $ce->{siteDefaults}{timezone});
 		my $params = {
-			userId => $lti_user_id,
-			scoreGiven => $grade,
+			userId       => $lti_user_id,
+			scoreGiven   => $grade,
 			scoreMaximum => 1.0,
 			# We used to set this timestamp to the student's assignment
 			# submit time. This caused a situtation where if instructor
 			# updates Canvas assignment configuration *after* the student's
 			# submit time, Canvas will reject the grade sync. We set it to
 			# the current time to avoid this scenario.
-			timestamp => $nowTimestamp,
+			timestamp        => $nowTimestamp,
 			activityProgress => $grade_to_update->{activity_progress},
-			gradingProgress => $grade_to_update->{grading_progress},
-			submission => {
+			gradingProgress  => $grade_to_update->{grading_progress},
+			submission       => {
 				submittedAt => $submittedTimestamp
 			},
 		};
@@ -660,13 +730,13 @@ sub _generateGradePayloads
 	return \@payloads;
 }
 
-sub _getAccessToken
-{
+sub _getAccessToken {
 	my ($self, $ce, $client_id, $scopes, $extralog) = @_;
 	my $lti_access_token_request = LTI1p3::Service::AccessTokenRequest->new($ce, $client_id, $scopes);
-	my $access_token = $lti_access_token_request->getAccessToken();
+	my $access_token             = $lti_access_token_request->getAccessToken();
 	unless ($access_token) {
-		$self->{error} = "Assignment and Grades Service request failed, unable to get an access token for scopes: $scopes";
+		$self->{error} =
+			"Assignment and Grades Service request failed, unable to get an access token for scopes: $scopes";
 		$extralog->logAGSRequest($self->{error});
 		return 0;
 	}
@@ -678,8 +748,7 @@ sub _getAccessToken
 # Get grade records for a user's problem set
 # There are 2 types of assignments with different grade types,
 # the gateway quizzes may have multiple grades for multiple tries
-sub _getGradeRecords
-{
+sub _getGradeRecords {
 	my ($self, $set, $user_id) = @_;
 	my $ce = $self->{ce};
 	my $db = $self->{db};
@@ -688,11 +757,11 @@ sub _getGradeRecords
 
 	if (defined($set->assignment_type) && $set->assignment_type =~ /gateway/) {
 		# this set allows multiple attempts and can record many grades get all attempts
-		my @vList = $db->listSetVersions($user_id, $set_name);
-		my @setVersions = $db->getMergedSetVersions(map {[$user_id, $set_name, $_]} @vList);
+		my @vList       = $db->listSetVersions($user_id, $set_name);
+		my @setVersions = $db->getMergedSetVersions(map { [ $user_id, $set_name, $_ ] } @vList);
 
 		# calculate and store grade for each attempt
-		my @grades = map {$self->_getGradeRecord($_, $user_id, 1)} @setVersions;
+		my @grades = map { $self->_getGradeRecord($_, $user_id, 1) } @setVersions;
 		# set default to the unversioned set. Should be a grade of zero
 		# helpful if the user has not created a version yet
 		my $bestGrade = $self->_getGradeRecord($set, $user_id, 0);
@@ -708,8 +777,7 @@ sub _getGradeRecords
 	}
 }
 
-sub _getGradeRecord
-{
+sub _getGradeRecord {
 	my ($self, $set, $user_id, $isVersioned) = @_;
 	my $ce = $self->{ce};
 	my $db = $self->{db};
@@ -720,29 +788,28 @@ sub _getGradeRecord
 
 	my ($timestamp, $status, $total_right, $total) = $self->grade_set($set, $user_id, $isVersioned);
 	if (between($set->open_date, $set->due_date)) {
-		$grading_progress = 'FullyGraded';
+		$grading_progress  = 'FullyGraded';
 		$activity_progress = 'Submitted';
 	} elsif (after($set->due_date)) {
 		$activity_progress = 'Completed';
-		$grading_progress = 'FullyGraded';
+		$grading_progress  = 'FullyGraded';
 	}
 
 	my $grade = {
-		set_id => $set->set_id(),
-		user_id => $user_id,
+		set_id            => $set->set_id(),
+		user_id           => $user_id,
 		activity_progress => $activity_progress,
-		grading_progress => $grading_progress,
-		timestamp => $timestamp,
-		total_right => $total_right,
-		total => $total,
-		grade => $self->getGrade($total_right, $total),
-		raw_grade => $self->getRawGrade($total_right, $total)
+		grading_progress  => $grading_progress,
+		timestamp         => $timestamp,
+		total_right       => $total_right,
+		total             => $total,
+		grade             => $self->getGrade($total_right, $total),
+		raw_grade         => $self->getRawGrade($total_right, $total)
 	};
 	return $grade;
 }
 
-sub _getCourseGradeRecord
-{
+sub _getCourseGradeRecord {
 	my ($self, $user_id, $course_total, $course_total_right, $latest_timestamp) = @_;
 	my $ce = $self->{ce};
 	my $db = $self->{db};
@@ -753,39 +820,37 @@ sub _getCourseGradeRecord
 	my $grading_progress = 'FullyGraded';
 
 	my $course_grade = {
-		set_id => '/--course_overall--/',
-		user_id => $user_id,
+		set_id            => '/--course_overall--/',
+		user_id           => $user_id,
 		activity_progress => $activity_progress,
-		grading_progress => $grading_progress,
-		timestamp => $latest_timestamp,
-		total_right => $course_total_right,
-		total => $course_total,
-		grade => $self->getGrade($course_total_right, $course_total),
-		raw_grade => $self->getRawGrade($course_total_right, $course_total)
+		grading_progress  => $grading_progress,
+		timestamp         => $latest_timestamp,
+		total_right       => $course_total_right,
+		total             => $course_total,
+		grade             => $self->getGrade($course_total_right, $course_total),
+		raw_grade         => $self->getRawGrade($course_total_right, $course_total)
 	};
 	return $course_grade;
 }
 
-sub getGrade
-{
+sub getGrade {
 	my ($self, $total_right, $total) = @_;
 	if ($total <= 0 || $total_right < 0) {
 		return sprintf("%.4f", 0);
 	} elsif ($total_right > $total) {
 		return sprintf("%.4f", 1);
 	}
-	return sprintf("%.4f", $total_right/$total);
+	return sprintf("%.4f", $total_right / $total);
 }
 
-sub getRawGrade
-{
+sub getRawGrade {
 	my ($self, $total_right, $total) = @_;
 	if ($total <= 0 || $total_right < 0) {
 		return 0;
 	} elsif ($total_right > $total) {
 		return 1;
 	}
-	return $total_right/$total;
+	return $total_right / $total;
 }
 
 # Return a hash of grade attributes for user's set. The hash
@@ -793,32 +858,30 @@ sub getRawGrade
 # status - whether the user has attempted this assignment yet
 # total_right - how many points the user got for answering correctly
 # total - total number of points possible
-sub grade_set
-{
+sub grade_set {
 	my ($self, $set, $studentName, $setIsVersioned) = @_;
 	my $ce = $self->{ce};
 	my $db = $self->{db};
 
-	my $set_id = $set->set_id();
+	my $set_id      = $set->set_id();
 	my $total_right = 0;
-	my $total = 0;
-	my $status = 0;
-	my $timestamp = 0; #formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z");
+	my $total       = 0;
+	my $status      = 0;
+	my $timestamp   = 0;                #formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z");
 
 	my @problemRecords;
-	if ( $setIsVersioned ) {
+	if ($setIsVersioned) {
 		# use versioned problems instead (assume that each version has the same number of problems.
-		@problemRecords = $db->getAllMergedProblemVersions( $studentName, $set_id, $set->version_id() );
+		@problemRecords = $db->getAllMergedProblemVersions($studentName, $set_id, $set->version_id());
 	} else {
-		@problemRecords = $db->getAllMergedUserProblems( $studentName, $set_id );
+		@problemRecords = $db->getAllMergedUserProblems($studentName, $set_id);
 	}
 
 	foreach my $problemRecord (@problemRecords) {
-		next unless (defined($problemRecord) );
+		next unless (defined($problemRecord));
 		my $last_answer_id = $db->latestProblemPastAnswer(
-			$ce->{courseName},
 			$problemRecord->user_id,
-			($setIsVersioned ? $set_id.",v".$set->version_id() : $set_id),
+			($setIsVersioned ? $set_id . ",v" . $set->version_id() : $set_id),
 			$problemRecord->problem_id
 		);
 		if ($last_answer_id) {
@@ -828,13 +891,13 @@ sub grade_set
 			}
 		}
 
-		$status 		  = $problemRecord->status || 0;
+		$status = $problemRecord->status || 0;
 		# sanity check that the status (grade) is between 0 and 1
-		my $valid_status  = ($status>=0 && $status<=1)? 1 : 0;
-		my $probValue     = $problemRecord->value;
-		$probValue        = 1 unless defined($probValue) and $probValue ne "";  # FIXME?? set defaults here?
-		$total           += $probValue;
-		$total_right 	 += $status * $probValue if $valid_status;
+		my $valid_status = ($status >= 0 && $status <= 1) ? 1 : 0;
+		my $probValue    = $problemRecord->value;
+		$probValue = 1 unless defined($probValue) and $probValue ne "";    # FIXME?? set defaults here?
+		$total       += $probValue;
+		$total_right += $status * $probValue if $valid_status;
 	}
 	# default to current time if there is no timestamp
 	if ($timestamp eq 0) {
@@ -847,16 +910,16 @@ sub grade_set
 # Disable auto sync for concluded courses. Note that this error message requires
 # the ags_improved_course_concluded_response_codes Canvas feature flag to be
 # enabled.
-sub handleErrorConcludedCourse
-{
+sub handleErrorConcludedCourse {
 	my ($self, $res, $ltiResourceLink) = @_;
-	my $isConcludedCourseError = $res->status_line eq '422 Unprocessable Entity' && $res->content eq '{"errors":{"type":"unprocessable_entity","message":"This course has concluded. AGS requests will no longer be accepted for this course."}}';
+	my $isConcludedCourseError = $res->status_line eq '422 Unprocessable Entity'
+		&& $res->content eq
+		'{"errors":{"type":"unprocessable_entity","message":"This course has concluded. AGS requests will no longer be accepted for this course."}}';
 	if (!$isConcludedCourseError) { return 0; }
 
-	my $db = $self->{db};
-	my $ltiContext = $db->getLTIContext($ltiResourceLink->client_id(),
-										$ltiResourceLink->context_id());
-	$ltiContext->can_auto_sync(0); # set auto sync to false
+	my $db         = $self->{db};
+	my $ltiContext = $db->getLTIContext($ltiResourceLink->client_id(), $ltiResourceLink->context_id());
+	$ltiContext->can_auto_sync(0);    # set auto sync to false
 	$db->putLTIContext($ltiContext);
 	return 1;
 }
@@ -866,9 +929,8 @@ sub handleErrorConcludedCourse
 # up now. There's actually an NRPS "invalid rlid parameter" error that also
 # deals with deleted assignments but doesn't seem to happen anymore. Might be a
 # consequence of the ags_improved_course_concluded_response_codes Canvas
-# feature flag. 
-sub handleErrorMissingResourceLink
-{
+# feature flag.
+sub handleErrorMissingResourceLink {
 	my ($self, $res, $ltiResourceLink) = @_;
 	my $isMissingResourceError = $res->status_line eq '404 Not Found' && $res->content eq '';
 	if (!$isMissingResourceError) { return 0; }
@@ -884,13 +946,13 @@ sub handleErrorMissingResourceLink
 # that's only still valid for 10 minutes, some of the job will fail due to the
 # expired token. This method checks a failed request and returns true if the
 # request failed due to an expired access token.
-sub isExpiredAccessToken
-{
+sub isExpiredAccessToken {
 	my ($self, $res) = @_;
-	my $isExpiredAccessTokenError = $res->status_line eq '401 Unauthorized' && 
-		(
+	my $isExpiredAccessTokenError = $res->status_line eq '401 Unauthorized'
+		&& (
 			# Saw one instance of this error message
-			$res->content eq '{"errors":{"type":"unauthorized","message":"Invalid access token field/s: the JWT has expired"}}'
+			$res->content eq
+			'{"errors":{"type":"unauthorized","message":"Invalid access token field/s: the JWT has expired"}}'
 			||
 			# More common error msg
 			$res->content eq '{"errors":{"type":"unauthorized","message":"Access token expired"}}'

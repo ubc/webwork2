@@ -11,41 +11,34 @@ use WeBWorK::Utils qw(runtime_use);
 use LTI1p3::Importer::Error;
 
 # Constructor
-sub new
-{
+sub new {
 	my ($class, $c) = @_;
 	my $self = {
-		c => $c,
+		c          => $c,
 		entrypoint => undef
 	};
 	bless $self, $class;
 	return $self;
 }
 
-sub run
-{
+sub run {
 	my ($self) = @_;
 	my $c = $self->{c};
 
 	debug("Importer running.");
 
-	my @entrypoints = (
-		"LTI1p3::Entrypoint::Launch",
-		"LTI1p3::Entrypoint::Login",
-	);
+	my @entrypoints = ("LTI1p3::Entrypoint::Launch", "LTI1p3::Entrypoint::Login",);
 
 	# find a compatible entrypoint
 	my $entrypoint;
-	foreach (@entrypoints)
-	{
+	foreach (@entrypoints) {
 		debug("Testing entrypoint $_ for compatibility.");
 		runtime_use($_);
 		$entrypoint = $_->new($c);
 		last if ($entrypoint->accept());
 	}
 
-	if ($entrypoint->accept())
-	{
+	if ($entrypoint->accept()) {
 		debug("Compatible entrypoint found!");
 		$self->{entrypoint} = $entrypoint;
 		return $entrypoint->run();
@@ -54,36 +47,31 @@ sub run
 	return 0;
 }
 
-sub useAuthenModule
-{
+sub useAuthenModule {
 	my ($self) = @_;
 	my $entrypoint = $self->{entrypoint};
 	return $entrypoint ? $entrypoint->useAuthenModule() : "";
 }
 
-sub getAuthenModule
-{
+sub getAuthenModule {
 	my ($self) = @_;
 	my $entrypoint = $self->{entrypoint};
 	return $entrypoint ? $entrypoint->getAuthenModule() : "";
 }
 
-sub getErrorDisplayModule
-{
+sub getErrorDisplayModule {
 	my ($self) = @_;
 	my $entrypoint = $self->{entrypoint};
 	return $entrypoint ? $entrypoint->getErrorDisplayModule() : "";
 }
 
-sub useRedirect
-{
+sub useRedirect {
 	my ($self) = @_;
 	my $entrypoint = $self->{entrypoint};
 	return $entrypoint ? $entrypoint->useRedirect() : "";
 }
 
-sub getRedirect
-{
+sub getRedirect {
 	my ($self) = @_;
 	my $entrypoint = $self->{entrypoint};
 	return $entrypoint ? $entrypoint->getRedirect() : "";
