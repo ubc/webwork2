@@ -234,6 +234,9 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs \
     vim
 
+# python package manager for scripts in ubcscripts/
+COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
+
 # ==================================================================
 # Phase 4 - Install additional Perl modules from CPAN that are not packaged for Ubuntu or are outdated in Ubuntu.
 
