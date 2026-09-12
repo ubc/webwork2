@@ -5,10 +5,11 @@ permissions:
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on every branch and tag push. Note that "*" does not match "/", so a
+  # single "*" would skip branches such as fix/some-change; "**" matches those too.
   push:
-    branches: [ "*" ]
-    tags: [ "*" ]
+    branches: [ "**" ]
+    tags: [ "**" ]
   pull_request:
     branches: [ master ]
 
