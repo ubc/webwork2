@@ -9,10 +9,12 @@ Mojolicious::WeBWorK - Mojolicious app for WeBWorK 2.
 
 use Env qw(WEBWORK_SERVER_ADMIN);
 
+use List::Util qw(uniq);
 use Mojo::JSON qw(encode_json);
 
 use WeBWorK;
 use WeBWorK::CourseEnvironment;
+use WeBWorK::Utils         qw(runtime_use);
 use WeBWorK::Utils::Logs   qw(writeTimingLogEntry);
 use WeBWorK::Utils::Routes qw(setup_content_generator_routes);
 use WeBWorK::Utils::Files  qw(path_is_subdir);
@@ -74,6 +76,19 @@ sub startup ($app) {
 	if ($WEBWORK_SERVER_ADMIN) {
 		$app->log->info(
 			"webwork_server_admin_email for reporting bugs has been set to $WEBWORK_SERVER_ADMIN in site.conf");
+	}
+
+	# ubc custom: Preload the authentication modules configured in the site-wide course environment while still in
+	# the hypnotoad master. Otherwise the dispatcher loads them with runtime_use inside each worker on its first
+	# request, so their dependency trees (Net::SAML2 alone pulls in Moose, XML::LibXML, XML::Sig, LWP, ...) become
+	# private memory in every one of the workers instead of being shared copy-on-write from the master. A module
+	# that fails to load here is only reported; the dispatcher raises the real error when the module is used.
+	for my $module (uniq map { configured_authen_modules($ce, $_) } qw(user_module admin_module proctor_module)) {
+		if (eval { runtime_use $module; 1 }) {
+			$app->log->info("Preloaded authentication module $module");
+		} else {
+			$app->log->warn("Unable to preload authentication module $module: $@");
+		}
 	}
 
 	# Make the htdocs directory the first place to search for static files.  At this point this is only used by the
@@ -285,6 +300,16 @@ sub startup ($app) {
 	);
 
 	return;
+}
+
+# Return the module names configured for the given authentication type ('user_module', 'admin_module', or
+# 'proctor_module') without modifying the course environment. The configured value may be a module name, an
+# array of module names, or (for backwards compatibility) hashes keyed by database layout. Note that
+# WeBWorK::Authen::class shifts entries off the configured array as they are tried, so it cannot be used here.
+sub configured_authen_modules ($ce, $type) {
+	my $spec = $ce->{authen}{$type};
+	return grep { defined $_ && length $_ }
+		map { ref($_) eq 'HASH' ? ($_->{'*'} // $_->{sql_single}) : $_ } ref($spec) eq 'ARRAY' ? @$spec : ($spec);
 }
 
 1;
