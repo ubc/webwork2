@@ -24,7 +24,11 @@ sub work {
 		webwork_dir => $ENV{WEBWORK_ROOT},
 		courseName  => $courseName,
 	});
-	my $array_of_events = decode_json($args->{json_array_of_events});
+	# Caliper::Sensor encodes this inner payload with JSON::PP->new->canonical->encode, which returns a character
+	# string, and the decode_json above has already turned the job argument back into characters. decode_json expects
+	# UTF-8 bytes, so using it here dies on any non-ASCII character in the payload -- in practice the U+00A0 that
+	# rendered problem HTML is full of. Decode with the character oriented decoder that matches the encoder.
+	my $array_of_events = JSON->new->decode($args->{json_array_of_events});
 
 	my $caliper_sensor = Caliper::Sensor->new($ce);
 	$caliper_sensor->_sendEvents($ce, $array_of_events);
