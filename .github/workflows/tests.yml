@@ -1,0 +1,32 @@
+---
+name: Tests
+
+# Unit tests for the parts of the UBC code that can be exercised without a
+# database or a course environment. Upstream webwork2 has no test suite, so this
+# is UBC-only and deliberately dependency light.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches-ignore: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Run Perl unit tests
+    runs-on: ubuntu-24.04
+    container:
+      image: perl:5.38
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install test dependencies
+        run: cpanm -n JSON
+      - name: Run tests
+        run: prove -v t
