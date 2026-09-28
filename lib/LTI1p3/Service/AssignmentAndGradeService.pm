@@ -39,6 +39,12 @@ use LTI1p3::Service::AccessTokenRequest;
 use LTI1p3::ExtraLog;
 
 use Mojo::URL;
+# isExpiredAccessToken is NOT imported: this class has a method of that name,
+# which calls the classifier fully qualified.
+use LTI1p3::Service::AGSResponse qw(
+	isConcludedCourse isCourseOutOfDates isMissingResourceLink
+	isStudentViewUser isUnpublishedAssignment
+);
 
 #$WeBWorK::Debug::Enabled = 1;
 
@@ -377,9 +383,7 @@ sub _performAssignmentAndGradeRequests {
 # expected errors
 # Canvas course upcoming or concluded (not within start and end dates)
 # https://community.canvaslms.com/t5/Developers-Group/LTI-Advantage-Lineitems-get-and-grade-sync-posts-for-a-course/m-p/412234#M6580
-				if ($res->status_line eq '404 Not Found'
-					&& $res->content eq '{"errors":[{"message":"The specified resource does not exist."}]}')
-				{
+				if (isCourseOutOfDates($res)) {
 					$extralog->logAGSRequest("Could not update grade for concluded or upcoming Canvas Course. "
 							. "\nRequest URI: "
 							. $res->request->uri
@@ -578,10 +582,7 @@ sub _handleGradeResponses {
 		if (!$res->is_success) {
 			# expected errors
 			# Canvas Student View User (Test Student)
-			if ($res->status_line eq '422 Unprocessable Entity'
-				&& $res->content eq
-				'{"errors":{"type":"unprocessable_entity","message":"User not found in course or is not a student"}}')
-			{
+			if (isStudentViewUser($res)) {
 				$extralog->logAGSRequest("Could not update grade for probable Canvas Student View user. "
 						. "\nRequest URI: "
 						. $res->request->uri
@@ -595,11 +596,7 @@ sub _handleGradeResponses {
 				next;
 			}
 			# Canvas Unpublished Assignment
-			if ($res->status_line eq '422 Unprocessable Entity'
-				&& $res->content eq
-				'{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}'
-				)
-			{
+			if (isUnpublishedAssignment($res)) {
 				$extralog->logAGSRequest("Could not update grade for unpublished Canvas assignment. "
 						. "\nRequest URI: "
 						. $res->request->uri
@@ -912,10 +909,9 @@ sub grade_set {
 # enabled.
 sub handleErrorConcludedCourse {
 	my ($self, $res, $ltiResourceLink) = @_;
-	my $isConcludedCourseError = $res->status_line eq '422 Unprocessable Entity'
-		&& $res->content eq
-		'{"errors":{"type":"unprocessable_entity","message":"This course has concluded. AGS requests will no longer be accepted for this course."}}';
-	if (!$isConcludedCourseError) { return 0; }
+	# Matched on status code: Canvas sends this 422 without a reason phrase
+	# ("422 Unknown"), which an exact status_line comparison never matched.
+	if (!isConcludedCourse($res)) { return 0; }
 
 	my $db         = $self->{db};
 	my $ltiContext = $db->getLTIContext($ltiResourceLink->client_id(), $ltiResourceLink->context_id());
@@ -932,8 +928,7 @@ sub handleErrorConcludedCourse {
 # feature flag.
 sub handleErrorMissingResourceLink {
 	my ($self, $res, $ltiResourceLink) = @_;
-	my $isMissingResourceError = $res->status_line eq '404 Not Found' && $res->content eq '';
-	if (!$isMissingResourceError) { return 0; }
+	if (!isMissingResourceLink($res)) { return 0; }
 
 	my $db = $self->{db};
 	$ltiResourceLink->is_valid(0);
@@ -948,18 +943,7 @@ sub handleErrorMissingResourceLink {
 # request failed due to an expired access token.
 sub isExpiredAccessToken {
 	my ($self, $res) = @_;
-	my $isExpiredAccessTokenError = $res->status_line eq '401 Unauthorized'
-		&& (
-			# Saw one instance of this error message
-			$res->content eq
-			'{"errors":{"type":"unauthorized","message":"Invalid access token field/s: the JWT has expired"}}'
-			||
-			# More common error msg
-			$res->content eq '{"errors":{"type":"unauthorized","message":"Access token expired"}}'
-		);
-	if (!$isExpiredAccessTokenError) { return 0; }
-
-	return 1;
+	return LTI1p3::Service::AGSResponse::isExpiredAccessToken($res);
 }
 
 1;
