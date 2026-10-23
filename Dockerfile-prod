@@ -248,6 +248,13 @@ RUN cpanm install -n \
 	Net::SAML2 \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*
 
+# DateTime::TimeZone - Ubuntu 24.04 ships 2.62 (Olson 2024a) and never updates it, and DateTime
+# uses its own compiled zone data rather than /usr/share/zoneinfo. 2.68+ has BC's move to permanent
+# UTC-7 (no fall back on 2026-11-01). The check fails the build if America/Vancouver would still
+# fall back to UTC-8 in December 2026.
+RUN cpanm install -n DateTime::TimeZone@2.71 && rm -fr ./cpanm /root/.cpanm /tmp/* \
+	&& perl -MDateTime -e 'exit(DateTime->from_epoch(epoch => 1796126400, time_zone => "America/Vancouver")->offset == -7 * 3600 ? 0 : 1)'
+
 # App::Genpass - used by LTI1p3's CourseUpdater
 # Data::ObjectDriver - used by DelayedJob
 # Bytes::Random::Secure::Tiny - used by LTI1p3 for secure random string
