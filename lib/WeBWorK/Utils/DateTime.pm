@@ -5,6 +5,8 @@ use DateTime;
 use DateTime::TimeZone;
 use Time::Zone qw(tz_offset);
 
+use WeBWorK::Utils::TimeZoneLabels qw(officialZoneLabel zoneNameForLabel);
+
 our @EXPORT_OK = qw(
 	before
 	between
@@ -33,11 +35,13 @@ sub formatDateTime ($date_time = 0, $format_string = 'datetime_format_short', $t
 
 	# If $format_string is a method of $dt->locale then call format_cldr on its return value.
 	# Otherwise assume it is a locale string meant for strftime.
-	if ($dt->locale->can($format_string)) {
-		return $dt->format_cldr($dt->locale->$format_string);
-	} else {
-		return $dt->strftime($format_string);
-	}
+	my $formatted =
+		$dt->locale->can($format_string)
+		? $dt->format_cldr($dt->locale->$format_string)
+		: $dt->strftime($format_string);
+
+	# Show the official abbreviation where tzdata uses another (BC: PCT, not MST).
+	return officialZoneLabel($formatted, $dt->time_zone->name, $dt->time_zone_short_name);
 }
 
 sub getDefaultSetDueDate ($ce) {
@@ -93,6 +97,8 @@ sub parseDateTime ($string, $display_tz = 'local') {
 
 	my $is_valid_zone_name = 1;    # If later set to 0, then try the "offset" approach.
 	if (defined $zone && $zone ne '') {
+		# An official abbreviation that is not a tz name (PCT, written by formatDateTime).
+		$zone               = zoneNameForLabel($zone) // $zone;
 		$is_valid_zone_name = DateTime::TimeZone->is_valid_name($zone);
 		$tz_to_use          = $is_valid_zone_name ? $zone : 'UTC';
 	}
@@ -269,6 +275,10 @@ given, then the formatted string that is returned is in the specified timezone.
 If C<$locale> is provided, the string returned will be in the format of that
 locale. If C<$locale> is not provided, Perl defaults to using C<en-US>.
 
+Time zone abbreviations come from DateTime::TimeZone, except where
+L<WeBWorK::Utils::TimeZoneLabels> has an official one: America/Vancouver shows
+C<PCT> from 2026-11-01, where tzdata says C<MST>.
+
 If this method is used directly, then the C<$timezone> and C<$locale> should
 generally be set from the course environment, and the defaults set in this
 method not used.
@@ -288,6 +298,9 @@ Parses C<$string> into an epoch. The format of C<$string> must be
 C<MM/DD/YYYY at HH:MM AMPM ZONE>. There is some forgiveness for spaces, and a
 comma is allowed in place of "at".  If C<$display_tz> is given, C<$string> is
 assumed to be in that timezone. Otherwise, the server's local timezone is used.
+C<ZONE> may also be an official abbreviation from
+L<WeBWorK::Utils::TimeZoneLabels> (C<PCT>), which C<formatDateTime> writes into
+exported set definition files.
 
 Note that this method is only used for parsing dates when set definition files
 are imported, and should NEVER be used for anything else ever again.  If it is
