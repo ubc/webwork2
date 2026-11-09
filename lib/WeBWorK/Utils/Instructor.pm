@@ -436,7 +436,7 @@ sub assignProblemToAllSetUsers {
 
     addProblemToSet($db, $problemDefaults, %args)
 
-Adds a problem to a set.  The paramters C<setName> and C<sourceFile>C<%args>
+Adds a problem to a set.  The parameters C<setName> and C<sourceFile>C<%args>
 must be specified in C<%args>.
 
 =cut
@@ -551,27 +551,21 @@ sub getDefList {
 
 	my @found_set_defs;
 
-	# get_set_defs_wanted is a closure over @found_set_defs
-	my $get_set_defs_wanted = sub {
-		if ($File::Find::dir =~ /^$topdir\/Library/ || $File::Find::dir =~ /^$topdir\/Contrib/) {
-			$File::Find::prune = 1;
-			return;
-		}
-		if (@{ [ $File::Find::dir =~ /\//g ] } > $max_depth) { $File::Find::prune = 1; return; }
-		push @found_set_defs, $_ =~ s|^$topdir/?||r if m|/set[^/]*\.def$|;
-	};
-
-	#find({ wanted => $get_set_defs_wanted, follow_fast => 1, no_chdir => 1 }, $topdir);
-	# ubc custom - follow_fast causes freezes on our NFS mount
-	find({ wanted => $get_set_defs_wanted, no_chdir => 1 }, $topdir);
-
-	# Load the OPL set definition files from the list file.
-	push(@found_set_defs, loadSetDefListFile("$ce->{webworkDirs}{htdocs}/DATA/library-set-defs.json"))
-		if ($ce->{options}{useOPLdefFiles});
-
-	# Load the Contrib set definition files from the list file.
-	push(@found_set_defs, loadSetDefListFile("$ce->{webworkDirs}{htdocs}/DATA/contrib-set-defs.json"))
-		if ($ce->{options}{useContribDefFiles});
+	find(
+		{
+			wanted => sub {
+				if ($File::Find::dir =~ /^$topdir\/Library/ || $File::Find::dir =~ /^$topdir\/Contrib/) {
+					$File::Find::prune = 1;
+					return;
+				}
+				if (@{ [ $File::Find::dir =~ /\//g ] } > $max_depth) { $File::Find::prune = 1; return; }
+				push @found_set_defs, $_ =~ s|^$topdir/?||r if m|/set[^/]*\.def$|;
+			},
+			# ubc custom - follow_fast causes freezes on our NFS mount
+			no_chdir => 1
+		},
+		$topdir
+	);
 
 	my @depths;
 	my @caps;
