@@ -29,20 +29,9 @@ Location or enable lazy session.
 if $c->ce->{shiboff} is set for a course, authentication reverts
 to standard WeBWorK authentication.
 
-add the following to localOverrides.conf to setup the Shibboleth
-
-$shibboleth{login_script} = "/Shibboleth.sso/Login"; # login handler
-$shibboleth{logout_script} = "/Shibboleth.sso/Logout?return=".$server_root_url.$webwork_url; # return URL after logout
-$shibboleth{session_header} = "Shib-Session-ID"; # the header to identify if there is an existing shibboleth session
-$shibboleth{manage_session_timeout} = 1; # allow shib to manage session time instead of webwork
-$shibboleth{hash_user_id_method} = "MD5"; # possible values none, MD5. Use it when you want to hide real user_ids from showing in url.
-$shibboleth{hash_user_id_salt} = ""; # salt for hash function
-#define the attributes that we should look for user_id from
-$shibboleth{attributes} = [
-	'username',
-	'studentNumber',
-	'loginName',
-];
+Refer to the L<external Shibboleth authentication|https://wiki.openwebwork.org/wiki/External_(Shibboleth)_Authentication>
+documentation on the WeBWorK wiki and the instructions in the comments of the
+C<conf/authen_shibboleth.conf.dist> file.
 
 =cut
 

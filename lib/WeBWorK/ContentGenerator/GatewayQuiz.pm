@@ -73,7 +73,7 @@ sub can_showCorrectAnswers ($c, $user, $permissionLevel, $effectiveUser, $set, $
 	);
 }
 
-# This version is the same as the above version except that it ignores elevated permisions. So it will be true if this
+# This version is the same as the above version except that it ignores elevated permissions. So it will be true if this
 # set is in the state that anyone can show correct answers regardless of if they have the
 # show_correct_answers_before_answer_date or view_hidden_work permissions.  In this case, feedback is shown even without
 # a form submission, and correct answers are shown in the feedback, if the $pg{options}{automaticAnswerFeedback} option
@@ -118,6 +118,10 @@ sub can_showSolutions ($c, $user, $permissionLevel, $effectiveUser, $set, $probl
 # Allow for a version_last_attempt_time which is the time the set was submitted. If that is present we use that instead
 # of the current time to decide if answers can be recorded.  This deals with the time between the submission time and
 # the proctor authorization.
+# IMPORTANT: This method is called directly by the LoginProctor.pm package without a proper GatewayQuiz object, and so
+# it can not call any of the object methods in the GatewayQuiz package or use anything that is not set for a generic
+# ContentGenerator object. Also make sure that the conditions for recording an unsubmitted test are kept in sync with
+# the conditions of the can_gradeUnsubmittedTest method.
 sub can_recordAnswers ($c, $user, $permissionLevel, $effectiveUser, $set, $problem, $tmplSet = 0, $submitAnswers = 0) {
 	my $authz = $c->authz;
 
@@ -130,8 +134,12 @@ sub can_recordAnswers ($c, $user, $permissionLevel, $effectiveUser, $set, $probl
 		# allow that between the open and close dates, and so drop out of this conditional to the usual one.
 		return 1
 			if $authz->hasPermissions($user->user_id, 'record_answers_when_acting_as_student')
-			|| $c->can_gradeUnsubmittedTest($user, $permissionLevel, $effectiveUser, $set, $problem, $tmplSet,
-				$submitAnswers);
+			|| (!$submitAnswers
+				&& $authz->hasPermissions($user->user_id, 'access_instructor_tools')
+				&& $authz->hasPermissions($user->user_id, 'problem_grader')
+				&& !$c->{invalidSet}
+				&& after($set->due_date + $c->ce->{gatewayGracePeriod})
+				&& !$set->version_last_attempt_time);
 		return 0 if !$authz->hasPermissions($user->user_id, 'record_set_version_answers_when_acting_as_student');
 	}
 
@@ -274,14 +282,15 @@ sub get_instructor_comment ($c, $problem) {
 
 async sub pre_header_initialize ($c) {
 	# Make sure these are defined for the templates.
-	$c->stash->{problems}        = [];
-	$c->stash->{pg_results}      = [];
-	$c->stash->{startProb}       = 0;
-	$c->stash->{endProb}         = 0;
-	$c->stash->{numPages}        = 0;
-	$c->stash->{pageNumber}      = 0;
-	$c->stash->{problem_numbers} = [];
-	$c->stash->{probOrder}       = [];
+	$c->stash->{problems}            = [];
+	$c->stash->{pg_results}          = [];
+	$c->stash->{startProb}           = 0;
+	$c->stash->{endProb}             = 0;
+	$c->stash->{numPages}            = 0;
+	$c->stash->{pageNumber}          = 0;
+	$c->stash->{problem_numbers}     = [];
+	$c->stash->{probOrder}           = [];
+	$c->stash->{haveProblemWarnings} = 0;
 
 	# If authz->checkSet has failed, then this set is invalid.  No need to proceeded.
 	return if $c->{invalidSet};
@@ -502,7 +511,6 @@ async sub pre_header_initialize ($c) {
 	my $maxAttemptsPerVersion = $tmplSet->attempts_per_version  || 0;
 	my $timeInterval          = $tmplSet->time_interval         || 0;
 	my $versionsPerInterval   = $tmplSet->versions_per_interval || 0;
-	my $timeLimit             = $tmplSet->version_time_limit    || 0;
 
 	# What happens if someone didn't set one of these?  Perhaps this can happen if we're handed a malformed set, where
 	# the values in the database are null.
@@ -588,7 +596,8 @@ async sub pre_header_initialize ($c) {
 					$set = $db->getMergedSetVersion($effectiveUserID, $setID, $setVersionNumber);
 					$set->visible(1);
 
-				# If there is a cap on problems per page, make sure that is respected in case something higher snuck in.
+					# If there is a cap on problems per page, make sure that is respected
+					# in case something higher snuck in.
 					if (
 						$ce->{test}{maxProblemsPerPage}
 						&& ($tmplSet->problems_per_page == 0
@@ -602,6 +611,8 @@ async sub pre_header_initialize ($c) {
 
 					# Convert the floating point value from Time::HiRes to an integer for use below. Truncate toward 0.
 					my $timeNowInt = int($c->submitTime);
+
+					my $timeLimit = ($tmplSet->version_time_limit || 0) * $effectiveUser->accommodation_time_factor;
 
 					# Set up creation time, and open and due dates.
 					my $ansOffset = $set->answer_date - $set->due_date;
@@ -625,7 +636,7 @@ async sub pre_header_initialize ($c) {
 					$cleanSet->due_date($set->due_date);
 					$cleanSet->answer_date($set->answer_date);
 					$cleanSet->version_last_attempt_time($set->version_last_attempt_time);
-					$cleanSet->version_time_limit($set->version_time_limit);
+					$cleanSet->version_time_limit($set->version_time_limit * $effectiveUser->accommodation_time_factor);
 					$cleanSet->attempts_per_version($set->attempts_per_version);
 					$cleanSet->assignment_type($set->assignment_type);
 					$db->putSetVersion($cleanSet);
@@ -780,14 +791,11 @@ async sub pre_header_initialize ($c) {
 		return;
 	}
 
-	# Unset the showProblemGrader parameter if the "Hide Problem Grader" button was clicked.
-	$c->param(showProblemGrader => undef) if $c->param('hideProblemGrader');
-
 	# What does the user want to do?
 	my %want = (
 		showOldAnswers     => $user->showOldAnswers ne '' ? $user->showOldAnswers : $ce->{pg}{options}{showOldAnswers},
 		showCorrectAnswers => 1,
-		showProblemGrader  => $c->param('showProblemGrader') || 0,
+		showProblemGrader  => $userID ne $effectiveUserID,
 		showHints          => 0,    # Hints are not yet implemented in gateway quzzes.
 		showSolutions      => 1,
 		recordAnswers      => $c->{submitAnswers} && !$authz->hasPermissions($userID, 'avoid_recording_answers'),
@@ -886,9 +894,6 @@ async sub pre_header_initialize ($c) {
 
 	my @problems;
 	my @pg_results;
-
-	# pg errors are stored here.
-	$c->{errors} = [];
 
 	# Process the problems as needed.
 	my @mergedProblems;
@@ -1253,7 +1258,7 @@ async sub pre_header_initialize ($c) {
 					($userID eq $effectiveUserID && !$can{recordAnswersNextTime})
 					|| (
 						$userID ne $effectiveUserID
-						&& $authz->hasPermissions($userID, 'record_answers_when_acting_as_student')
+						&& $can{recordAnswers}
 						&& $set->attempts_per_version > 0
 						&& ($problem->num_correct + $problem->num_incorrect + ($c->{submitAnswers} ? 1 : 0) >=
 							$set->attempts_per_version)
@@ -1318,7 +1323,8 @@ async sub pre_header_initialize ($c) {
 	} elsif ($endTime > $set->due_date) {
 		$c->{exceededAllowedTime} = 1;
 	}
-	$c->{elapsedTime} = int(($endTime - $set->open_date) / 0.6 + 0.5) / 100;
+	$c->{elapsedTime}   = int(($endTime - $set->open_date) / 0.6 + 0.5) / 100;
+	$c->{completedTime} = $c->formatDateTime($endTime, $ce->{studentDateDisplayFormat});
 
 	# Get the number of attempts and number of remaining attempts.
 	$c->{attemptNumber} =
@@ -1351,7 +1357,7 @@ sub path ($c, $args) {
 		$courseName => $navigation_allowed ? $c->url_for('set_list') : '',
 		$setID eq 'Undefined_Set'
 			|| $c->{invalidSet} || $c->{actingCreationError} || $c->stash->{actingConfirmation}
-		? ($setID => '')
+		? ($setID =~ /^(.+),(v\d+)$/ ? ($1 => $c->url_for('problem_list', setID => $1), $2 => '') : ($setID => ''))
 		: (
 			$c->{set}->set_id           => $c->url_for('problem_list', setID => $c->{set}->set_id),
 			'v' . $c->{set}->version_id => ''
@@ -1367,7 +1373,7 @@ sub nav ($c, $args) {
 	return '' if $c->{invalidSet} || $c->{actingCreationError} || $c->stash->{actingConfirmation};
 
 	# Set up and display a student navigation for those that have permission to act as a student.
-	if ($c->authz->hasPermissions($userID, 'become_student') && $effectiveUserID ne $userID) {
+	if ($c->authz->hasPermissions($userID, 'become_student')) {
 		my $setID = $c->{set}->set_id;
 
 		return '' if $setID eq 'Undefined_Set';
@@ -1375,82 +1381,90 @@ sub nav ($c, $args) {
 		my $setVersion = $c->{set}->version_id;
 
 		# Find all versions of this set that have been taken (excluding those taken by the current user).
-		my @users =
-			$db->listSetVersionsWhere({ user_id => { not_like => $userID }, set_id => { like => "$setID,v\%" } });
-		my @allUserRecords = $db->getUsers(map { $_->[0] } @users);
+		my @userVersions =
+			$db->listSetVersionsWhere({ user_id => { '!=' => $userID }, set_id => { like => "$setID,v\%" } });
+		my %users = map { $_->[0] => 1 } @userVersions;
+		my @allUserRecords =
+			grep { $users{ $_->{user_id} } }
+			$c->db->getUsersWhere({ -and => { user_id => { not_like => 'set_id:%' } }, user_id => { '!=' => $userID } },
+				[qw/last_name first_name user_id/]);
 
-		my $filter = $c->param('studentNavFilter');
+		if (@allUserRecords) {
+			my $filter = $c->param('studentNavFilter');
 
-		# Format the student names for display, and associate the users with the test versions.
-		my %filters;
-		my @userRecords;
-		for (0 .. $#allUserRecords) {
-			# Add to the sections and recitations if defined.  Also store the first user found in that section or
-			# recitation.  This user will be switched to when the filter is selected.
-			my $section = $allUserRecords[$_]->section;
-			$filters{"section:$section"} =
-				[ $c->maketext('Filter by section [_1]', $section), $allUserRecords[$_]->user_id, $users[$_][2] ]
-				if $section && !$filters{"section:$section"};
-			my $recitation = $allUserRecords[$_]->recitation;
-			$filters{"recitation:$recitation"} =
-				[ $c->maketext('Filter by recitation [_1]', $recitation), $allUserRecords[$_]->user_id, $users[$_][2] ]
-				if $recitation && !$filters{"recitation:$recitation"};
+			# Format the student names for display, and associate the users with the test versions.
+			my %filters;
+			my @userRecords;
+			for (0 .. $#allUserRecords) {
+				# Add to the sections and recitations if defined.  Also store the first user found in that section or
+				# recitation.  This user will be switched to when the filter is selected.
+				my $section = $allUserRecords[$_]->section;
+				$filters{"section:$section"} = [
+					$c->maketext('Filter by section [_1]', $section), $allUserRecords[$_]->user_id,
+					$userVersions[$_][2]
+					]
+					if $section && !$filters{"section:$section"};
+				my $recitation = $allUserRecords[$_]->recitation;
+				$filters{"recitation:$recitation"} = [
+					$c->maketext('Filter by recitation [_1]', $recitation), $allUserRecords[$_]->user_id,
+					$userVersions[$_][2]
+					]
+					if $recitation && !$filters{"recitation:$recitation"};
 
-			# Only keep this user if it satisfies the selected filter if a filter was selected.
-			next
-				unless !$filter
-				|| ($filter =~ /^section:(.*)$/    && $allUserRecords[$_]->section eq $1)
-				|| ($filter =~ /^recitation:(.*)$/ && $allUserRecords[$_]->recitation eq $1);
+				# Only keep this user if it satisfies the selected filter if a filter was selected.
+				next
+					unless !$filter
+					|| ($filter =~ /^section:(.*)$/    && $allUserRecords[$_]->section eq $1)
+					|| ($filter =~ /^recitation:(.*)$/ && $allUserRecords[$_]->recitation eq $1);
 
-			my $addRecord = $allUserRecords[$_];
-			push @userRecords, $addRecord;
+				my $addRecord = $allUserRecords[$_];
+				push @userRecords, $addRecord;
 
-			$addRecord->{displayName} =
-				($addRecord->last_name || $addRecord->first_name
-					? $addRecord->last_name . ', ' . $addRecord->first_name
-					: $addRecord->user_id);
-			$addRecord->{setVersion} = $users[$_][2];
-		}
-
-		# Sort by last name, then first name, then user_id, then set version.
-		@userRecords = sort {
-			lc($a->last_name) cmp lc($b->last_name)
-				|| lc($a->first_name) cmp lc($b->first_name)
-				|| lc($a->user_id) cmp lc($b->user_id)
-				|| lc($a->{setVersion}) <=> lc($b->{setVersion})
-		} @userRecords;
-
-		# Find the previous, current, and next test.
-		my $currentTestIndex = 0;
-		for (0 .. $#userRecords) {
-			if ($userRecords[$_]->user_id eq $effectiveUserID && $userRecords[$_]->{setVersion} == $setVersion) {
-				$currentTestIndex = $_;
-				last;
+				$addRecord->{displayName} =
+					($addRecord->last_name || $addRecord->first_name
+						? $addRecord->last_name . ', ' . $addRecord->first_name
+						: $addRecord->user_id);
+				$addRecord->{setVersion} = $userVersions[$_][2];
 			}
+
+			# Sort by last name, then first name, then user_id, then set version.
+			@userRecords = sort {
+				lc($a->last_name) cmp lc($b->last_name)
+					|| lc($a->first_name) cmp lc($b->first_name)
+					|| lc($a->user_id) cmp lc($b->user_id)
+					|| lc($a->{setVersion}) <=> lc($b->{setVersion})
+			} @userRecords;
+
+			# Find the previous, current, and next test.
+			my $currentTestIndex = 0;
+			for (0 .. $#userRecords) {
+				if ($userRecords[$_]->user_id eq $effectiveUserID && $userRecords[$_]->{setVersion} == $setVersion) {
+					$currentTestIndex = $_;
+					last;
+				}
+			}
+			my $prevTest = $currentTestIndex > 0             ? $userRecords[ $currentTestIndex - 1 ] : 0;
+			my $nextTest = $currentTestIndex < $#userRecords ? $userRecords[ $currentTestIndex + 1 ] : 0;
+
+			# Mark the current test.
+			$userRecords[$currentTestIndex]{currentTest} = 1;
+
+			# Show the student nav.
+			return $c->include(
+				'ContentGenerator/GatewayQuiz/nav',
+				userID           => $userID,
+				eUserID          => $effectiveUserID,
+				userRecords      => \@userRecords,
+				setVersion       => $setVersion,
+				prevTest         => $prevTest,
+				nextTest         => $nextTest,
+				currentTestIndex => $currentTestIndex,
+				filters          => \%filters,
+				filter           => $filter
+			);
 		}
-		my $prevTest = $currentTestIndex > 0             ? $userRecords[ $currentTestIndex - 1 ] : 0;
-		my $nextTest = $currentTestIndex < $#userRecords ? $userRecords[ $currentTestIndex + 1 ] : 0;
-
-		# Mark the current test.
-		$userRecords[$currentTestIndex]{currentTest} = 1;
-
-		# Show the student nav.
-		return $c->include(
-			'ContentGenerator/GatewayQuiz/nav',
-			userRecords      => \@userRecords,
-			setVersion       => $setVersion,
-			prevTest         => $prevTest,
-			nextTest         => $nextTest,
-			currentTestIndex => $currentTestIndex,
-			filters          => \%filters,
-			filter           => $filter
-		);
 	}
-}
-
-sub warningMessage ($c) {
-	return $c->maketext('<strong>Warning</strong>: There may be something wrong with a question in this test. '
-			. 'Please inform your instructor including the warning messages below.');
+	return '';
 }
 
 # Evaluation utility
@@ -1499,10 +1513,9 @@ async sub getProblemHTML ($c, $effectiveUser, $set, $formFields, $mergedProblem)
 					&& $c->can_showCorrectAnswersForAll($set, $c->{problem}, $c->{tmplSet})),
 			showMessages       => !$showOnlyCorrectAnswers,
 			showCorrectAnswers => (
-				$c->{will}{showProblemGrader} ? 2
-				: !$c->{previewAnswers} && $c->can_showCorrectAnswersForAll($set, $c->{problem}, $c->{tmplSet})
+				!$c->{previewAnswers} && $c->can_showCorrectAnswersForAll($set, $c->{problem}, $c->{tmplSet})
 				? ($c->ce->{pg}{options}{correctRevealBtnAlways} ? 1 : 2)
-				: !$c->{previewAnswers} && $c->{will}{showCorrectAnswers} ? 1
+				: $c->{will}{showProblemGrader} || (!$c->{previewAnswers} && $c->{will}{showCorrectAnswers}) ? 1
 				: 0
 			),
 			debuggingOptions => getTranslatorDebuggingOptions($c->authz, $c->{userID}),
@@ -1512,26 +1525,13 @@ async sub getProblemHTML ($c, $effectiveUser, $set, $formFields, $mergedProblem)
 		},
 	);
 
-	# Warnings in the renderPG subprocess will not be caught by the global warning handler of this process.
-	# So rewarn them and let the global warning handler take care of it.
-	warn $pg->{warnings} if $pg->{warnings};
-
-	if ($pg->{flags}{error_flag}) {
-		push @{ $c->{errors} },
-			{
-				set     => $set->set_id . ',v' . $set->version_id,
-				problem => $mergedProblem->problem_id,
-				message => $pg->{errors},
-				context => $pg->{body_text},
-			};
-		$pg->{body_text} = undef;
-	}
-
 	# If the user can check answers and either this is not an answer submission or the problem_data form
 	# parameter was previously set, then set or update the problem_data form parameter.
 	$c->param('problem_data_' . $mergedProblem->problem_id => encode_json($pg->{PERSISTENCE_HASH} || '{}'))
 		if $c->{can}{checkAnswers}
 		&& (!$c->{submitAnswers} || defined $c->param('problem_data_' . $mergedProblem->problem_id));
+
+	$c->stash->{haveProblemWarnings} = 1 if $pg->{warnings} || @{ $pg->{warning_messages} // [] };
 
 	return $pg;
 }

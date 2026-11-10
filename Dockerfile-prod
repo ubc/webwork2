@@ -8,10 +8,9 @@ FROM alpine/git AS base
 ARG WEBWORK2_GIT_URL
 ARG WEBWORK2_BRANCH
 ARG PG_GIT_URL=https://github.com/openwebwork/pg.git
-# PG releases in lockstep with webwork2; 2.20 needs PG-2.20 (PG 2.18 lacks
-# getSampleProblemCode, the reorganized Plots::* modules, and WeBWorK::PG::Localize,
-# which breaks the PG Problem Editor and plot rendering).
-ARG PG_BRANCH=PG-2.20
+# PG releases in lockstep with webwork2; 2.21 needs PG-2.21 (2.21 imports PG modules
+# such as WeBWorK::PG::Critic that do not exist in PG-2.20).
+ARG PG_BRANCH=PG-2.21
 # CUSTOM: allow customized OPL repo & branch
 ARG OPL_GIT_URL=https://github.com/ubc/webwork-open-problem-library.git
 ARG OPL_BRANCH=ubc
@@ -127,11 +126,15 @@ RUN apt-get update \
 	libclass-tiny-antlers-perl \
 	libclass-tiny-perl \
 	libcpanel-json-xs-perl \
+	libcrypt-dev \
 	libcrypt-jwt-perl \
+	libcrypt-openssl-x509-perl \
 	libcryptx-perl \
 	libdata-dump-perl \
 	libdata-structure-util-perl \
 	libdatetime-perl \
+	libdatetime-format-xsd-perl \
+	libdatetime-hires-perl \
 	libdbd-mysql-perl \
 	libdevel-checklib-perl \
 	libemail-address-xs-perl \
@@ -146,12 +149,14 @@ RUN apt-get update \
 	libfile-copy-recursive-perl \
 	libfile-find-rule-perl-perl \
 	libfile-sharedir-install-perl \
+	libfile-slurper-perl \
 	libfuture-asyncawait-perl \
 	libgd-barcode-perl \
 	libgd-perl \
 	libhtml-scrubber-perl \
 	libhtml-template-perl \
 	libhttp-async-perl \
+	libio-compress-perl \
 	libiterator-perl \
 	libiterator-util-perl \
 	liblocale-maketext-lexicon-perl \
@@ -165,6 +170,10 @@ RUN apt-get update \
 	libmodule-pluggable-perl \
 	libmojolicious-perl \
 	libmojolicious-plugin-renderfile-perl \
+	libmoosex-types-common-perl \
+	libmoosex-types-datetime-perl \
+	libmoosex-types-perl \
+	libmoosex-types-uri-perl \
 	libnet-https-nb-perl \
 	libnet-ip-perl \
 	libnet-ldap-perl \
@@ -174,10 +183,12 @@ RUN apt-get update \
 	libpandoc-wrapper-perl \
 	libpath-class-perl \
 	libpath-tiny-perl \
+	libperl-critic-perl \
 	libphp-serialization-perl \
 	libpod-wsdl-perl \
 	libsoap-lite-perl \
 	libsql-abstract-perl \
+	libssl-dev \
 	libstring-shellquote-perl \
 	libsub-uplevel-perl \
 	libsvg-perl \
@@ -193,9 +204,12 @@ RUN apt-get update \
 	libtext-csv-perl \
 	libthrowable-perl \
 	libtimedate-perl \
+	libtypes-serialiser-perl \
 	libuniversal-can-perl \
 	libuniversal-isa-perl \
+	liburi-encode-perl \
 	libuuid-tiny-perl \
+	libxml-generator-perl \
 	libxml-parser-easytree-perl \
 	libxml-parser-perl \
 	libxml-semanticdiff-perl \
@@ -229,6 +243,8 @@ RUN apt-get update \
 	texlive-science \
 	texlive-xetex \
 	tzdata \
+	util-linux-extra \
+	zlib1g-dev \
 	zip $ADDITIONAL_BASE_IMAGE_PACKAGES \
 	&& curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
 	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs \
@@ -243,7 +259,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
 RUN cpanm install -n \
     Statistics::R::IO \
 	DBD::MariaDB \
-	Perl::Tidy@20240903 \
+	Perl::Tidy@20260204 \
 	Archive::Zip::SimpleZip \
 	Net::SAML2 \
 	&& rm -fr ./cpanm /root/.cpanm /tmp/*

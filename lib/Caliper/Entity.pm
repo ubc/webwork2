@@ -191,18 +191,21 @@ sub problem {
 	my ($ce, $db, $set_id, $problem_id) = @_;
 	my $resource_iri = Caliper::ResourceIri->new($ce);
 
-	my $problem        = $db->getGlobalProblem($set_id, $problem_id);
-	my $unblessed_tags = undef;
-	my $keywords       = [];
+	my $problem = $db->getGlobalProblem($set_id, $problem_id);
 
-	unless ($problem->source_file() =~ /^group:(.+)$/) {
+	my $keywords = [];
+	my $unblessed_tags;
+
+	# Problem groups use a "group:problemGroupName" pseudo source file (see
+	# WeBWorK::Utils::Instructor::assignProblemToUserSetVersion) which is not a real file, so attempting to read tags
+	# from it would die.
+	if ($problem->source_file() !~ /^group:/) {
 		my $templateDir = $ce->{courseDirs}->{templates};
 		my $tags        = WeBWorK::Utils::Tags->new($templateDir . '/' . $problem->source_file());
-		my $keywords    = $tags->{'keywords'};
+		$keywords = $tags->{'keywords'};
 		$_ =~ s/(^[\s"']+)|([\s"']+$)//g for @$keywords;
 
-		my %tags_ref       = %$tags;
-		my $unblessed_tags = \%tags_ref;
+		$unblessed_tags = {%$tags};
 	}
 
 	return {
