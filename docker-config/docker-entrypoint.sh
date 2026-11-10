@@ -30,10 +30,17 @@ if [ "$SYSTEM_TIMEZONE" != "UTC" ]; then
 fi
 
 # Modify default papersize based on environment variable PAPERSIZE
-echo "Setting libpaper2 papersize to $PAPERSIZE"
-echo "libpaper2 libpaper/defaultpaper select $PAPERSIZE\nlibpaper2:amd64 libpaper/defaultpaper select $PAPERSIZE\ndebconf debconf/frontend select Noninteractive" > /tmp/preseed.txt
-debconf-set-selections /tmp/preseed.txt
-dpkg-reconfigure -f noninteractive libpaper2
+# UBC: the package is libpaper1 on ubuntu:24.04 (Dockerfile-prod) and libpaper2 on
+# ubuntu:26.04 (Dockerfile, DockerfileStage1), so configure whichever is installed.
+LIBPAPER_PKG=$(dpkg-query -W -f='${Package} ${db:Status-Abbrev}\n' libpaper2 libpaper1 2>/dev/null | awk '$2 == "ii" { print $1; exit }' || true)
+if [ -n "$LIBPAPER_PKG" ]; then
+	echo "Setting $LIBPAPER_PKG papersize to $PAPERSIZE"
+	echo "$LIBPAPER_PKG libpaper/defaultpaper select $PAPERSIZE\n$LIBPAPER_PKG:amd64 libpaper/defaultpaper select $PAPERSIZE\ndebconf debconf/frontend select Noninteractive" > /tmp/preseed.txt
+	debconf-set-selections /tmp/preseed.txt
+	dpkg-reconfigure -f noninteractive "$LIBPAPER_PKG"
+else
+	echo "No libpaper package installed; skipping papersize configuration"
+fi
 
 # Install some extra packages
 if [ "$ADD_APT_PACKAGES" != "0" ]; then

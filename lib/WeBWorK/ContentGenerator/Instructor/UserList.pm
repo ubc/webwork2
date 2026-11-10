@@ -61,7 +61,7 @@ use constant HIDE_USERS_THRESHOLD => 200;
 use constant EDIT_FORMS           => [qw(save_edit cancel_edit)];
 use constant PASSWORD_FORMS       => [qw(save_password cancel_password)];
 # ubc custom: lti (LMS sync) form
-use constant VIEW_FORMS           => [qw(filter sort edit import export add delete reset_2fa lti lms_roster_sync)];
+use constant VIEW_FORMS => [qw(filter sort edit import export add delete reset_2fa lti lms_roster_sync)];
 
 # Prepare the tab titles for translation by maketext
 use constant FORM_TITLES => {
@@ -942,25 +942,26 @@ sub save_password_handler ($c) {
 	return $c->maketext('New passwords saved');
 }
 
-sub lti_handler ($c) {
+async sub lti_handler ($c) {
 	my $ce = $c->ce;
 	my $db = $c->db;
 
 	my $names_and_roles_service = LTI1p3::Service::NamesAndRoleService->new($ce, $db);
 	my $membership              = $names_and_roles_service->getAllNamesAndRole();
 	unless ($membership) {
-		return $c->maketext("There was an issue fetching the class roster. [_1]", $names_and_roles_service->{error});
+		return (0,
+			$c->maketext("There was an issue fetching the class roster. [_1]", $names_and_roles_service->{error}));
 	}
 	my $updater = LTI1p3::Importer::CourseUpdater->new($ce, $db, $membership);
 	my $ret     = $updater->updateCourse();
 	if ($ret) {
-		return $c->maketext("Update class roster failed: [_1]", $ret);
+		return (0, $c->maketext("Update class roster failed: [_1]", $ret));
 	}
 
 	# reload the users list since we might have added/removed users
 	$c->param(action => 'filter');
-	$c->pre_header_initialize();
-	return $c->maketext("Successfully updated class roster.");
+	await $c->pre_header_initialize();
+	return (1, $c->maketext("Successfully updated class roster."));
 }
 
 # Sort methods

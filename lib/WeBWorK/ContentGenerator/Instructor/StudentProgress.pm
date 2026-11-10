@@ -506,6 +506,8 @@ sub _get_student_quiz_not_submitted ($c, $setIsVersioned) {
 
 sub _splitSetIdAndVersion ($c, $setIdVersion) {
 	return ($setIdVersion =~ /(.+),v(\d+)$/);
+}
+
 sub displayStudentStats ($c) {
 	my $db    = $c->db;
 	my $ce    = $c->ce;

@@ -79,7 +79,7 @@ use constant HIDE_SETS_THRESHOLD => 500;
 
 use constant EDIT_FORMS => [qw(save_edit cancel_edit)];
 # ubc custom, add manually trigger lti grade sync option (lti)
-use constant VIEW_FORMS => [qw(filter sort edit publish import export score create delete lti lms_date_sync)];
+use constant VIEW_FORMS   => [qw(filter sort edit publish import export score create delete lti lms_date_sync)];
 use constant EXPORT_FORMS => [qw(save_export cancel_export)];
 
 # Prepare the tab titles for translation by maketext
@@ -98,7 +98,7 @@ use constant FORM_TITLES => {
 	save_export   => x("Save Export"),
 	cancel_export => x("Cancel Export"),
 	# ubc custom, manually trigger lti grade sync option
-	lti => x("Canvas Sync"),
+	lti           => x("Canvas Sync"),
 	lms_date_sync => x("Synchronize Set Dates with LMS")
 };
 
