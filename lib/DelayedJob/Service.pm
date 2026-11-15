@@ -9,7 +9,7 @@ use WeBWorK::Debug;
 use Data::Dumper;
 use TheSchwartz;
 use TheSchwartz::Job;
-use DBI;
+use Data::ObjectDriver::Driver::DBI;
 use DelayedJob::GetClassMembership;
 use DelayedJob::PushClassGrades;
 use DelayedJob::PushUserGrades;
@@ -21,18 +21,20 @@ use JSON;
 # Constructor
 sub new {
 	my ($class, $ce) = @_;
-	my $dbh = DBI->connect(
-		$ce->{database_dsn},
-		$ce->{database_username},
-		$ce->{database_password},
-		{
-			RaiseError             => 1,
-			PrintError             => 0,
-			AutoCommit             => 1,
-			mariadb_auto_reconnect => 1,
-		},
+	# Give the driver the DSN and credentials, not a connected handle. Data::ObjectDriver pings its handle before
+	# every query and reconnects from the DSN when the ping fails. Built from a handle alone it has no DSN to
+	# reconnect with, so after a database restart a worker logged "Disabling DB ... because unknown" every poll
+	# and never ran another job until the pod was restarted. Data::ObjectDriver adds RaiseError, PrintError => 0
+	# and AutoCommit itself.
+	my $driver = Data::ObjectDriver::Driver::DBI->new(
+		dsn             => $ce->{database_dsn},
+		username        => $ce->{database_username},
+		password        => $ce->{database_password},
+		connect_options => { mariadb_auto_reconnect => 1 },
 	);
-	my $driver     = Data::ObjectDriver::Driver::DBI->new(dbh => $dbh);
+	# Connect now: TheSchwartz->new reads the live handle to identify the database, and a database that is down
+	# should still fail here, as before, rather than on the first job.
+	$driver->rw_handle;
 	my $prioritize = $ENV{DELAYED_JOB_PRIORITIZE} // 0;
 	my $client     = TheSchwartz->new(
 		databases => [ { driver => $driver } ],
