@@ -61,7 +61,11 @@ COPY --from=base /opt/base/pg/htdocs/package-lock.json .
 COPY --from=base /opt/base/pg/htdocs/generate-assets.js .
 #COPY --from=base /opt/base/pg/htdocs/third-party-assets.json .
 COPY --from=base /opt/base/pg/htdocs/js js/
-RUN npm --maxsockets 2 ci
+# CUSTOM: PG's lockfile pins vulnerable build-tool packages (fixed upstream-compatible
+# versions exist within the same semver ranges), so refresh just those in the lockfile.
+RUN npm update --package-lock-only --ignore-scripts \
+	browserslist immutable nanoid picomatch postcss source-map-js svgo \
+	&& npm --maxsockets 2 ci
 
 # ==================================================================
 # Phase 2 - set ENV variables
