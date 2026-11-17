@@ -43,7 +43,7 @@ use Mojo::URL;
 # which calls the classifier fully qualified.
 use LTI1p3::Service::AGSResponse qw(
 	isConcludedCourse isCourseOutOfDates isMissingResourceLink
-	isStudentViewUser isUnpublishedAssignment
+	isStudentViewUser isUnpublishedAssignment isPermanentScoreRejection
 );
 
 #$WeBWorK::Debug::Enabled = 1;
@@ -56,6 +56,9 @@ sub new {
 		ce    => $ce,
 		db    => $db,
 		error => '',
+		# Set when any error in this run might not happen again, so re-running the push could help.
+		# {error} keeps only the last message; this covers every error in the run.
+		error_is_retryable => 0,
 	};
 	bless $self, $class;
 	return $self;
@@ -361,6 +364,7 @@ sub _performAssignmentAndGradeRequests {
 					. $res->content;
 				$extralog->logAGSRequest($self->{error});
 				debug($self->{error});
+				$self->{error_is_retryable} = 1;
 				next;
 			}
 		} elsif ($lti_resource_link->scope_lineitem()) {
@@ -432,6 +436,7 @@ sub _performAssignmentAndGradeRequests {
 					. $res->content;
 				$extralog->logAGSRequest($self->{error});
 				debug($self->{error});
+				$self->{error_is_retryable} = 1;
 				next;
 			}
 
@@ -505,6 +510,7 @@ sub _performAssignmentAndGradeRequests {
 						. $res->content;
 					$extralog->logAGSRequest($self->{error});
 					debug($self->{error});
+					$self->{error_is_retryable} = 1;
 					$request_error = 1;
 					last;
 				}
@@ -637,6 +643,9 @@ sub _handleGradeResponses {
 				. $res->content;
 			debug($self->{error});
 			$extralog->logAGSRequest($self->{error});
+			# An unpublished assignment or an unenrolled student is still reported, but a retry would only
+			# meet the same rejection; for a whole-class push that is hours of work for nothing.
+			$self->{error_is_retryable} = 1 unless isPermanentScoreRejection($res);
 		}
 	}
 	return \@retryPayloads;
@@ -735,6 +744,7 @@ sub _getAccessToken {
 		$self->{error} =
 			"Assignment and Grades Service request failed, unable to get an access token for scopes: $scopes";
 		$extralog->logAGSRequest($self->{error});
+		$self->{error_is_retryable} = 1;
 		return 0;
 	}
 	return $access_token;

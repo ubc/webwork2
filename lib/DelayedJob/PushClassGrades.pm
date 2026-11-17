@@ -47,7 +47,14 @@ sub work {
 		my $error_msg = "There was an issue pushing the class grades for course_id: $courseName. "
 			. $assignment_and_grade_service->{error};
 		$job->debug($error_msg);
-		$job->failed($error_msg);
+		if ($assignment_and_grade_service->{error_is_retryable}) {
+			$job->failed($error_msg);
+		} else {
+			# Every error was a rejection only the LMS side can clear (an unpublished assignment, an unenrolled
+			# student). A retry would re-run the whole push, hours for a big course, and be rejected again.
+			# permanent_failure still records the error; it just does not schedule the job again.
+			$job->permanent_failure($error_msg);
+		}
 	} else {
 		$job->debug("Job: " . $job->jobid . ". Successfully sent LTI Assignment and Grades for course_id: $courseName");
 		$job->completed();

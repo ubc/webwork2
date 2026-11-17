@@ -16,6 +16,7 @@ use lib "$FindBin::Bin/../lib";
 use LTI1p3::Service::AGSResponse qw(
 	isConcludedCourse isCourseOutOfDates isMissingResourceLink
 	isStudentViewUser isUnpublishedAssignment isExpiredAccessToken
+	isPermanentScoreRejection
 );
 
 # Minimal stand-in for HTTP::Response: the classifier only needs code/content,
@@ -87,5 +88,30 @@ ok(!isExpiredAccessToken(res(401, 'Unauthorized', '{"errors":{"type":"unauthoriz
 	'other 401s are not treated as an expired token');
 
 ok(!isConcludedCourse(undef), 'undef response is handled');
+
+# Score rejections that only the LMS side can clear, so retrying the push cannot help.
+# The first body is exactly what Canvas sent UBC prod on 2026-11-17; it is NOT the
+# older body that isUnpublishedAssignment matches.
+my $unpublished_now = '{"errors":{"type":"unprocessable_entity","message":"This assignment is still unpublished"}}';
+my $unpublished_old =
+	'{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}';
+my $d2l_not_enrolled = 'User in requested score is not enrolled in the org unit';
+
+ok(
+	!isUnpublishedAssignment(res(422, 'Unprocessable Entity', $unpublished_now)),
+	'isUnpublishedAssignment does not know the current Canvas body'
+);
+ok(isPermanentScoreRejection(res(422, 'Unprocessable Entity', $unpublished_now)),
+	'unpublished assignment, current Canvas body');
+ok(isPermanentScoreRejection(res(422, 'Unknown',   $unpublished_old)),  'unpublished assignment, older Canvas body');
+ok(isPermanentScoreRejection(res(403, 'Forbidden', $d2l_not_enrolled)), 'Brightspace: student not enrolled');
+ok(
+	!isPermanentScoreRejection(res(500, 'Internal Server Error', $unpublished_now)),
+	'the message alone is not enough: an unpublished body with a 500 is not permanent'
+);
+ok(!isPermanentScoreRejection(res(403, 'Forbidden', '{"errors":{"type":"forbidden","message":"Invalid key"}}')),
+	'other 403s may be worth a retry');
+ok(!isPermanentScoreRejection(res(422, 'Unknown', $concluded)), 'a concluded course is handled elsewhere, not here');
+ok(!isPermanentScoreRejection(undef),                           'undef response is not a permanent rejection');
 
 done_testing();
