@@ -21,6 +21,7 @@ use Exporter 'import';
 our @EXPORT_OK = qw(
 	isConcludedCourse isCourseOutOfDates isMissingResourceLink
 	isStudentViewUser isUnpublishedAssignment isExpiredAccessToken
+	isPermanentScoreRejection
 );
 
 sub _is {
@@ -55,11 +56,34 @@ sub isStudentViewUser {
 		'{"errors":{"type":"unprocessable_entity","message":"User not found in course or is not a student"}}');
 }
 
-# 422 for a score pushed to an unpublished Canvas assignment.
+# 422 for a score pushed to an unpublished Canvas assignment, in the older body
+# only. Canvas now sends a different body, which this does not match, so those
+# responses are reported as errors (see isPermanentScoreRejection).
 sub isUnpublishedAssignment {
 	return _is(shift, 422,
 		'{"errors":[{"field":"grade","message":"cannot be changed at this time: This assignment is still unpublished","error_code":null}]}'
 	);
+}
+
+# A score POST the LMS rejected for a reason that only someone in the LMS can
+# clear: publish the assignment, or enrol the student. Retrying cannot help, and
+# for a whole-class push a retry re-runs hours of work only to be rejected again.
+# The rejection is still an error (it belongs in the error table and the
+# LMS-rejection metrics); this only says a retry is pointless.
+#
+# Matched on code plus message text, not the whole body: Canvas has sent the
+# unpublished error in two JSON shapes, and on 2026-11-17 sent
+# {"errors":{"type":"unprocessable_entity","message":"This assignment is still unpublished"}}.
+sub isPermanentScoreRejection {
+	my ($res) = @_;
+	return 0 unless defined $res;
+	my $code    = $res->code    // 0;
+	my $content = $res->content // '';
+	# Canvas: the assignment is unpublished.
+	return 1 if $code == 422 && index($content, 'This assignment is still unpublished') >= 0;
+	# Brightspace (D2L): the student is not enrolled in the org unit.
+	return 1 if $code == 403 && index($content, 'User in requested score is not enrolled in the org unit') >= 0;
+	return 0;
 }
 
 # 401 when a cached access token expired during a long sync.
