@@ -864,7 +864,6 @@ sub grade_set {
 	my $total_right = 0;
 	my $total       = 0;
 	my $status      = 0;
-	my $timestamp   = 0;                #formatDateTime(time(), $ce->{siteDefaults}{timezone}, "%Y-%m-%dT%H:%M:%S%z");
 
 	my @problemRecords;
 	if ($setIsVersioned) {
@@ -874,19 +873,14 @@ sub grade_set {
 		@problemRecords = $db->getAllMergedUserProblems($studentName, $set_id);
 	}
 
+	my $timestamp = $self->_latestAnswerTime(
+		$studentName,
+		($setIsVersioned ? $set_id . ",v" . $set->version_id() : $set_id),
+		map { $_->problem_id } grep {defined} @problemRecords
+	);
+
 	foreach my $problemRecord (@problemRecords) {
 		next unless (defined($problemRecord));
-		my $last_answer_id = $db->latestProblemPastAnswer(
-			$problemRecord->user_id,
-			($setIsVersioned ? $set_id . ",v" . $set->version_id() : $set_id),
-			$problemRecord->problem_id
-		);
-		if ($last_answer_id) {
-			my $last_answer = $db->getPastAnswer($last_answer_id);
-			if ($last_answer->timestamp > $timestamp) {
-				$timestamp = $last_answer->timestamp;
-			}
-		}
 
 		$status = $problemRecord->status || 0;
 		# sanity check that the status (grade) is between 0 and 1
@@ -902,6 +896,34 @@ sub grade_set {
 	}
 
 	return ($timestamp, $status, $total_right, $total);
+}
+
+# The time of the latest answer in a set, sent to the LMS as submittedAt: for each of the set's problems its
+# latest past answer (the highest answer_id, as latestProblemPastAnswer picks it), then the newest of those
+# times. 0 if there is none.
+#
+# This reads the set's past answers in one query. It used to take two per problem (latestProblemPastAnswer,
+# then getPastAnswer), and a class grade push grades every set of every student: in UBC's largest course those
+# round trips were most of a push that took over 3 hours (2026-11-17). The query uses the past_answer index on
+# (user_id, set_id, problem_id), as latestProblemPastAnswer's does.
+sub _latestAnswerTime {
+	my ($self, $studentName, $answerSetID, @problemIDs) = @_;
+
+	my %latest;    # problem_id => [ answer_id, timestamp ] of its latest answer
+	my @rows = $self->{db}{past_answer}->get_fields_where([ 'problem_id', 'answer_id', 'timestamp' ],
+		[ user_id_eq_set_id_eq => $studentName, $answerSetID ]);
+	for my $row (@rows) {
+		my ($problemID, $answerID, $answerTime) = @$row;
+		$latest{$problemID} = [ $answerID, $answerTime ]
+			if !$latest{$problemID} || $answerID > $latest{$problemID}[0];
+	}
+
+	my $newest = 0;
+	for my $problemID (@problemIDs) {
+		my $answerTime = $latest{$problemID} ? $latest{$problemID}[1] : undef;
+		$newest = $answerTime if defined $answerTime && $answerTime > $newest;
+	}
+	return $newest;
 }
 
 # Disable auto sync for concluded courses. Note that this error message requires
